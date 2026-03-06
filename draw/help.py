@@ -1,7 +1,8 @@
 import math
 import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from .styles import COLOR_TITLE, COLOR_CMD, COLOR_LINE, COLOR_SHADOW, load_font
+from .text_utils import normalize_display_text, draw_text_smart, load_font_with_cjk_fallback, get_text_size_cached
+from .styles import COLOR_TITLE, COLOR_CMD, COLOR_LINE, COLOR_SHADOW, FONT_PATH_BOLD, FONT_PATH_REGULAR
 
 
 def draw_help_image():
@@ -15,11 +16,11 @@ def draw_help_image():
     bg_bot = (255, 255, 255)  # 白
 
     # 2. 加载字体
-    title_font = load_font(32)
-    subtitle_font = load_font(28)
-    section_font = load_font(24)
-    cmd_font = load_font(18)
-    desc_font = load_font(16)
+    title_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 32)
+    subtitle_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 28)
+    section_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 24)
+    cmd_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 18)
+    desc_font = load_font_with_cjk_fallback(FONT_PATH_REGULAR, 16)
 
     # 3. 颜色定义
     title_color = COLOR_TITLE
@@ -73,13 +74,13 @@ def draw_help_image():
 
     # 8. 绘制章节和命令
     def draw_section(title, cmds, y_start, cols=3):
-        # 章节标题左对齐
+        # 章节标题左对齊
         title_x = 50
-        draw.text((title_x, y_start), title, fill=title_color, font=section_font, anchor="lm")
-        w, h = get_text_size(title, section_font)
+        draw_text_smart(draw, (title_x, y_start - 12), title, font=section_font, fill=title_color)
+        w, h = get_text_size_cached(title, section_font)
 
-        # 标题下划线
-        underline_y = y_start + h // 2 + 8
+        # 标题下劃線
+        underline_y = y_start + h // 2 + 2
         draw.line([(title_x, underline_y), (title_x + w, underline_y)],
                   fill=title_color, width=3)
 
@@ -99,14 +100,17 @@ def draw_help_image():
 
             draw_card(x0, y0, x1, y1)
 
-            # 文本居中显示
+            # 文本居中顯示
             cx = (x0 + x1) // 2
             # 命令文本
-            draw.text((cx, y0 + 18), cmd, fill=cmd_color, font=cmd_font, anchor="mt")
+            cmd_w, _ = get_text_size_cached(cmd, cmd_font)
+            draw_text_smart(draw, (cx - cmd_w // 2, y0 + 12), cmd, font=cmd_font, fill=cmd_color)
+            
             # 描述文本 - 支持多行
             desc_lines = desc.split('\n') if '\n' in desc else [desc]
             for i, line in enumerate(desc_lines):
-                draw.text((cx, y0 + 45 + i * 18), line, fill=(100, 100, 100), font=desc_font, anchor="mt")
+                line_w, _ = get_text_size_cached(line, desc_font)
+                draw_text_smart(draw, (cx - line_w // 2, y0 + 40 + i * 18), line, font=desc_font, fill=(100, 100, 100))
 
         rows = math.ceil(len(cmds) / cols)
         return y + rows * (card_h + pad) + 35
@@ -292,7 +296,9 @@ def draw_help_image():
         draw.text((logo_x + logo_size // 2, logo_y + logo_size // 2), "LOGO",
                   fill=(120, 120, 120), font=subtitle_font, anchor="mm")
 
-    draw.text((width // 2, title_y), "钓鱼游戏帮助", fill=title_color, font=title_font, anchor="mm")
+    title_text = "釣魚遊戲幫助"
+    title_w, _ = get_text_size_cached(title_text, title_font)
+    draw_text_smart(draw, (width // 2 - title_w // 2, title_y - 20), title_text, font=title_font, fill=title_color)
 
     # 重新基于真实 draw 定义尺寸函数
     def get_text_size(text, font):
@@ -301,19 +307,20 @@ def draw_help_image():
 
     # 10+. 按顺序绘制各个部分
     y0 = logo_y + logo_size + 30
-    y0 = draw_section("🎣 基础与核心玩法", basic, y0, cols=3)
-    y0 = draw_section("🎒 背包与资产管理", inventory, y0, cols=3)
-    y0 = draw_section("🛒 商店与市场", market, y0, cols=3)
-    y0 = draw_section("🎰 抽卡与概率玩法", gacha, y0, cols=3)
-    y0 = draw_section("🎲 骰宝游戏", sicbo, y0, cols=3)
+    y0 = draw_section("🎣 基礎與核心玩法", basic, y0, cols=3)
+    y0 = draw_section("🎒 背包與資產管理", inventory, y0, cols=3)
+    y0 = draw_section("🛒 商店與市場", market, y0, cols=3)
+    y0 = draw_section("🎰 抽卡與概率玩法", gacha, y0, cols=3)
+    y0 = draw_section("🎲 骰寶遊戲", sicbo, y0, cols=3)
     y0 = draw_section("👥 社交功能", social, y0, cols=2)
     y0 = draw_section("📈 大宗商品交易所", exchange, y0, cols=2)
-    y0 = draw_section("⚙️ 管理后台（管理员）", admin, y0, cols=2)
+    y0 = draw_section("⚙️ 管理後台（管理員）", admin, y0, cols=2)
 
     # 添加底部信息
     footer_y = y0 + 20
-    draw.text((width // 2, footer_y), "💡 提示：命令中的 [ID] 表示必填参数，<> 表示可选参数",
-              fill=(120, 120, 120), font=desc_font, anchor="mm")
+    footer_text = "💡 提示：命令中的 [ID] 表示必填參數，<> 表示可選參數"
+    footer_w, _ = get_text_size_cached(footer_text, desc_font)
+    draw_text_smart(draw, (width // 2 - footer_w // 2, footer_y), footer_text, font=desc_font, fill=(120, 120, 120))
 
     # 11. 保存（高度已自适应，无需再次裁剪）
     final_height = footer_y + 30

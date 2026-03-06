@@ -134,24 +134,14 @@ async def state(self: "FishingPlugin", event: AstrMessageEvent):
             tips.append("```\n/釣魚\n```")
         if coins < 200:
             tips.append("```\n/簽到\n```")
-            tips.append("```\n/全部賣出\n```")
-        if auto_fishing:
+        elif auto_fishing:
             tips.append("```\n/自動釣魚\n```")
-        tips.append("```\n/魚竿\n```")
-        tips.append("```\n/飾品\n```")
-        tips.append("```\n/精煉 R短碼\n```")
-        tips.append("```\n/市場\n```")
-        tips.append("```\n/交易所\n```")
-        tips.append("```\n/釣魚幫助 速查\n```")
-        yield event.plain_result("\n".join(tips[:7]))
+        else:
+            tips.append("```\n/交易所\n```")
+        yield event.plain_result("\n".join(tips[:4]))
     except Exception:
         yield event.plain_result(
-            "⌨️ 建議下一步\n"
-            "```\n/釣魚\n```\n"
-            "```\n/背包\n```\n"
-            "```\n/商店\n```\n"
-            "```\n/市場\n```\n"
-            "```\n/釣魚幫助 速查\n```"
+            "⌨️ 建議下一步\n```\n/釣魚\n```\n```\n/商店\n```\n```\n/市場\n```"
         )
 
 
@@ -204,16 +194,48 @@ async def fishing_log(self: "FishingPlugin", event: AstrMessageEvent):
                 if idx < len(records):
                     message += "────────────────────────────\n"
 
-            message += "════════════════════════════\n"
             message += "⌨️ 建議下一步\n"
             message += "```\n/釣魚\n```\n"
-            message += "```\n/背包\n```\n"
             message += "```\n/魚類圖鑑\n```"
+
+            # 列表命令優先圖片渲染（失敗回退文字）
+            try:
+                from ..draw.list_cards import draw_text_list_image
+
+                rows = []
+                for idx, record in enumerate(records, start=1):
+                    fish_name = record.get("fish_name", "未知魚種")
+                    fish_rarity = int(record.get("fish_rarity", 1) or 1)
+                    fish_weight = record.get("fish_weight", 0)
+                    fish_value = record.get("fish_value", 0)
+                    ts = safe_datetime_handler(record.get("timestamp"))
+                    rows.append(
+                        f"{idx}. {'★' * fish_rarity} {fish_name}  |  {fish_weight}g  |  {fish_value} 金幣  |  {ts}"
+                    )
+
+                image = draw_text_list_image(
+                    title="📜 釣魚記錄",
+                    rows=rows,
+                    subtitle=f"最近 {len(records)} 筆",
+                    footer="💡 /釣魚   /背包   /魚類圖鑑",
+                )
+                image_path = os.path.join(self.tmp_dir, "fishing_log_list.png")
+                image.save(image_path)
+                yield event.image_result(image_path)
+                yield event.plain_result(
+                    "⌨️ 建議下一步\n```\n/釣魚\n```\n```\n/魚類圖鑑\n```"
+                )
+                return
+            except Exception:
+                pass
             yield event.plain_result(message)
         else:
             yield event.plain_result(f"❌ 取得釣魚記錄失敗：{result['message']}")
     else:
         yield event.plain_result("❌ 系統忙碌中，請稍後再試。")
+
+
+from ..draw.help import draw_help_image
 
 
 async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
@@ -285,12 +307,45 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
         return commands
 
     def _fmt_cmd(c):
+        funny_descs = {
+            "注册": "領取釣魚執照，開啟肝帝之路",
+            "钓鱼": "甩出你的第一竿，看看是空軍還是歐皇",
+            "签到": "每日領取官方發放的救濟金",
+            "自动钓鱼": "懶人必備，解放雙手默默搬磚",
+            "状态": "看看你現在有多強（或有多窮）",
+            "背包": "翻翻你的私人小金庫",
+            "鱼塘": "巡視你的私人養魚池",
+            "水族箱": "把寶貝鎖進保險櫃，沒人偷得了",
+            "鱼竿": "工欲善其事，必先利其器",
+            "鱼饵": "捨不得孩子套不著狼，該買就買",
+            "饰品": "戴上它，感覺幸運女神在對你微笑",
+            "道具": "各種奇奇怪怪的輔助工具",
+            "使用": "裝備你的新傢伙，或者嗑藥",
+            "出售": "斷捨離，把不用的垃圾換成錢",
+            "商店": "官方黑店（劃掉），補給站",
+            "市场": "玩家擺攤的地方，撿漏聖地",
+            "交易所": "股市有風險，入市需謹慎",
+            "抽卡": "檢測血統的時刻到了",
+            "擦弹": "心跳遊戲，贏了別墅靠海",
+            "开庄": "坐莊開局，倒數收錢",
+            "排行榜": "看看誰才是這片海域的真男人",
+            "偷鱼": "讀書人的事，能算偷嗎？",
+            "电鱼": "正義執行（？），戒網癮神器",
+            "发红包": "全場由趙公子買單！",
+            "鱼类图鉴": "強迫症的終極追求",
+        }
+        desc = funny_descs.get(c["command"], "")
         aliases = c.get("aliases", [])
         if aliases:
-            show = "、".join(f"/{a}" for a in aliases[:4])
-            extra = " …" if len(aliases) > 4 else ""
-            return f"- /{c['command']}（別名：{show}{extra}）"
-        return f"- /{c['command']}"
+            show = "、".join(f"/{a}" for a in aliases[:2])
+            extra = " …" if len(aliases) > 2 else ""
+            alias_str = f"（別名：{show}{extra}）"
+            return (
+                f"- /{c['command']}{alias_str}：{desc}"
+                if desc
+                else f"- /{c['command']}{alias_str}"
+            )
+        return f"- /{c['command']}：{desc}" if desc else f"- /{c['command']}"
 
     commands = _extract_command_table()
 
@@ -586,7 +641,7 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             f"- 魚獲重量：{min_weight}g ~ {max_weight}g（吃太飽了？）\n"
             f"- 市場行情：{min_value} ~ {max_value} 金幣（看臉）\n"
             f"- 開放區域：{active_zone_count}/{zone_count}；全區稀有餘額 {rare_quota_total}\n"
-            f"- 釣魚成本：{fish_cost} 金幣/次；冷卻時間：{fish_cd} 秒\n"
+            f"- 釣魚成本：{fish_cost} 金幣/次；(大多區域例外)冷卻時間：{fish_cd} 秒\n"
             f"- 極品爆率上限：{_fmt_pct(quality_cap)}（玄不救非，氪能改命）\n\n"
             "【90秒光速入門】\n"
             "- /註冊 → /簽到 → /釣魚（重複N次）→ /全部賣出\n"
@@ -783,9 +838,16 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
 
     args = event.message_str.strip().split(maxsplit=1)
     if len(args) == 1:
-        for chunk in _chunk_text(pages["index"]):
-            yield event.plain_result(chunk)
-        return
+        # 預設返回精美圖片幫助
+        try:
+            img = draw_help_image()
+            yield event.make_result().file_image(img)
+            return
+        except Exception as e:
+            # 如果圖片生成失敗，回退到文字版首頁
+            for chunk in _chunk_text(pages["index"]):
+                yield event.plain_result(chunk)
+            return
 
     selector = args[1].strip()
     key = selector_map.get(selector)

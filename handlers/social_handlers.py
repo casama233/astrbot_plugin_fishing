@@ -199,6 +199,29 @@ async def view_titles(plugin: "FishingPlugin", event: AstrMessageEvent):
     user_id = plugin._get_effective_user_id(event)
     titles = plugin.user_service.get_user_titles(user_id).get("titles", [])
     if titles:
+        try:
+            from ..draw.list_cards import draw_text_list_image
+
+            rows = []
+            for title in titles:
+                status = "(當前)" if title["is_current"] else ""
+                rows.append(
+                    f"{title['name']}  ID:{title['title_id']} {status}  |  {title['description']}"
+                )
+            image = draw_text_list_image(
+                title="🏅 我的稱號",
+                rows=rows,
+                subtitle=f"共 {len(titles)} 個",
+                footer="💡 /使用稱號 [ID]",
+            )
+            image_path = os.path.join(plugin.tmp_dir, "title_list.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            yield event.plain_result("⌨️ 建議下一步\n```\n/使用稱號 [ID]\n```")
+            return
+        except Exception:
+            pass
+
         message = "【🏅 您的称号】\n"
         for title in titles:
             status = " (当前装备)" if title["is_current"] else ""
@@ -230,39 +253,131 @@ async def use_title(plugin: "FishingPlugin", event: AstrMessageEvent):
 
 
 async def view_achievements(plugin: "FishingPlugin", event: AstrMessageEvent):
-    """查看用户成就"""
+    """查看用戶成就"""
     from ..utils import safe_datetime_handler
 
     user_id = plugin._get_effective_user_id(event)
-    achievements = plugin.achievement_service.get_user_achievements(user_id).get(
-        "achievements", []
-    )
+    ach_result = plugin.achievement_service.get_user_achievements(user_id)
+    achievements = ach_result.get("achievements", [])
+
     if achievements:
-        message = "【🏆 您的成就】\n"
+        message = "【🏆 我的成就牆】\n"
+        message += "════════════════════════════\n"
+
+        def format_reward(reward):
+            if not reward or not isinstance(reward, (tuple, list)) or len(reward) < 2:
+                return "無"
+            rtype, rval = reward[0], reward[1]
+            rqty = reward[2] if len(reward) > 2 else 1
+
+            names = {
+                "coins": "金幣",
+                "premium_currency": "高級貨幣",
+                "title": "稱號",
+                "bait": "魚餌",
+                "rod": "魚竿",
+                "accessory": "飾品",
+                "item": "道具",
+            }
+            typename = names.get(rtype, rtype)
+
+            if rtype == "title":
+                title_template = plugin.item_template_repo.get_title_by_id(rval)
+                val_name = title_template.name if title_template else f"ID:{rval}"
+                return f"限定稱號「{val_name}」"
+            elif rtype == "coins":
+                return f"{rval * rqty} 金幣"
+            elif rtype in ["bait", "rod", "accessory", "item"]:
+                # 嘗試獲取名稱
+                template = None
+                if rtype == "bait":
+                    template = plugin.item_template_repo.get_bait_by_id(rval)
+                elif rtype == "rod":
+                    template = plugin.item_template_repo.get_rod_by_id(rval)
+                elif rtype == "accessory":
+                    template = plugin.item_template_repo.get_accessory_by_id(rval)
+                elif rtype == "item":
+                    template = plugin.item_template_repo.get_by_id(rval)
+
+                val_name = template.name if template else f"ID:{rval}"
+                return f"{val_name} x{rqty}"
+
+            return f"{typename} x{rqty}"
+
+        # 按完成狀態排序：未完成的在前
+        achievements.sort(key=lambda x: 1 if x.get("completed_at") else 0)
+
         for ach in achievements:
-            message += f"- {ach['name']} (ID: {ach['id']})\n"
-            message += f"  描述: {ach['description']}\n"
-            if ach.get("completed_at"):
-                message += f"  完成时间: {safe_datetime_handler(ach['completed_at'])}\n"
-            else:
-                message += "  进度: {}/{}\n".format(
-                    ach.get("progress", 0), ach.get("target", 1)
-                )
-        message += "请继续努力完成更多成就！"
-        message += "\n\n💡 成就是什么？\n"
-        message += "- 成就是你在钓鱼世界的里程碑任务（如收集、收益、玩法挑战）。\n"
-        message += "- 完成后通常会解锁奖励（金币/鱼饵/装备/称号等）。\n"
-        message += "- 部分称号来自成就奖励，可用 /使用称号 [ID] 装备展示。"
+            comp_at = ach.get("completed_at")
+            status_icon = "✅" if comp_at else "⏳"
+            status_text = (
+                f"已獲得 ({safe_datetime_handler(comp_at)})"
+                if comp_at
+                else f"進行中 ({ach['progress']}/{ach['target']})"
+            )
+
+            message += f"{status_icon} *{ach['name']}* (ID: {ach['id']})\n"
+            message += f"   狀態：{status_text}\n"
+            message += f"   描述：{ach['description']}\n"
+            message += f"   獎勵：{format_reward(ach.get('reward'))}\n"
+            message += "────────────────────────────\n"
+
+        message += "💡 成就是你在釣魚世界的里程碑，完成後可解鎖各類限定獎勵！"
         message += "\n\n⌨️ 建議下一步\n"
         message += "```\n/查看稱號\n```\n"
-        message += "```\n/使用稱號 [ID]\n```\n"
-        message += "```\n/釣魚幫助 速查\n```"
+        message += "```\n/使用稱號 [ID]\n```"
+
+        # 訊息過長處理
+        if len(message) > 4000:
+            # 如果太長，只顯示已完成的統計和未完成的前幾個
+            completed_count = sum(1 for a in achievements if a.get("completed_at"))
+            message = (
+                f"【🏆 我的成就牆】(已完成 {completed_count}/{len(achievements)})\n"
+            )
+            message += "════════════════════════════\n"
+            # 優先顯示最近進展
+            for ach in [a for a in achievements if not a.get("completed_at")][:10]:
+                message += f"⏳ *{ach['name']}* ({ach['progress']}/{ach['target']})\n"
+                message += f"   獎勵：{format_reward(ach.get('reward'))}\n"
+            message += "...\n(成就過多，僅顯示部分進行中項目)\n"
+            message += "────────────────────────────\n"
+            message += "⌨️ 建議下一步\n```\n/查看稱號\n```"
+
+        try:
+            from ..draw.list_cards import draw_text_list_image
+
+            rows = []
+            for ach in achievements:
+                comp_at = ach.get("completed_at")
+                if comp_at:
+                    rows.append(
+                        f"✅ {ach['name']}  |  {safe_datetime_handler(comp_at)}  |  獎勵: {format_reward(ach.get('reward'))}"
+                    )
+                else:
+                    rows.append(
+                        f"⏳ {ach['name']}  |  進度 {ach['progress']}/{ach['target']}  |  獎勵: {format_reward(ach.get('reward'))}"
+                    )
+            image = draw_text_list_image(
+                title="🏆 我的成就牆",
+                rows=rows,
+                subtitle=f"已完成 {sum(1 for a in achievements if a.get('completed_at'))}/{len(achievements)}",
+                footer="💡 /查看稱號   /使用稱號 [ID]",
+            )
+            image_path = os.path.join(plugin.tmp_dir, "achievement_list.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            yield event.plain_result(
+                "⌨️ 建議下一步\n```\n/查看稱號\n```\n```\n/使用稱號 [ID]\n```"
+            )
+            return
+        except Exception:
+            pass
+
         yield event.plain_result(message)
     else:
         yield event.plain_result(
-            "❌ 您还没有任何成就。\n"
-            "💡 成就是长期目标，完成后可领取奖励，部分还会给称号。\n"
-            "建议从这些开始：/签到、/钓鱼、/出售、/交易所 开户"
+            "❌ 您目前沒有任何成就記錄。\n"
+            "💡 建議從這些開始：/簽到、/釣魚、/全部賣出、/商店"
         )
 
 
@@ -282,6 +397,26 @@ async def tax_record(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += f"⏱️ 时间: {safe_datetime_handler(record['timestamp'])}\n"
             message += f"💰 金额: {record['amount']} 金币\n"
             message += f"📊 描述: {record['tax_type']}\n\n"
+        try:
+            from ..draw.list_cards import draw_text_list_image
+
+            rows = [
+                f"{safe_datetime_handler(r['timestamp'])}  |  {r['tax_type']}  |  {r['amount']} 金幣"
+                for r in records
+            ]
+            image = draw_text_list_image(
+                title="📜 稅收記錄",
+                rows=rows,
+                subtitle=f"共 {len(records)} 筆",
+                footer="💡 稅費會隨交易與玩法而變動",
+            )
+            image_path = os.path.join(plugin.tmp_dir, "tax_record_list.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            return
+        except Exception:
+            pass
+
         yield event.plain_result(message)
     else:
         yield event.plain_result(

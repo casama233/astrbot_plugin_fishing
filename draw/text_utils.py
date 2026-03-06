@@ -213,6 +213,13 @@ def _find_cjk_font() -> Optional[str]:
     return None
 
 
+def get_primary_font_path() -> str:
+    preferred = "/opt/1panel/apps/astrbot/astrbot/data/plugins/astrbot_plugin_fishing/tests/FashionBitmap16_0.091.ttf"
+    if os.path.exists(preferred):
+        return preferred
+    return os.path.join(os.path.dirname(__file__), "resource", "DouyinSansBold.otf")
+
+
 class FontWithFallback:
     """
     带自动回退的字体包装类
@@ -316,8 +323,9 @@ def load_font_with_cjk_fallback(font_path: str, size: int) -> FontWithFallback:
         FontWithFallback: 带回退的字体对象
     """
     # 加载主字体
+    primary_path = get_primary_font_path()
     try:
-        primary_font = ImageFont.truetype(font_path, size)
+        primary_font = ImageFont.truetype(primary_path, size)
     except Exception:
         primary_font = ImageFont.load_default()
     
@@ -401,28 +409,19 @@ def draw_text_smart(
             # 所以：char_y = y + (reference_center_y - char_center_y)
             char_y = y + (reference_center_y - char_center_y)
             
-            # 测量字符宽度
-            # 为了保持字符间距一致，统一使用主字体来测量宽度
+            # 测量字符宽度：直接使用渲染该字符的字体测量
             try:
-                # 使用主字体测量宽度（保持一致的间距）
-                if hasattr(font.primary_font, 'getlength'):
-                    char_width = int(font.primary_font.getlength(char))
+                if hasattr(char_font, 'getlength'):
+                    char_width = int(char_font.getlength(char))
                 else:
-                    bbox = temp_draw.textbbox((0, 0), char, font=font.primary_font)
+                    bbox = temp_draw.textbbox((0, 0), char, font=char_font)
                     char_width = bbox[2] - bbox[0]
-                    
-                    # 如果主字体无法测量（宽度为0），使用实际字符字体测量
-                    if char_width <= 0:
-                        if hasattr(char_font, 'getlength'):
-                            char_width = int(char_font.getlength(char))
-                        else:
-                            bbox = temp_draw.textbbox((0, 0), char, font=char_font)
-                            char_width = bbox[2] - bbox[0]
-                            if char_width <= 0:
-                                char_width = font.primary_font.size
+                
+                # 如果测量宽度依然为0，使用字体大小估算（保底）
+                if char_width <= 0:
+                    char_width = font.primary_font.size // 2 if ord(char) < 128 else font.primary_font.size
             except Exception:
-                # 如果测量失败，使用字体大小估算
-                char_width = font.primary_font.size
+                char_width = font.primary_font.size // 2 if ord(char) < 128 else font.primary_font.size
             
             # 绘制字符（使用调整后的y坐标，确保基线对齐）
             draw.text((current_x, char_y), char, font=char_font, fill=fill)

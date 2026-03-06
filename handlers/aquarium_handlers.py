@@ -53,20 +53,20 @@ async def aquarium(self: "FishingPlugin", event: AstrMessageEvent):
 
     for rarity in sorted(fishes_by_rarity.keys(), reverse=True):
         if fish_list := fishes_by_rarity[rarity]:
-            message += f"\n {_format_aquarium_rarity(rarity)}：\n"
+            message += f"\n{_format_aquarium_rarity(rarity)}：\n"
             for fish in fish_list:
                 fish_id = int(fish.get("fish_id", 0) or 0)
                 quality_level = fish.get("quality_level", 0)
-                # 生成带品质标识的FID
+                # 生成带品質標識的FID
                 if quality_level == 1:
-                    fcode = f"F{fish_id}H" if fish_id else "F0H"  # H代表✨高品质
+                    fcode = f"F{fish_id}H" if fish_id else "F0H"  # H代表✨高品質
                 else:
-                    fcode = f"F{fish_id}" if fish_id else "F0"  # 普通品质
-                # 显示品质信息
+                    fcode = f"F{fish_id}" if fish_id else "F0"  # 普通品質
+                # 顯示品質資訊
                 quality_display = ""
                 if quality_level == 1:
-                    quality_display = " ✨高品质"
-                message += f"  - {fish['name']}{quality_display} x {fish['quantity']} （{fish['actual_value']}金币 / 个） ID: {fcode}\n"
+                    quality_display = " ✨高品質"
+                message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({fish['actual_value']}金幣/個) ID: {fcode}\n"
 
     message += f"\n🐟 总鱼数：{stats['total_count']} / {stats['capacity']} 条\n"
     message += f"💰 总价值：{stats['total_value']} 金币\n"
@@ -78,11 +78,12 @@ async def aquarium(self: "FishingPlugin", event: AstrMessageEvent):
 async def add_to_aquarium(self: "FishingPlugin", event: AstrMessageEvent):
     """将鱼从鱼塘添加到水族箱"""
     user_id = self._get_effective_user_id(event)
-    args = event.message_str.split(" ")
+    # 更加魯棒的參數解析：過濾掉空字符串
+    args = [a for a in event.message_str.strip().split(" ") if a]
 
     if len(args) < 2:
         yield event.plain_result(
-            "❌ 用法：/放入水族箱 <鱼ID> [数量]\n💡 使用「水族箱」命令查看水族箱中的鱼"
+            "❌ 用法：/放入水族箱 <魚ID> [數量]\n💡 使用「水族箱」命令查看水族箱中的魚"
         )
         return
 
@@ -126,11 +127,12 @@ async def add_to_aquarium(self: "FishingPlugin", event: AstrMessageEvent):
 async def remove_from_aquarium(self: "FishingPlugin", event: AstrMessageEvent):
     """将鱼从水族箱移回鱼塘"""
     user_id = self._get_effective_user_id(event)
-    args = event.message_str.split(" ")
+    # 更加魯棒的參數解析：過濾掉空字符串
+    args = [a for a in event.message_str.strip().split(" ") if a]
 
     if len(args) < 2:
         yield event.plain_result(
-            "❌ 用法：/移出水族箱 <鱼ID> [数量]\n💡 使用「水族箱」命令查看水族箱中的鱼"
+            "❌ 用法：/移出水族箱 <魚ID> [數量]\n💡 使用「水族箱」命令查看水族箱中的魚"
         )
         return
 

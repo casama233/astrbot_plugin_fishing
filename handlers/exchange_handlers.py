@@ -343,17 +343,30 @@ class ExchangeHandlers:
             yield event.plain_result("暂无历史数据。")
             return
 
-        # 构造输出
-        msg = "【📈 价格历史】\n"
-        msg += f"区间: 近{days}天\n"
-        msg += "═" * 30 + "\n"
-
         # 反查 id->name
         id_to_name = {
             cid: info["name"]
             for cid, info in market_status.get("commodities", {}).items()
         }
+        # 优先图片渲染
+        try:
+            from ..draw.exchange import draw_exchange_history_image
 
+            image = draw_exchange_history_image(labels, history, id_to_name, days)
+            image_path = os.path.join(self.plugin.tmp_dir, "exchange_history.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            yield event.plain_result(
+                "⌨️ 建議下一步\n```\n/交易所 分析\n```"
+            )
+            return
+        except Exception:
+            pass
+
+        # 文字回退
+        msg = "【📈 價格歷史】\n"
+        msg += f"區間：近 {days} 天\n"
+        msg += "═" * 30 + "\n"
         for cid, series in history.items():
             name = id_to_name.get(cid, cid)
             if not series:
@@ -364,33 +377,7 @@ class ExchangeHandlers:
             change = end - start
             pct = (change / start * 100) if start > 0 else 0
             msg += f"{name}: {spark}\n"
-            msg += f"  起始 {start:,} → 当前 {end:,} 变化 {change:+,} ({pct:+.1f}%)\n"
-
-        # 附上少量时间刻度（最多显示首末和中间几个）
-        if labels:
-            picked: List[str] = []
-            if len(labels) <= 5:
-                picked = labels
-            else:
-                idxs = [
-                    0,
-                    len(labels) // 4,
-                    len(labels) // 2,
-                    3 * len(labels) // 4,
-                    len(labels) - 1,
-                ]
-                seen = set()
-                for i in idxs:
-                    if 0 <= i < len(labels) and i not in seen:
-                        picked.append(labels[i])
-                        seen.add(i)
-            if picked:
-                msg += "─" * 30 + "\n"
-                msg += "时间刻度: " + " | ".join(picked) + "\n"
-
-        msg += "═" * 30 + "\n"
-        msg += "💡 用法：交易所 历史 [商品] [天数]；最多30天。"
-
+            msg += f"  起始 {start:,} → 當前 {end:,} 變化 {change:+,} ({pct:+.1f}%)\n"
         yield event.plain_result(msg)
 
     async def _view_market_analysis(self, event: AstrMessageEvent):
@@ -512,10 +499,7 @@ class ExchangeHandlers:
                 return "波动较大，建议降低仓位控制风险"
             return "以观望为主，等待更明确信号"
 
-        msg = "【📊 市场分析】\n"
-        msg += f"窗口: 近{days}天\n"
-        msg += "═" * 30 + "\n"
-
+        rows = []
         for cid, series in history.items():
             if not series:
                 continue
@@ -528,17 +512,45 @@ class ExchangeHandlers:
             rsi = simple_rsi(series)
             tr = trend(series)
             sug = suggestion(tr, rsi, vol)
+            rows.append(
+                {
+                    "name": name,
+                    "last": last,
+                    "ma3": ma3,
+                    "ma5": ma5,
+                    "ma7": ma7,
+                    "vol": vol,
+                    "rsi": rsi,
+                    "trend": tr,
+                    "suggestion": sug,
+                    "series": series,
+                }
+            )
 
-            msg += f"{name}\n"
-            msg += f"  当前价: {last:,}\n"
-            msg += f"  均线: MA3={ma3:.0f}  MA5={ma5:.0f}  MA7={ma7:.0f}\n"
-            msg += f"  波动率: {vol:.1f}%  RSI: {rsi:.0f}\n"
-            msg += f"  趋势: {tr}  建议: {sug}\n"
+        try:
+            from ..draw.exchange import draw_exchange_analysis_image
+
+            image = draw_exchange_analysis_image(rows, days)
+            image_path = os.path.join(self.plugin.tmp_dir, "exchange_analysis.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            yield event.plain_result(
+                "⌨️ 建議下一步\n```\n/交易所 買入 商品 數量\n```\n```\n/交易所 歷史\n```"
+            )
+            return
+        except Exception:
+            pass
+
+        msg = "【📊 市場分析】\n"
+        msg += f"窗口: 近{days}天\n"
+        msg += "═" * 30 + "\n"
+        for row in rows:
+            msg += f"{row['name']}\n"
+            msg += f"  當前價: {int(row['last']):,}\n"
+            msg += f"  均線: MA3={row['ma3']:.0f}  MA5={row['ma5']:.0f}  MA7={row['ma7']:.0f}\n"
+            msg += f"  波動率: {row['vol']:.1f}%  RSI: {row['rsi']:.0f}\n"
+            msg += f"  趨勢: {row['trend']}  建議: {row['suggestion']}\n"
             msg += "─" * 20 + "\n"
-
-        msg += "💡 提示：指标仅供参考，注意风险控制。\n"
-        msg += "用法: 交易所 分析 [商品] [天数]"
-
         yield event.plain_result(msg)
 
     async def exchange_main(self, event: AstrMessageEvent):
@@ -561,7 +573,57 @@ class ExchangeHandlers:
                 async for r in self.sell_commodity(event):
                     yield r
             elif command == "help":
-                yield event.plain_result(self._get_exchange_help())
+                try:
+                    from ..draw.exchange import draw_exchange_help_image
+
+                    sections = [
+                        (
+                            "📊 市場資訊",
+                            [
+                                "/交易所",
+                                "/交易所 歷史 [商品] [天數]",
+                                "/交易所 分析 [商品] [天數]",
+                                "/交易所 統計",
+                            ],
+                        ),
+                        (
+                            "💼 交易操作",
+                            [
+                                "/交易所 開戶",
+                                "/交易所 買入 [商品] [數量]",
+                                "/交易所 賣出 [商品] [數量]",
+                                "/交易所 賣出 [庫存ID] [數量]",
+                            ],
+                        ),
+                        (
+                            "📦 庫存管理",
+                            [
+                                "/持倉",
+                                "/清倉",
+                                "/清倉 [商品]",
+                                "/交易所 持倉",
+                                "/交易所 清倉",
+                            ],
+                        ),
+                    ]
+                    schedule_display = self._get_formatted_update_schedule()
+                    exchange_cfg = (
+                        getattr(self.exchange_service.inventory_service, "config", {})
+                        or {}
+                    )
+                    tax_rate = float(exchange_cfg.get("tax_rate", 0.05) or 0.05)
+                    capacity = int(exchange_cfg.get("capacity", 1000) or 1000)
+                    image = draw_exchange_help_image(
+                        sections,
+                        schedule_display,
+                        f"{tax_rate * 100:.1f}%",
+                        str(capacity),
+                    )
+                    image_path = os.path.join(self.plugin.tmp_dir, "exchange_help.png")
+                    image.save(image_path)
+                    yield event.image_result(image_path)
+                except Exception:
+                    yield event.plain_result(self._get_exchange_help())
             elif command == "history":
                 async for r in self._view_price_history(event):
                     yield r
@@ -569,7 +631,49 @@ class ExchangeHandlers:
                 async for r in self._view_market_analysis(event):
                     yield r
             elif command == "stats":
-                yield event.plain_result(self._get_trading_stats_help())
+                try:
+                    from ..draw.exchange import draw_exchange_help_image
+
+                    sections = [
+                        (
+                            "📈 交易統計說明",
+                            [
+                                "總交易次數",
+                                "總交易金額",
+                                "盈虧統計",
+                                "持倉價值 / 成本 / 浮動盈虧",
+                            ],
+                        ),
+                        (
+                            "🧭 風險控制",
+                            [
+                                "控制單次倉位",
+                                "設定止損",
+                                "分散持倉",
+                                "定期檢視資產配置",
+                            ],
+                        ),
+                    ]
+                    schedule_display = self._get_formatted_update_schedule()
+                    exchange_cfg = (
+                        getattr(self.exchange_service.inventory_service, "config", {})
+                        or {}
+                    )
+                    tax_rate = float(exchange_cfg.get("tax_rate", 0.05) or 0.05)
+                    capacity = int(exchange_cfg.get("capacity", 1000) or 1000)
+                    image = draw_exchange_help_image(
+                        sections,
+                        schedule_display,
+                        f"{tax_rate * 100:.1f}%",
+                        str(capacity),
+                    )
+                    image_path = os.path.join(
+                        self.plugin.tmp_dir, "exchange_stats_help.png"
+                    )
+                    image.save(image_path)
+                    yield event.image_result(image_path)
+                except Exception:
+                    yield event.plain_result(self._get_trading_stats_help())
             elif command == "status":
                 async for r in self.exchange_status(event):
                     yield r
@@ -796,7 +900,7 @@ class ExchangeHandlers:
                 image.save(image_path)
                 yield event.image_result(image_path)
                 yield event.plain_result(
-                    "⌨️ 建議下一步\n```\n/交易所 幫助\n```\n```\n/持倉\n```"
+                    "⌨️ 建議下一步\n```\n/交易所 分析\n```\n```\n/持倉\n```"
                 )
                 return
             except Exception:
@@ -813,6 +917,19 @@ class ExchangeHandlers:
         """开通交易所账户"""
         user_id = self._get_effective_user_id(event)
         result = self.exchange_service.open_exchange_account(user_id)
+        try:
+            from ..draw.exchange import draw_exchange_result_image
+
+            ok = bool(result.get("success"))
+            title = "交易所開戶成功" if ok else "交易所開戶失敗"
+            lines = [str(result.get("message", ""))]
+            image = draw_exchange_result_image(title, lines, success=ok)
+            image_path = os.path.join(self.plugin.tmp_dir, "exchange_open_result.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            return
+        except Exception:
+            pass
         yield event.plain_result(
             f"✅ {result['message']}"
             if result["success"]
@@ -955,7 +1072,7 @@ class ExchangeHandlers:
                 image.save(image_path)
                 yield event.image_result(image_path)
                 yield event.plain_result(
-                    "⌨️ 建議下一步\n```\n/交易所 賣出 商品名 數量\n```\n```\n/清倉\n```"
+                    "⌨️ 建議下一步\n```\n/交易所 賣出 商品 數量\n```\n```\n/交易所 歷史\n```"
                 )
                 return
             except Exception:
@@ -1017,6 +1134,24 @@ class ExchangeHandlers:
         result = self.exchange_service.purchase_commodity(
             user_id, commodity_id, quantity, current_price
         )
+        try:
+            from ..draw.exchange import draw_exchange_result_image
+
+            ok = bool(result.get("success"))
+            title = "買入完成" if ok else "買入失敗"
+            lines = [
+                f"商品: {commodity_name}",
+                f"數量: {quantity}",
+                f"成交價: {current_price:,} 金幣",
+                str(result.get("message", "")),
+            ]
+            image = draw_exchange_result_image(title, lines, success=ok)
+            image_path = os.path.join(self.plugin.tmp_dir, "exchange_buy_result.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            return
+        except Exception:
+            pass
         yield event.plain_result(
             f"✅ {result['message']}"
             if result["success"]
@@ -1070,6 +1205,26 @@ class ExchangeHandlers:
                 result = self.exchange_service.sell_commodity(
                     user_id, commodity_id, total_quantity, current_price
                 )
+                try:
+                    from ..draw.exchange import draw_exchange_result_image
+
+                    ok = bool(result.get("success"))
+                    title = "賣出完成" if ok else "賣出失敗"
+                    lines = [
+                        f"商品: {commodity_name}",
+                        f"數量: {total_quantity}",
+                        f"成交價: {current_price:,} 金幣",
+                        str(result.get("message", "")),
+                    ]
+                    image = draw_exchange_result_image(title, lines, success=ok)
+                    image_path = os.path.join(
+                        self.plugin.tmp_dir, "exchange_sell_result.png"
+                    )
+                    image.save(image_path)
+                    yield event.image_result(image_path)
+                    return
+                except Exception:
+                    pass
                 yield event.plain_result(
                     f"✅ {result['message']}"
                     if result["success"]
@@ -1113,6 +1268,26 @@ class ExchangeHandlers:
                 result = self.exchange_service.sell_commodity_by_instance(
                     user_id, instance_id, quantity, current_price
                 )
+                try:
+                    from ..draw.exchange import draw_exchange_result_image
+
+                    ok = bool(result.get("success"))
+                    title = "賣出完成" if ok else "賣出失敗"
+                    lines = [
+                        f"庫存ID: {inventory_id_str}",
+                        f"數量: {quantity}",
+                        f"成交價: {current_price:,} 金幣",
+                        str(result.get("message", "")),
+                    ]
+                    image = draw_exchange_result_image(title, lines, success=ok)
+                    image_path = os.path.join(
+                        self.plugin.tmp_dir, "exchange_sell_result.png"
+                    )
+                    image.save(image_path)
+                    yield event.image_result(image_path)
+                    return
+                except Exception:
+                    pass
                 yield event.plain_result(
                     f"✅ {result['message']}"
                     if result["success"]
@@ -1137,6 +1312,21 @@ class ExchangeHandlers:
             len(args) == 1 and args[0].lower() in ["all", "所有", "全部"]
         ):
             result = self.exchange_service.clear_all_inventory(user_id)
+            try:
+                from ..draw.exchange import draw_exchange_result_image
+
+                ok = bool(result.get("success"))
+                image = draw_exchange_result_image(
+                    "一鍵清倉", [str(result.get("message", ""))], success=ok
+                )
+                image_path = os.path.join(
+                    self.plugin.tmp_dir, "exchange_clear_result.png"
+                )
+                image.save(image_path)
+                yield event.image_result(image_path)
+                return
+            except Exception:
+                pass
             yield event.plain_result(
                 f"✅ {result['message']}"
                 if result["success"]
@@ -1165,6 +1355,23 @@ class ExchangeHandlers:
             result = self.exchange_service.clear_commodity_inventory(
                 user_id, commodity_id
             )
+            try:
+                from ..draw.exchange import draw_exchange_result_image
+
+                ok = bool(result.get("success"))
+                image = draw_exchange_result_image(
+                    "分商品清倉",
+                    [f"商品: {commodity_name}", str(result.get("message", ""))],
+                    success=ok,
+                )
+                image_path = os.path.join(
+                    self.plugin.tmp_dir, "exchange_clear_result.png"
+                )
+                image.save(image_path)
+                yield event.image_result(image_path)
+                return
+            except Exception:
+                pass
             yield event.plain_result(
                 f"✅ {result['message']}"
                 if result["success"]

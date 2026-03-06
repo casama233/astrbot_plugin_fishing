@@ -22,7 +22,7 @@ async def sell_all(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result(result["message"])
         yield build_tip_result(
             event,
-            "⌨️ 建議下一步\n```\n/商店\n```\n```\n/市場\n```\n```\n/釣魚\n```",
+            "⌨️ 建議下一步\n```\n/商店\n```\n```\n/市場\n```",
         )
     else:
         yield event.plain_result("❌ 出錯啦！請稍後再試。")
@@ -35,7 +35,7 @@ async def sell_keep(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result(result["message"])
         yield build_tip_result(
             event,
-            "⌨️ 建議下一步\n```\n/魚塘\n```\n```\n/市場 上架 F短碼 價格 數量\n```\n```\n/釣魚\n```",
+            "⌨️ 建議下一步\n```\n/魚塘\n```\n```\n/市場 上架 F短碼 價格 數量\n```",
         )
     else:
         yield event.plain_result("❌ 出錯啦！請稍後再試。")
@@ -49,7 +49,7 @@ async def sell_everything(plugin: "FishingPlugin", event: AstrMessageEvent):
             yield event.plain_result(f"💥 {result['message']}")
             yield build_tip_result(
                 event,
-                "⌨️ 建議下一步\n```\n/狀態\n```\n```\n/商店\n```\n```\n/釣魚\n```",
+                "⌨️ 建議下一步\n```\n/商店\n```\n```\n/釣魚\n```",
             )
         else:
             yield event.plain_result(f"❌ 砸鍋賣鐵失敗：{result['message']}")
@@ -697,7 +697,7 @@ async def buy_in_shop(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result(result["message"])
         yield build_tip_result(
             event,
-            "⌨️ 建議下一步\n```\n/背包\n```\n```\n/使用 D短碼\n```\n```\n/使用 B短碼\n```\n```\n/釣魚\n```",
+            "⌨️ 建議下一步\n```\n/背包\n```\n```\n/使用 D短碼\n```\n```\n/釣魚\n```",
         )
         if should_send_loading_tip(plugin.game_config):
             yield build_tip_result(event, get_loading_tip("trade"))
@@ -1035,7 +1035,7 @@ async def buy_item(plugin: "FishingPlugin", event: AstrMessageEvent):
             yield event.plain_result(result["message"])
             yield build_tip_result(
                 event,
-                "⌨️ 建議下一步\n```\n/背包\n```\n```\n/使用 <短碼>\n```\n```\n/市場\n```",
+                "⌨️ 建議下一步\n```\n/背包\n```\n```\n/市場\n```",
             )
             if should_send_loading_tip(plugin.game_config):
                 yield build_tip_result(event, get_loading_tip("trade"))

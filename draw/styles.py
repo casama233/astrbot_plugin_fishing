@@ -1,6 +1,7 @@
 # draw/styles.py
 import os
 from PIL import ImageFont
+from .text_utils import load_font_with_cjk_fallback, get_primary_font_path
 
 # --- 基础配置 ---
 IMG_WIDTH = 800
@@ -68,12 +69,13 @@ COLOR_SHADOW = (0, 0, 0, 80)       # 阴影颜色
 COLOR_CORNER = (255, 255, 255, 80) # 四角装饰颜色
 
 # --- 字体路径 ---
-FONT_PATH_BOLD = os.path.join(os.path.dirname(__file__), "resource", "DouyinSansBold.otf")
+FONT_PATH_BOLD = get_primary_font_path()
+FONT_PATH_REGULAR = FONT_PATH_BOLD
 
 # --- 字体加载 ---
 def load_font(size):
     try:
-        return ImageFont.truetype(FONT_PATH_BOLD, size)
+        return load_font_with_cjk_fallback(FONT_PATH_BOLD, size)
     except IOError:
         return ImageFont.load_default()
 

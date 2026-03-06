@@ -50,7 +50,7 @@ def draw_shop_list_image(shops: List[Dict[str, Any]]) -> Image.Image:
         tname = (
             "一般" if stype == "normal" else ("高級" if stype == "premium" else "限時")
         )
-        status = "🟢營業中" if shop.get("is_active") else "🔴已關閉"
+        status = "🟢開門中" if shop.get("is_active") else "🔴休息中"
         name = str(shop.get("name", "未知商店"))
         sid = shop.get("shop_id", "?")
         desc = normalize_display_text(shop.get("description"))
@@ -133,9 +133,9 @@ def draw_shop_detail_image(
 
         limit_parts = []
         if item.get("per_user_limit") is not None:
-            limit_parts.append(f"每人限購 {item.get('per_user_limit')}")
+            limit_parts.append(f"每人限買 {item.get('per_user_limit')}")
         if item.get("per_user_daily_limit") is not None:
-            limit_parts.append(f"每日限購 {item.get('per_user_daily_limit')}")
+            limit_parts.append(f"每日限買 {item.get('per_user_daily_limit')}")
         limit_text = "｜".join(limit_parts) if limit_parts else "無"
 
         ctext = " + ".join(_format_cost(c) for c in costs[:3])
@@ -158,14 +158,14 @@ def draw_shop_detail_image(
         draw_text_smart(
             draw,
             (36, y + 40),
-            f"價格：{ctext or '免費'}",
+            f"價值：{ctext or '免費'}",
             font=small_font,
             fill=(67, 92, 116),
         )
         draw_text_smart(
             draw,
             (36, y + 64),
-            f"庫存：{stock_text}   限購：{limit_text}",
+            f"存貨：{stock_text}   限買：{limit_text}",
             font=small_font,
             fill=(67, 92, 116),
         )

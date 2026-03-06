@@ -18,7 +18,7 @@ from .styles import (
     COLOR_CORNER,
     load_font,
 )
-from .text_utils import load_font_with_cjk_fallback, draw_text_smart
+from .text_utils import load_font_with_cjk_fallback, draw_text_smart, get_primary_font_path
 
 
 def format_rarity_display(rarity: int) -> str:
@@ -82,22 +82,20 @@ async def draw_state_image(
     draw = ImageDraw.Draw(image)
 
     # 2. 加载字体（称号字体使用CJK回退支持）
-    def load_font(name, size):
-        path = os.path.join(os.path.dirname(__file__), "resource", name)
+    font_path = get_primary_font_path()
+
+    def load_font(size):
         try:
-            return ImageFont.truetype(path, size)
+            return load_font_with_cjk_fallback(font_path, size)
         except Exception as e:
             return ImageFont.load_default()
 
-    font_path = os.path.join(
-        os.path.dirname(__file__), "resource", "DouyinSansBold.otf"
-    )
-    title_font = load_font("DouyinSansBold.otf", 28)
-    subtitle_font = load_font("DouyinSansBold.otf", 24)
-    content_font = load_font("DouyinSansBold.otf", 20)
+    title_font = load_font(28)
+    subtitle_font = load_font(24)
+    content_font = load_font(20)
     # 称号字体使用CJK回退支持，确保繁体中文能正确显示
     small_font = load_font_with_cjk_fallback(font_path, 16)
-    tiny_font = load_font("DouyinSansBold.otf", 14)
+    tiny_font = load_font(14)
 
     # 3. 颜色定义 - 温和协调的海洋主题配色
     # 主色调：柔和蓝系

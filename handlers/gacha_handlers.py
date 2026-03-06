@@ -117,8 +117,9 @@ async def gacha(self: "FishingPlugin", event: AstrMessageEvent):
                 else:
                     message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\n"
             message += "════════════════════════════\n"
-            message += f"💡 再抽一次：/抽卡 {pool_id}\n"
-            message += f"💡 十連抽：/十連 {pool_id}"
+            message += "⌨️ 建議下一步\n"
+            message += f"```\n/抽卡 {pool_id}\n```\n"
+            message += f"```\n/十連 {pool_id}\n```"
             yield event.plain_result(message)
         else:
             yield event.plain_result(f"❌ 抽卡失敗：{result['message']}")
@@ -180,7 +181,6 @@ async def ten_gacha(self: "FishingPlugin", event: AstrMessageEvent):
                     message += f"• 💰 金幣 x{item['quantity']}\n"
                 else:
                     message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\n"
-            message += "════════════════════════════\n"
             message += "⌨️ 建議下一步\n"
             message += f"```\n/十連 {pool_id}\n```\n"
             message += "```\n/抽卡記錄\n```"
@@ -351,6 +351,28 @@ async def gacha_history(self: "FishingPlugin", event: AstrMessageEvent):
             message += "════════════════════════════\n"
             message += "⌨️ 建議下一步\n"
             message += "```\n/查看卡池 1\n```"
+
+            try:
+                from ..draw.list_cards import draw_text_list_image
+
+                rows = []
+                for idx, record in enumerate(history, start=1):
+                    rows.append(
+                        f"{idx}. {'⭐' * record['rarity']} {record['item_name']}  |  {safe_datetime_handler(record['timestamp'])}"
+                    )
+                image = draw_text_list_image(
+                    title="📜 抽卡記錄",
+                    rows=rows,
+                    subtitle=f"共 {total_count} 筆",
+                    footer="💡 /查看卡池 1",
+                )
+                image_path = os.path.join(self.tmp_dir, "gacha_history_list.png")
+                image.save(image_path)
+                yield event.image_result(image_path)
+                yield event.plain_result("⌨️ 建議下一步\n```\n/查看卡池 1\n```")
+                return
+            except Exception:
+                pass
 
             yield event.plain_result(message)
         else:

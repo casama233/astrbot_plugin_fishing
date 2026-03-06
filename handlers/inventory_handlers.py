@@ -254,11 +254,11 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                         fcode = f"F{fish_id}H" if fish_id else "F0H"  # H代表✨高品质
                     else:
                         fcode = f"F{fish_id}" if fish_id else "F0"  # 普通品质
-                    # 显示品质信息
+                    # 顯示品質資訊
                     quality_display = ""
                     if quality_level == 1:
-                        quality_display = " ✨高品质"
-                    message += f"  - {fish['name']}{quality_display} x  {fish['quantity']} （{fish['actual_value']}金币 / 个） ID: {fcode}\n"
+                        quality_display = " ✨高品質"
+                    message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({fish['actual_value']}金幣/個) ID: {fcode}\n"
         message += f"\n🐟 总鱼数：{pond_fish['stats']['total_count']} 条\n"
         message += f"💰 总价值：{pond_fish['stats']['total_value']} 金币\n"
         message += "\n" + _build_dynamic_shortcuts(plugin, user_id, "backpack")
@@ -311,12 +311,12 @@ async def peek_pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                         fcode = f"F{fish_id}H" if fish_id else "F0H"  # H代表✨高品质
                     else:
                         fcode = f"F{fish_id}" if fish_id else "F0"  # 普通品质
-                    # 显示品质信息
+                    # 顯示品質資訊
                     quality_display = ""
                     if quality_level == 1:
-                        quality_display = " ✨高品质"
+                        quality_display = " ✨高品質"
                     actual_value = fish.get("actual_value", fish.get("base_value", 0))
-                    message += f"  - {fish['name']}{quality_display} x  {fish['quantity']} （{actual_value}金币 / 个） ID: {fcode}\n"
+                    message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({actual_value}金幣/個) ID: {fcode}\n"
         message += f"\n🐟 总鱼数：{pond_fish['stats']['total_count']} 条\n"
         message += f"💰 总价值：{pond_fish['stats']['total_value']} 金币\n"
         yield event.plain_result(message)
@@ -424,11 +424,9 @@ async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += "• /出售所有魚竿 - 快速清理\n"
             message += "• /出售 [魚竿ID] - 出售指定魚竿"
 
-        message += "\n════════════════════════════\n"
-        message += "⌨️ 建議下一步\n"
+        message += "\n⌨️ 建議下一步\n"
         message += "```\n/使用 R短碼\n```\n"
-        message += "```\n/精煉 R短碼\n```\n"
-        message += "```\n/出售 R短碼\n```"
+        message += "```\n/精煉 R短碼\n```"
 
         yield event.plain_result(message)
         yield build_tip_result(event, _build_dynamic_shortcuts(plugin, user_id, "rod"))
@@ -607,11 +605,9 @@ async def accessories(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += "• /出售所有飾品 - 快速清理\n"
             message += "• /出售 [飾品ID] - 出售指定飾品"
 
-        message += "\n════════════════════════════\n"
-        message += "⌨️ 建議下一步\n"
+        message += "\n⌨️ 建議下一步\n"
         message += "```\n/使用 A短碼\n```\n"
-        message += "```\n/精煉 A短碼\n```\n"
-        message += "```\n/出售 A短碼\n```"
+        message += "```\n/精煉 A短碼\n```"
 
         yield event.plain_result(message)
         yield build_tip_result(
