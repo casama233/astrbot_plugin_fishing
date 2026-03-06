@@ -87,7 +87,7 @@ def _build_dynamic_shortcuts(
                 "/飾品",
                 "/魚餌",
                 "/道具",
-                "/使用 <短碼>",
+                "/全部賣出",
                 "/開啟全部錢袋",
                 "/釣魚",
             ],
@@ -127,7 +127,7 @@ def _build_dynamic_shortcuts(
             "/釣魚",
             "/背包",
             "/開啟全部錢袋",
-            "/使用 <短碼>",
+            "/全部賣出",
         ]
         blocks = "\n".join([f"```\n{m}\n```" for m in fallback])
         return "⌨️ 建議操作\n" + blocks
