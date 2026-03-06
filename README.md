@@ -29,8 +29,8 @@
 [![AGPL-3.0 License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
 [![Python](https://img.shields.io/badge/Python-3.8+-green.svg)](https://python.org)
 [![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-orange.svg)](https://github.com/astrbot/astrbot)
-[![Version](https://img.shields.io/badge/Version-2.4.7-brightgreen.svg)](https://github.com/xxlemon-io/astrbot_plugin_fishing/releases/tag/v2.4.7)
-[![Major Update](https://img.shields.io/badge/Major-Update-red.svg)](https://github.com/xxlemon-io/astrbot_plugin_fishing/releases/tag/v2.0.0)
+[![Version](https://img.shields.io/badge/Version-2.4.7-brightgreen.svg)](https://github.com/cary-server/astrbot_plugin_fishing/releases/tag/v2.4.7)
+[![Major Update](https://img.shields.io/badge/Major-Update-red.svg)](https://github.com/cary-server/astrbot_plugin_fishing/releases/tag/v2.0.0)
 
 ## ✨ 功能特点
 
@@ -101,7 +101,7 @@
 - 📝 **代码优化**：改进代码质量和可维护性
 - 🛡️ **安全加固**：增强系统安全性
 
-如果您有功能建议或发现问题，欢迎在 [Issues](https://github.com/xxlemon-io/astrbot_plugin_fishing/issues) 中提出！
+如果您有功能建议或发现问题，欢迎在 [Issues](https://github.com/cary-server/astrbot_plugin_fishing/issues) 中提出！
  
 ## 📦 更新记录
 
@@ -114,12 +114,12 @@
 
 #### v2.4.6 (成就奖励发放修复)
 
-- **🐛 修复成就奖励发放问题**：解决 [#114](https://github.com/xxlemon-io/astrbot_plugin_fishing/issues/114) 中"鸟枪换炮"成就导致数据库锁定的问题
+- **🐛 修复成就奖励发放问题**：解决 [#114](https://github.com/cary-server/astrbot_plugin_fishing/issues/114) 中"鸟枪换炮"成就导致数据库锁定的问题
   - 添加物品ID验证机制，防止外键约束失败
 
 #### v2.4.5 (交易所利润税基修复)
 
-- **⚖️ 税基按利润征收**：交易所卖出、清仓仅对正盈利征税，亏损时自动免税，解决 [#109](https://github.com/xxlemon-io/astrbot_plugin_fishing/issues/109) 的不合理扣税  
+- **⚖️ 税基按利润征收**：交易所卖出、清仓仅对正盈利征税，亏损时自动免税，解决 [#109](https://github.com/cary-server/astrbot_plugin_fishing/issues/109) 的不合理扣税  
 - **📊 透明提示**：用户消息/税务记录展示“毛收入 + 税基 + 税率 + 免税说明”，便于核对  
 
 #### v2.4.4 (CJK字符显示修复)
@@ -134,7 +134,7 @@
 - **🔢 全面支持中文数字输入**：大部分功能现在都支持中文数字输入
 - **🧧 完整红包系统**：新增完整的红包社交互动功能
 
-*感谢 [@Akiyo-dayo](https://github.com/Akiyo-dayo) 的贡献 ([#103](https://github.com/xxlemon-io/astrbot_plugin_fishing/pull/103))*
+*感谢 [@Akiyo-dayo](https://github.com/Akiyo-dayo) 的贡献 ([#103](https://github.com/cary-server/astrbot_plugin_fishing/pull/103))*
 
 #### v2.4.2 (称号管理系统 + 文件名安全化 + CJK字体支持)
 
@@ -153,7 +153,7 @@
 - **👤 用户昵称更改功能**：新增用户可自行更改昵称的功能
 - **🎣 手动重置鱼池功能**：新增管理员手动重置所有钓鱼区域稀有鱼配额的功能
 
-*感谢 [@Akiyo-dayo](https://github.com/Akiyo-dayo) 的贡献 ([#90](https://github.com/xxlemon-io/astrbot_plugin_fishing/pull/90))*
+*感谢 [@Akiyo-dayo](https://github.com/Akiyo-dayo) 的贡献 ([#90](https://github.com/cary-server/astrbot_plugin_fishing/pull/90))*
 
 
 > 📋 **完整更新历史请查看 [CHANGELOG.md](CHANGELOG.md)**
@@ -669,7 +669,7 @@
 我们欢迎各种形式的贡献！无论您是开发者、用户还是爱好者，都可以为项目做出贡献：
 
 #### 对于开发者
-- 🐛 **报告Bug**：在 [Issues](https://github.com/xxlemon-io/astrbot_plugin_fishing/issues) 中报告发现的问题
+- 🐛 **报告Bug**：在 [Issues](https://github.com/cary-server/astrbot_plugin_fishing/issues) 中报告发现的问题
 - 💡 **功能建议**：提出新功能想法和改进建议
 - 🔧 **代码贡献**：提交 Pull Request 改进代码
 - 📖 **文档完善**：帮助完善文档和注释
@@ -703,14 +703,14 @@
 
 感谢所有为这个项目做出贡献的开发者们！
 
-<a href="https://github.com/xxlemon-io/astrbot_plugin_fishing/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=xxlemon-io/astrbot_plugin_fishing" />
+<a href="https://github.com/cary-server/astrbot_plugin_fishing/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=cary-server/astrbot_plugin_fishing" />
 </a>
 
 ## 📞 支持与联系
 
-- 🐛 **问题反馈**：[GitHub Issues](https://github.com/xxlemon-io/astrbot_plugin_fishing/issues)
-- 💬 **讨论交流**：[GitHub Discussions](https://github.com/xxlemon-io/astrbot_plugin_fishing/discussions)
+- 🐛 **问题反馈**：[GitHub Issues](https://github.com/cary-server/astrbot_plugin_fishing/issues)
+- 💬 **讨论交流**：[GitHub Discussions](https://github.com/cary-server/astrbot_plugin_fishing/discussions)
 - 📧 **邮件联系**：通过 GitHub 个人资料联系
 
 ## 🙏 致谢与项目来源

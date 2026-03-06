@@ -598,12 +598,15 @@ async def transfer_coins(self: "FishingPlugin", event: AstrMessageEvent):
         )
         return
 
-    # 使用通用解析器，支持中文与混写
     try:
         amount = parse_amount(amount_str)
     except Exception as e:
         yield event.plain_result(
-            f"❌ 无法解析转账金额：{str(e)}。示例：/转账 @用户 1000 或 /转账 @用户 1万 或 /转账 @用户 一千"
+            f"❌ 無法解析轉帳金額：{str(e)}\n\n"
+            "示例：\n"
+            "  /轉帳 @用戶 1000\n"
+            "  /轉帳 @用戶 1 萬\n"
+            "  /轉帳 @用戶 一千"
         )
         return
 
