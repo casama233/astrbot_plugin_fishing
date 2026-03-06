@@ -137,6 +137,17 @@ def wrap_text_by_width_with_hyphenation(text: str, font: ImageFont.FreeTypeFont,
     return optimized_lines
 
 
+def normalize_display_text(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    t = str(text)
+    t = t.replace("｜", "，").replace("|", "，")
+    t = t.replace(" / ", "、").replace(" /", "、").replace("/ ", "、")
+    while "  " in t:
+        t = t.replace("  ", " ")
+    return t.strip()
+
+
 def create_text_cache() -> dict:
     """
     创建文本测量缓存

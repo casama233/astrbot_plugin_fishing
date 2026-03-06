@@ -72,6 +72,9 @@ class AchievementService:
             if acc_template:
                 owned_accessory_rarities.add(acc_template.rarity)
 
+        caught_fish_names = self.achievement_repo.get_user_caught_fish_names(user_id)
+        setattr(user, "caught_fish_names", caught_fish_names)
+
         return UserContext(
             user=user,
             unique_fish_count=self.achievement_repo.get_user_unique_fish_count(user_id),
@@ -81,7 +84,7 @@ class AchievementService:
             owned_rod_rarities=owned_rod_rarities,
             owned_accessory_rarities=owned_accessory_rarities,
             has_heavy_fish=self.achievement_repo.has_caught_heavy_fish(user_id, 100000),
-            caught_fish_names=self.achievement_repo.get_user_caught_fish_names(user_id)
+            caught_fish_names=caught_fish_names
         )
 
     def _grant_reward(self, user: User, achievement: BaseAchievement) -> bool:

@@ -119,28 +119,18 @@ def _build_dynamic_shortcuts(
             if tip and tip not in merged:
                 merged.append(tip)
         merged = merged[:6]
-        return (
-            "⌨️ 智能快捷提示（可複製）\n"
-            + "```\n"
-            + "\n".join(merged)
-            + "\n```\n"
-            + "💡 /釣魚幫助 速查"
-        )
+        blocks = "\n".join([f"```\n{m}\n```" for m in merged])
+        return "⌨️ 建議操作\n" + blocks + "\n" + "💡 /釣魚幫助 速查"
     except Exception:
-        return (
-            "⌨️ 快捷操作（可複製）\n"
-            + "```\n"
-            + "\n".join(
-                [
-                    "/商店",
-                    "/釣魚",
-                    "/背包",
-                    "/開啟全部錢袋",
-                    "/使用 <短碼>",
-                ]
-            )
-            + "\n```"
-        )
+        fallback = [
+            "/商店",
+            "/釣魚",
+            "/背包",
+            "/開啟全部錢袋",
+            "/使用 <短碼>",
+        ]
+        blocks = "\n".join([f"```\n{m}\n```" for m in fallback])
+        return "⌨️ 建議操作\n" + blocks
 
 
 async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):

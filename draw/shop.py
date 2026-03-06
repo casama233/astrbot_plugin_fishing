@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw
 
 from .gradient_utils import create_vertical_gradient
 from .styles import load_font
+from .text_utils import normalize_display_text
 
 
 def _format_cost(cost: Dict[str, Any]) -> str:
@@ -52,7 +53,7 @@ def draw_shop_list_image(shops: List[Dict[str, Any]]) -> Image.Image:
         status = "🟢營業中" if shop.get("is_active") else "🔴已關閉"
         name = str(shop.get("name", "未知商店"))
         sid = shop.get("shop_id", "?")
-        desc = str(shop.get("description") or "")
+        desc = normalize_display_text(shop.get("description"))
 
         draw.rounded_rectangle(
             (24, y, width - 24, y + row_h - 10),
@@ -111,7 +112,7 @@ def draw_shop_detail_image(
 
     sname = str(shop.get("name", "未知商店"))
     sid = shop.get("shop_id", "?")
-    sdesc = str(shop.get("description") or "")
+    sdesc = normalize_display_text(shop.get("description"))
 
     draw.text((28, 20), f"🛍️ {sname}", font=title_font, fill=(40, 66, 94))
     draw.text((30, 60), f"ID: {sid}", font=body_font, fill=(76, 98, 120))
@@ -162,7 +163,7 @@ def draw_shop_detail_image(
             font=small_font,
             fill=(67, 92, 116),
         )
-        desc = str(item.get("description") or "")
+        desc = normalize_display_text(item.get("description"))
         if desc:
             draw.text((520, y + 40), desc[:34], font=small_font, fill=(109, 129, 147))
         y += card_h

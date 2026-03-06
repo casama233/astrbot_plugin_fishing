@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw
 
 from .gradient_utils import create_vertical_gradient
 from .styles import load_font
+from .text_utils import normalize_display_text
 
 
 def _star(rarity: int) -> str:
@@ -79,7 +80,7 @@ def draw_equipment_image(
             fill=(66, 92, 116),
         )
 
-        desc = str(e.get("description") or "")
+        desc = normalize_display_text(e.get("description"))
         if desc:
             draw.text(
                 (36, y + 84),

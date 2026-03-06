@@ -127,26 +127,31 @@ async def state(self: "FishingPlugin", event: AstrMessageEvent):
         state_info = self.user_service.get_user_state(user_id) or {}
         auto_fishing = bool(state_info.get("user", {}).get("is_auto_fishing", False))
 
-        tips = ["⌨️ 状态页智能提示"]
+        tips = ["⌨️ 建議下一步"]
         if not has_bait:
-            tips.append("- 你当前没有鱼饵：/商店（优先补基础饵）")
+            tips.append("```\n/商店\n```")
         else:
-            tips.append("- 可以继续刷资源：/钓鱼")
+            tips.append("```\n/釣魚\n```")
         if coins < 200:
-            tips.append("- 金币偏少：/签到 或 /全部卖出")
+            tips.append("```\n/簽到\n```")
+            tips.append("```\n/全部賣出\n```")
         if auto_fishing:
-            tips.append("- 自动钓鱼已开启：/自动钓鱼（可关闭）")
-        tips.append("- 装备养成：/鱼竿、/饰品、/精炼 R/A短码")
-        tips.append("- 交易流转：/市场、/交易所")
-        tips.append("💡 快捷总览：/钓鱼帮助 速查")
+            tips.append("```\n/自動釣魚\n```")
+        tips.append("```\n/魚竿\n```")
+        tips.append("```\n/飾品\n```")
+        tips.append("```\n/精煉 R短碼\n```")
+        tips.append("```\n/市場\n```")
+        tips.append("```\n/交易所\n```")
+        tips.append("```\n/釣魚幫助 速查\n```")
         yield event.plain_result("\n".join(tips[:7]))
     except Exception:
         yield event.plain_result(
-            "⌨️ 快捷操作\n"
-            "- /钓鱼：继续捕鱼\n"
-            "- /背包：查看全部物品\n"
-            "- /商店、/市场：补给与交易\n"
-            "💡 快捷总览：/钓鱼帮助 速查"
+            "⌨️ 建議下一步\n"
+            "```\n/釣魚\n```\n"
+            "```\n/背包\n```\n"
+            "```\n/商店\n```\n"
+            "```\n/市場\n```\n"
+            "```\n/釣魚幫助 速查\n```"
         )
 
 
@@ -200,7 +205,10 @@ async def fishing_log(self: "FishingPlugin", event: AstrMessageEvent):
                     message += "────────────────────────────\n"
 
             message += "════════════════════════════\n"
-            message += "💡 快速操作：/釣魚  /背包  /魚類圖鑑"
+            message += "⌨️ 建議下一步\n"
+            message += "```\n/釣魚\n```\n"
+            message += "```\n/背包\n```\n"
+            message += "```\n/魚類圖鑑\n```"
             yield event.plain_result(message)
         else:
             yield event.plain_result(f"❌ 取得釣魚記錄失敗：{result['message']}")

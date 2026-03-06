@@ -170,7 +170,7 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
     rare_color = COLOR_RARE
 
     # 导入优化的文本处理函数
-    from .text_utils import get_text_size_cached, wrap_text_by_width_optimized, create_text_cache
+    from .text_utils import get_text_size_cached, wrap_text_by_width_optimized, create_text_cache, normalize_display_text
     
     # 创建文本测量缓存
     text_cache = create_text_cache()
@@ -208,8 +208,9 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
         if rod.get('bonus_rare_fish_chance', 1.0) not in (1.0, 1) and rod.get('bonus_rare_fish_chance', 0) > 0:
             attr_lines += 1
         desc_lines = 0
-        if rod.get('description'):
-            lines = wrap_text_by_width(f"{rod['description']}", tiny_font, card_width - 30)
+        desc_text = normalize_display_text(rod.get('description'))
+        if desc_text:
+            lines = wrap_text_by_width(desc_text, tiny_font, card_width - 30)
             desc_lines = len(lines)
         
         # 检查是否有耐久度信息，如果有则增加高度
@@ -234,8 +235,9 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
         if acc.get('bonus_coin_modifier', 1.0) not in (1.0, 1) and acc.get('bonus_coin_modifier', 0) > 0:
             attr_lines += 1
         desc_lines = 0
-        if acc.get('description'):
-            lines = wrap_text_by_width(f"{acc['description']}", tiny_font, card_width - 30)
+        desc_text = normalize_display_text(acc.get('description'))
+        if desc_text:
+            lines = wrap_text_by_width(desc_text, tiny_font, card_width - 30)
             desc_lines = len(lines)
         
         header_height = 85
@@ -246,8 +248,9 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
     def measure_bait_card_height(bait, card_width: int) -> int:
         line_h = get_text_size("测", tiny_font)[1] + 2
         desc_lines = 0
-        if bait.get('effect_description'):
-            lines = wrap_text_by_width(f"效果: {bait['effect_description']}", tiny_font, card_width - 30)
+        effect_text = normalize_display_text(bait.get('effect_description'))
+        if effect_text:
+            lines = wrap_text_by_width(f"效果: {effect_text}", tiny_font, card_width - 30)
             desc_lines = len(lines)
         
         # 基础信息高度：名称+星级+数量 = 70px
@@ -267,8 +270,9 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
     def measure_item_card_height(item, card_width: int) -> int:
         line_h = get_text_size("测", tiny_font)[1] + 2
         desc_lines = 0
-        if item.get('effect_description'):
-            lines = wrap_text_by_width(f"效果: {item['effect_description']}", tiny_font, card_width - 30)
+        effect_text = normalize_display_text(item.get('effect_description'))
+        if effect_text:
+            lines = wrap_text_by_width(f"效果: {effect_text}", tiny_font, card_width - 30)
             desc_lines = len(lines)
         header_height = 70
         bottom_pad = 15 if desc_lines > 0 else 10
@@ -503,8 +507,8 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
                 bonus_y += 18
             
             # 描述 - 支持换行且不超出卡片
-            if rod.get('description'):
-                desc_text = f"{rod['description']}"
+            desc_text = normalize_display_text(rod.get('description'))
+            if desc_text:
                 available_width = card_width - 30
                 lines = wrap_text_by_width(desc_text, tiny_font, available_width)
                 # 计算可绘制的最大行数，避免超出卡片底部
@@ -622,8 +626,8 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
                 bonus_y += 18
             
             # 描述 - 支持换行且不超出卡片
-            if accessory.get('description'):
-                desc_text = f"{accessory['description']}"
+            desc_text = normalize_display_text(accessory.get('description'))
+            if desc_text:
                 available_width = card_width - 30
                 lines = wrap_text_by_width(desc_text, tiny_font, available_width)
                 line_h = get_text_size("测", tiny_font)[1] + 2
@@ -708,8 +712,9 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
                 next_y += 20
             
             # 效果描述
-            if bait.get('effect_description'):
-                effect_text = f"效果: {bait['effect_description']}"
+            effect_text = normalize_display_text(bait.get('effect_description'))
+            if effect_text:
+                effect_text = f"效果: {effect_text}"
                 available_width = card_width - 30
                 lines = wrap_text_by_width(effect_text, tiny_font, available_width)
                 line_h = get_text_size("测", tiny_font)[1] + 2
@@ -787,7 +792,8 @@ async def _draw_backpack_image_impl(user_data: Dict[str, Any], data_dir: str) ->
             draw.text((x + 15, y + 50), f"数量: {quantity}", font=tiny_font, fill=text_secondary)
 
             next_y = y + 70
-            if effect_desc := item.get('effect_description'):
+            effect_desc = normalize_display_text(item.get('effect_description'))
+            if effect_desc:
                 available_width = card_width - 30
                 lines = wrap_text_by_width(f"效果: {effect_desc}", tiny_font, available_width)
                 line_h = get_text_size("测", tiny_font)[1] + 2

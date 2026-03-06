@@ -796,7 +796,7 @@ class ExchangeHandlers:
                 image.save(image_path)
                 yield event.image_result(image_path)
                 yield event.plain_result(
-                    "💡 使用【交易所 帮助】查看更多命令。\n💡 查看库存：/持仓"
+                    "⌨️ 建議下一步\n```\n/交易所 幫助\n```\n```\n/持倉\n```"
                 )
                 return
             except Exception:
@@ -955,7 +955,7 @@ class ExchangeHandlers:
                 image.save(image_path)
                 yield event.image_result(image_path)
                 yield event.plain_result(
-                    "💡 使用【交易所 卖出 商品名 数量】进行减仓\n💡 一键清仓：/清仓"
+                    "⌨️ 建議下一步\n```\n/交易所 賣出 商品名 數量\n```\n```\n/清倉\n```"
                 )
                 return
             except Exception:

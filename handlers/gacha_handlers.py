@@ -181,8 +181,9 @@ async def ten_gacha(self: "FishingPlugin", event: AstrMessageEvent):
                 else:
                     message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\n"
             message += "════════════════════════════\n"
-            message += f"💡 再抽：/十連 {pool_id}\n"
-            message += "💡 查看記錄：/抽卡記錄"
+            message += "⌨️ 建議下一步\n"
+            message += f"```\n/十連 {pool_id}\n```\n"
+            message += "```\n/抽卡記錄\n```"
             yield event.plain_result(message)
         else:
             yield event.plain_result(f"❌ 抽卡失敗：{result['message']}")
@@ -348,7 +349,8 @@ async def gacha_history(self: "FishingPlugin", event: AstrMessageEvent):
                     message += "────────────────────────────\n"
 
             message += "════════════════════════════\n"
-            message += "💡 查看卡池：/查看卡池 1"
+            message += "⌨️ 建議下一步\n"
+            message += "```\n/查看卡池 1\n```"
 
             yield event.plain_result(message)
         else:

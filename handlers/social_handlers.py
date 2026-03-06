@@ -253,10 +253,10 @@ async def view_achievements(plugin: "FishingPlugin", event: AstrMessageEvent):
         message += "- 成就是你在钓鱼世界的里程碑任务（如收集、收益、玩法挑战）。\n"
         message += "- 完成后通常会解锁奖励（金币/鱼饵/装备/称号等）。\n"
         message += "- 部分称号来自成就奖励，可用 /使用称号 [ID] 装备展示。"
-        message += "\n\n⌨️ 常用下一步\n"
-        message += "- /查看称号：查看你已解锁的称号\n"
-        message += "- /使用称号 [ID]：切换展示称号\n"
-        message += "- /钓鱼帮助 速查：查看成长路线"
+        message += "\n\n⌨️ 建議下一步\n"
+        message += "```\n/查看稱號\n```\n"
+        message += "```\n/使用稱號 [ID]\n```\n"
+        message += "```\n/釣魚幫助 速查\n```"
         yield event.plain_result(message)
     else:
         yield event.plain_result(
