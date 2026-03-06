@@ -72,11 +72,16 @@ async def get_user_avatar(
 
             try:
                 # 增加超时时间并添加重试机制
+                # 針對 Discord 等外部圖片，不使用 verify=False（除非必要），但增加 User-Agent
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
                 timeout = aiohttp.ClientTimeout(total=10, connect=5)
-                async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
                     for url in candidate_urls:
                         try:
-                            async with session.get(url) as response:
+                            # 針對某些環境可能需要 ssl=False
+                            async with session.get(url, ssl=False) as response:
                                 if response.status == 200:
                                     content = await response.read()
                                     avatar_image = Image.open(BytesIO(content)).convert(
@@ -85,7 +90,8 @@ async def get_user_avatar(
                                     # 保存到缓存
                                     avatar_image.save(avatar_cache_path, "PNG")
                                     break
-                        except Exception:
+                        except Exception as e:
+                            logger.debug(f"嘗試下載 {url} 失敗: {e}")
                             continue
             except Exception as e:
                 # 如果下载失败，记录日志但不抛出异常

@@ -1,3 +1,5 @@
+import os
+
 from astrbot.api.event import filter, AstrMessageEvent
 from ..utils import (
     format_rarity_display,
@@ -5,6 +7,7 @@ from ..utils import (
     parse_amount,
     get_loading_tip,
     should_send_loading_tip,
+    build_tip_result,
 )
 from typing import TYPE_CHECKING
 
@@ -13,45 +16,45 @@ if TYPE_CHECKING:
 
 
 async def sell_all(plugin: "FishingPlugin", event: AstrMessageEvent):
-    """卖出用户所有鱼"""
+    """賣出用戶所有魚"""
     user_id = plugin._get_effective_user_id(event)
     if result := plugin.inventory_service.sell_all_fish(user_id):
-        yield event.plain_result(
-            f"{result['message']}\n\n"
-            "⌨️ 常用下一步\n"
-            "- /商店：补充鱼饵与道具\n"
-            "- /市场：查看玩家挂单\n"
-            "- /钓鱼：继续刷资源"
+        yield event.plain_result(result["message"])
+        yield build_tip_result(
+            event,
+            "⌨️ 常用下一步（可複製）\n```\n/商店\n/市場\n/釣魚\n```",
         )
     else:
-        yield event.plain_result("❌ 出错啦！请稍后再试。")
+        yield event.plain_result("❌ 出錯啦！請稍後再試。")
 
 
 async def sell_keep(plugin: "FishingPlugin", event: AstrMessageEvent):
-    """卖出用户鱼，但保留每种鱼一条"""
+    """賣出用戶魚，但保留每種魚一條"""
     user_id = plugin._get_effective_user_id(event)
     if result := plugin.inventory_service.sell_all_fish(user_id, keep_one=True):
-        yield event.plain_result(
-            f"{result['message']}\n\n"
-            "⌨️ 常用下一步\n"
-            "- /鱼塘：确认保留库存\n"
-            "- /市场 上架 F短码 价格 数量：高价值鱼挂单\n"
-            "- /钓鱼：继续补货"
+        yield event.plain_result(result["message"])
+        yield build_tip_result(
+            event,
+            "⌨️ 常用下一步（可複製）\n```\n/魚塘\n/市場 上架 F短碼 價格 數量\n/釣魚\n```",
         )
     else:
-        yield event.plain_result("❌ 出错啦！请稍后再试。")
+        yield event.plain_result("❌ 出錯啦！請稍後再試。")
 
 
 async def sell_everything(plugin: "FishingPlugin", event: AstrMessageEvent):
-    """砸锅卖铁：出售所有未锁定且未装备的鱼竿、饰品和全部鱼类"""
+    """砸鍋賣鐵：出售所有未鎖定且未裝備的魚竿、飾品和全部魚類"""
     user_id = plugin._get_effective_user_id(event)
     if result := plugin.inventory_service.sell_everything_except_locked(user_id):
         if result["success"]:
-            yield event.plain_result(result["message"])
+            yield event.plain_result(f"💥 {result['message']}")
+            yield build_tip_result(
+                event,
+                "⌨️ 常用下一步（可複製）\n```\n/狀態\n/商店\n/釣魚\n```",
+            )
         else:
-            yield event.plain_result(f"❌ 砸锅卖铁失败：{result['message']}")
+            yield event.plain_result(f"❌ 砸鍋賣鐵失敗：{result['message']}")
     else:
-        yield event.plain_result("❌ 出错啦！请稍后再试。")
+        yield event.plain_result("❌ 出錯啦！請稍後再試。")
 
 
 async def sell_by_rarity(plugin: "FishingPlugin", event: AstrMessageEvent):
@@ -117,36 +120,54 @@ async def sell_all_accessories(plugin: "FishingPlugin", event: AstrMessageEvent)
 
 async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
     """查看商店：/商店 [商店ID]"""
-    args = event.message_str.split(" ")
+    args = event.message_str.split()
     # /商店 → 列表
     if len(args) == 1:
         result = plugin.shop_service.get_shops()
         if not result or not result.get("success"):
-            yield event.plain_result("❌ 出错啦！请稍后再试。")
+            yield event.plain_result("❌ 讀取商店失敗，請稍後再試。")
             return
         shops = result.get("shops", [])
         if not shops:
-            yield event.plain_result("🛒 当前没有开放的商店。")
+            yield event.plain_result("🛒 目前沒有開放中的商店。")
             return
 
         # 对商店列表进行排序：按 sort_order 升序，然后按 shop_id 升序
         shops.sort(key=lambda x: (x.get("sort_order", 999), x.get("shop_id", 999)))
 
+        # 優先使用圖片渲染（若失敗則回退文字）
+        try:
+            from ..draw.shop import draw_shop_list_image
+
+            image = draw_shop_list_image(shops)
+            image_path = os.path.join(plugin.tmp_dir, "shop_list.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            yield event.plain_result(
+                "💡 查看詳情：/商店 商店ID\n💡 購買商品：/商店購買 商店ID 商品ID [數量]"
+            )
+            return
+        except Exception:
+            pass
+
         msg = "【🛒 商店列表】\n"
+        msg += "════════════════════════════\n"
         for s in shops:
             stype = s.get("shop_type", "normal")
             type_name = (
-                "普通"
+                "一般"
                 if stype == "normal"
-                else ("高级" if stype == "premium" else "限时")
+                else ("高級" if stype == "premium" else "限時")
             )
-            status = "🟢 营业中" if s.get("is_active") else "🔴 已关闭"
+            status = "🟢 營業中" if s.get("is_active") else "🔴 已關閉"
             msg += (
-                f" - {s.get('name')} (ID: {s.get('shop_id')}) [{type_name}] {status}\n"
+                f"• {s.get('name')}（ID: {s.get('shop_id')}）[{type_name}] {status}\n"
             )
             if s.get("description"):
-                msg += f"   - {s.get('description')}\n"
-        msg += "\n💡 使用「商店 商店ID」查看详情；使用「商店购买 商店ID 商品ID [数量]」购买\n"
+                msg += f"  └─ {s.get('description')}\n"
+        msg += "════════════════════════════\n"
+        msg += "💡 查看詳情：/商店 商店ID\n"
+        msg += "💡 購買商品：/商店購買 商店ID 商品ID [數量]"
 
         # 检查消息长度，如果太长则分多次发送
         if len(msg) > 1500:
@@ -166,22 +187,39 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
     # /商店 <ID> → 详情
     shop_id = args[1]
     if not shop_id.isdigit():
-        yield event.plain_result("❌ 商店ID必须是数字")
+        yield event.plain_result("❌ 商店 ID 必須是數字。")
         return
     detail = plugin.shop_service.get_shop_details(int(shop_id))
     if not detail.get("success"):
-        yield event.plain_result(f"❌ {detail.get('message', '查询失败')}")
+        yield event.plain_result(f"❌ {detail.get('message', '查詢失敗')}")
         return
     shop = detail["shop"]
     items = detail.get("items", [])
-    msg = f"【🛒 {shop.get('name')}】(ID: {shop.get('shop_id')})\n"
+    # 優先使用圖片渲染（若失敗則回退文字）
+    try:
+        from ..draw.shop import draw_shop_detail_image
+
+        image = draw_shop_detail_image(shop, items)
+        image_path = os.path.join(
+            plugin.tmp_dir, f"shop_detail_{shop.get('shop_id')}.png"
+        )
+        image.save(image_path)
+        yield event.image_result(image_path)
+        yield event.plain_result(
+            f"💡 購買指令：/商店購買 {shop.get('shop_id')} 商品ID [數量]"
+        )
+        return
+    except Exception:
+        pass
+
+    msg = f"【🛒 {shop.get('name')}】（ID: {shop.get('shop_id')}）\n"
     if shop.get("description"):
         msg += f"📖 {shop.get('description')}\n"
     if not items:
-        msg += "\n📭 当前没有在售商品。"
+        msg += "\n📭 目前沒有上架商品。"
         yield event.plain_result(msg)
         return
-    msg += "\n🛍️ 【在售商品】\n"
+    msg += "\n🛍️【在售商品】\n"
     msg += "═" * 50 + "\n"
     for i, e in enumerate(items):
         item = e["item"]
@@ -319,9 +357,9 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
             for c in group_costs:
                 cost_text = ""
                 if c["cost_type"] == "coins":
-                    cost_text = f"💰 {c['cost_amount']} 金币"
+                    cost_text = f"💰 {c['cost_amount']} 金幣"
                 elif c["cost_type"] == "premium":
-                    cost_text = f"💎 {c['cost_amount']} 高级货币"
+                    cost_text = f"💎 {c['cost_amount']} 高級貨幣"
                 elif c["cost_type"] == "item":
                     # 获取道具名称
                     item_template = plugin.item_template_repo.get_by_id(
@@ -387,7 +425,7 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
         # 连接不同组（组间是AND关系）
         cost_str = " + ".join(group_parts) if group_parts else "免费"
         stock_str = (
-            "无限"
+            "無限"
             if item.get("stock_total") is None
             else f"{item.get('stock_sold', 0)}/{item.get('stock_total')}"
         )
@@ -402,19 +440,19 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         # 美化输出格式
         msg += f"┌─ {item_emoji} {item['name']} {rarity_stars}\n"
-        msg += f"├─ 价格: {cost_str}\n"
-        msg += f"├─ 库存: {stock_str}\n"
+        msg += f"├─ 價格: {cost_str}\n"
+        msg += f"├─ 庫存: {stock_str}\n"
         msg += f"├─ ID: {item['item_id']}\n"
 
         # 添加限购信息
         limit_info = []
         if per_user_limit is not None:
-            limit_info.append(f"每人限购: {per_user_limit}")
+            limit_info.append(f"每人限購: {per_user_limit}")
         if per_user_daily_limit is not None:
-            limit_info.append(f"每日限购: {per_user_daily_limit}")
+            limit_info.append(f"每日限購: {per_user_daily_limit}")
 
         if limit_info:
-            msg += f"├─ 限购: {' | '.join(limit_info)}\n"
+            msg += f"├─ 限購: {' | '.join(limit_info)}\n"
 
         # 添加限时信息
         time_info = []
@@ -436,9 +474,9 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
                     pass
             if isinstance(start_time, datetime):
                 if current_time and current_time < start_time:
-                    time_info.append(f"未开始: {start_time.strftime('%m-%d %H:%M')}")
+                    time_info.append(f"未開始: {start_time.strftime('%m-%d %H:%M')}")
                 else:
-                    time_info.append(f"开始: {start_time.strftime('%m-%d %H:%M')}")
+                    time_info.append(f"開始: {start_time.strftime('%m-%d %H:%M')}")
 
         if end_time:
             if isinstance(end_time, str):
@@ -448,12 +486,12 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
                     pass
             if isinstance(end_time, datetime):
                 if current_time and current_time > end_time:
-                    time_info.append(f"已结束: {end_time.strftime('%m-%d %H:%M')}")
+                    time_info.append(f"已結束: {end_time.strftime('%m-%d %H:%M')}")
                 else:
-                    time_info.append(f"结束: {end_time.strftime('%m-%d %H:%M')}")
+                    time_info.append(f"結束: {end_time.strftime('%m-%d %H:%M')}")
 
         if time_info:
-            msg += f"├─ 限时: {' | '.join(time_info)}\n"
+            msg += f"├─ 限時: {' | '.join(time_info)}\n"
 
         # 如果包含多个物品（≥2），显示礼包包含的物品
         if len(rewards) >= 2:
@@ -519,8 +557,8 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
         if i < len(items) - 1:
             msg += "─" * 30 + "\n"
     msg += "═" * 50 + "\n"
-    msg += "💡 购买：商店购买 商店ID 商品ID [数量]\n"
-    msg += "示例：商店购买 1 2 5"
+    msg += "💡 購買指令：/商店購買 商店ID 商品ID [數量]\n"
+    msg += "示例：/商店購買 1 2 5"
 
     # 详情页可能很长，按商品块分段发送，避免平台截断
     if len(msg) <= 1500:
@@ -592,10 +630,26 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
 async def buy_in_shop(plugin: "FishingPlugin", event: AstrMessageEvent):
     """按商店池购买：/商店购买 <商店ID> <商品ID> [数量]"""
     user_id = plugin._get_effective_user_id(event)
+    raw = event.message_str
+    replacements = {
+        "/商店购买": "/商店購買",
+        "/商店買": "/商店購買",
+        "/商店买": "/商店購買",
+        "/购买商店": "/商店購買",
+        "/購買商店": "/商店購買",
+    }
+    for src, dst in replacements.items():
+        if raw.strip().startswith(src):
+            raw = raw.replace(src, dst, 1)
+            break
+    event.message_str = raw
     args = event.message_str.replace("\u3000", " ").split()
     if len(args) < 3:
         yield event.plain_result(
-            "❌ 用法：商店购买 商店ID 商品ID [数量]\n💡 支持中文数字，如：商店购买 1 2 五"
+            "❌ 用法錯誤\n\n"
+            "請使用：/商店購買 商店ID 商品ID [數量]\n"
+            "示例：/商店購買 1 2 5\n"
+            "💡 支援中文數字：五、一千、1萬"
         )
         return
 
@@ -609,7 +663,7 @@ async def buy_in_shop(plugin: "FishingPlugin", event: AstrMessageEvent):
 
     numeric_tokens = [t for t in cleaned if t.isdigit()]
     if len(numeric_tokens) < 2:
-        yield event.plain_result("❌ 商店ID与商品ID必须是数字，例如：/商店购买 2 2")
+        yield event.plain_result("❌ 商店 ID 與商品 ID 必須是數字，例如：/商店購買 2 2")
         return
 
     shop_id, item_id = numeric_tokens[0], numeric_tokens[1]
@@ -631,24 +685,22 @@ async def buy_in_shop(plugin: "FishingPlugin", event: AstrMessageEvent):
         try:
             qty = parse_amount(qty_token)
             if qty <= 0:
-                yield event.plain_result("❌ 数量必须是正整数")
+                yield event.plain_result("❌ 數量必須是正整數。")
                 return
         except Exception as e:
             yield event.plain_result(
-                f"❌ 无法解析数量：{str(e)}。示例：1 或 五 或 一千"
+                f"❌ 無法解析數量：{str(e)}\n示例：1、五、一千、1萬"
             )
             return
     result = plugin.shop_service.purchase_item(user_id, int(item_id), qty)
     if result.get("success"):
-        yield event.plain_result(
-            f"{result['message']}\n\n"
-            "⌨️ 常用下一步\n"
-            "- /背包：确认入库物品\n"
-            "- /使用 D/B短码：立即使用道具/鱼饵\n"
-            "- /钓鱼：将购买转化为收益"
+        yield event.plain_result(result["message"])
+        yield build_tip_result(
+            event,
+            "⌨️ 常用下一步（可複製）\n```\n/背包\n/使用 D短碼\n/使用 B短碼\n/釣魚\n```",
         )
         if should_send_loading_tip(plugin.game_config):
-            yield event.plain_result(get_loading_tip("trade"))
+            yield build_tip_result(event, get_loading_tip("trade"))
     else:
         error_message = result.get("message", "购买失败")
         # 检查错误消息是否已经包含❌符号，避免重复添加
@@ -679,6 +731,21 @@ async def market(plugin: "FishingPlugin", event: AstrMessageEvent):
     if not any(grouped_items.values()):
         yield event.plain_result("🛒 市场中没有商品可供购买。")
         return
+
+    # 優先使用圖片渲染（若失敗則回退文字）
+    try:
+        from ..draw.market import draw_market_list_image
+
+        image = draw_market_list_image(grouped_items)
+        image_path = os.path.join(plugin.tmp_dir, "market_list.png")
+        image.save(image_path)
+        yield event.image_result(image_path)
+        yield event.plain_result(
+            "💡 掛單有效期為 5 天，過期將自動下架返還\n💡 購買示例：/購買 C5"
+        )
+        return
+    except Exception:
+        pass
 
     # --- 帮助函数：用于格式化单个分区 ---
     def format_section(title_emoji, title_text, listings):
@@ -965,15 +1032,13 @@ async def buy_item(plugin: "FishingPlugin", event: AstrMessageEvent):
     result = plugin.market_service.buy_market_item(user_id, market_id)
     if result:
         if result["success"]:
-            yield event.plain_result(
-                f"{result['message']}\n\n"
-                "⌨️ 常用下一步\n"
-                "- /背包：确认物品与短码\n"
-                "- /使用 [短码]：立即启用\n"
-                "- /市场：继续浏览挂单"
+            yield event.plain_result(result["message"])
+            yield build_tip_result(
+                event,
+                "⌨️ 常用下一步（可複製）\n```\n/背包\n/使用 <短碼>\n/市場\n```",
             )
             if should_send_loading_tip(plugin.game_config):
-                yield event.plain_result(get_loading_tip("trade"))
+                yield build_tip_result(event, get_loading_tip("trade"))
         else:
             yield event.plain_result(f"❌ 购买失败：{result['message']}")
     else:

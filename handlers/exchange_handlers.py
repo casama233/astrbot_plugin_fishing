@@ -1,3 +1,4 @@
+import os
 from astrbot.api.event import AstrMessageEvent
 from typing import Optional, Dict, Any, TYPE_CHECKING, List
 from datetime import datetime, timedelta
@@ -21,7 +22,7 @@ class ExchangeHandlers:
         if not parts:
             return []
         head = parts[0].lstrip("/").lower()
-        if head in ["交易所", "交易市場", "交易市场", "exchange"]:
+        if head in ["交易所", "交易市場", "交易市场"]:
             return parts[1:]
         return parts
 
@@ -786,6 +787,21 @@ class ExchangeHandlers:
             msg += "═" * 30 + "\n"
             msg += "💡 使用【交易所 帮助】查看更多命令。"
 
+            # 优先使用图片渲染（失败则回退文字）
+            try:
+                from ..draw.exchange import draw_exchange_status_image
+
+                image = draw_exchange_status_image(result, previous_prices)
+                image_path = os.path.join(self.plugin.tmp_dir, "exchange_status.png")
+                image.save(image_path)
+                yield event.image_result(image_path)
+                yield event.plain_result(
+                    "💡 使用【交易所 帮助】查看更多命令。\n💡 查看库存：/持仓"
+                )
+                return
+            except Exception:
+                pass
+
             yield event.plain_result(msg)
         except Exception as e:
             from astrbot.api import logger
@@ -923,6 +939,27 @@ class ExchangeHandlers:
                 data.get("total_quantity", 0) for data in inventory.values()
             )
             msg += f"📦 当前持仓: {current_total_quantity} / {capacity}\n"
+
+            # 优先使用图片渲染（失败则回退文字）
+            try:
+                from ..draw.exchange import draw_exchange_inventory_image
+
+                image = draw_exchange_inventory_image(
+                    inventory,
+                    current_prices,
+                    analysis,
+                    capacity,
+                    current_total_quantity,
+                )
+                image_path = os.path.join(self.plugin.tmp_dir, "exchange_inventory.png")
+                image.save(image_path)
+                yield event.image_result(image_path)
+                yield event.plain_result(
+                    "💡 使用【交易所 卖出 商品名 数量】进行减仓\n💡 一键清仓：/清仓"
+                )
+                return
+            except Exception:
+                pass
 
             yield event.plain_result(msg)
 

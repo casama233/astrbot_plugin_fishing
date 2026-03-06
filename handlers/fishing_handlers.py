@@ -7,6 +7,7 @@ from ..utils import (
     safe_get_file_path,
     get_loading_tip,
     should_send_loading_tip,
+    build_tip_result,
 )
 from ..draw.pokedex import draw_pokedex
 from astrbot.api.message_components import Image as AstrImage
@@ -104,7 +105,7 @@ class FishingHandlers:
             return
         yield event.plain_result(_build_fish_message(result, fishing_cost))
         if should_send_loading_tip(self.plugin.game_config):
-            yield event.plain_result(get_loading_tip("fishing"))
+            yield build_tip_result(event, get_loading_tip("fishing"))
 
     async def auto_fish(self, event: AstrMessageEvent):
         """自动钓鱼"""
@@ -113,19 +114,20 @@ class FishingHandlers:
         yield event.plain_result(result["message"])
 
     async def fishing_area(self, event: AstrMessageEvent):
-        """查看当前钓鱼区域"""
+        """查看或切換釣魚區域"""
         user_id = self.plugin._get_effective_user_id(event)
-        args = event.message_str.split(" ")
+        args = event.message_str.split()
         if len(args) < 2:
             result = self.fishing_service.get_user_fishing_zones(user_id)
             if not result:
-                yield event.plain_result("❌ 出错啦！请稍后再试。")
+                yield event.plain_result("❌ 系統忙碌中，請稍後再試。")
                 return
             if not result.get("success"):
-                yield event.plain_result(f"❌ 查看钓鱼区域失败：{result['message']}")
+                yield event.plain_result(f"❌ 查看釣魚區域失敗：{result['message']}")
                 return
             zones = result.get("zones", [])
-            message = "【🌊 钓鱼区域】\n"
+            message = "【🌊 釣魚區域列表】\n"
+            message += "════════════════════════════\n"
             for zone in zones:
                 status_icons = []
                 if zone["whether_in_use"]:
@@ -135,38 +137,45 @@ class FishingHandlers:
                 if zone.get("requires_pass"):
                     status_icons.append("🔑")
                 status_text = " ".join(status_icons) if status_icons else ""
-                message += (
-                    f"区域名称: {zone['name']} (ID: {zone['zone_id']}) {status_text}\n"
+
+                zone_id = zone.get("zone_id")
+                zone_name = zone.get("name", "未知區域")
+                desc = zone.get("description", "")
+                fishing_cost = zone.get("fishing_cost", 10)
+                remaining_rare = max(
+                    0, zone["daily_rare_fish_quota"] - zone["rare_fish_caught_today"]
                 )
-                message += f"描述: {zone['description']}\n"
-                message += f"💰 钓鱼消耗: {zone.get('fishing_cost', 10)} 金币/次\n"
+
+                message += f"• ID {zone_id}｜{zone_name} {status_text}\n"
+                if desc:
+                    message += f"  └─ {desc}\n"
+                message += f"  💰 消耗：{fishing_cost} 金幣 / 次\n"
                 if zone.get("requires_pass"):
-                    required_item_name = zone.get("required_item_name", "通行证")
-                    message += f"🔑 需要 {required_item_name} 才能进入\n"
+                    required_item_name = zone.get("required_item_name", "通行證")
+                    message += f"  🔑 進入需求：{required_item_name}\n"
                 if zone.get("available_from") or zone.get("available_until"):
-                    message += "⏰ 开放时间: "
+                    message += "  ⏰ 開放時間："
                     if zone.get("available_from") and zone.get("available_until"):
                         from_time = zone["available_from"].strftime("%Y-%m-%d %H:%M")
                         until_time = zone["available_until"].strftime("%Y-%m-%d %H:%M")
                         message += f"{from_time} 至 {until_time}\n"
                     elif zone.get("available_from"):
                         from_time = zone["available_from"].strftime("%Y-%m-%d %H:%M")
-                        message += f"{from_time} 开始\n"
+                        message += f"{from_time} 開始\n"
                     elif zone.get("available_until"):
                         until_time = zone["available_until"].strftime("%Y-%m-%d %H:%M")
-                        message += f"至 {until_time} 结束\n"
-                remaining_rare = max(
-                    0, zone["daily_rare_fish_quota"] - zone["rare_fish_caught_today"]
-                )
+                        message += f"至 {until_time} 結束\n"
                 if zone.get("daily_rare_fish_quota", 0) > 0:
-                    message += f"剩余稀有鱼类数量: {remaining_rare}\n"
-                message += "\n"
-            message += "使用「/钓鱼区域 ID」命令切换钓鱼区域。\n"
+                    message += f"  🐟 今日稀有額度：剩餘 {remaining_rare}\n"
+                message += "────────────────────────────\n"
+
+            message += "💡 切換區域：/釣魚區域 ID\n"
+            message += "💡 示例：/釣魚區域 3"
             yield event.plain_result(message)
             return
         zone_id = args[1]
         if not zone_id.isdigit():
-            yield event.plain_result("❌ 钓鱼区域 ID 必须是数字，请检查后重试。")
+            yield event.plain_result("❌ 釣魚區域 ID 必須是數字，請檢查後重試。")
             return
         zone_id = int(zone_id)
 
@@ -176,15 +185,16 @@ class FishingHandlers:
 
         if zone_id not in valid_zone_ids:
             yield event.plain_result(
-                f"❌ 无效的钓鱼区域 ID。有效ID为: {', '.join(map(str, valid_zone_ids))}"
+                f"❌ 無效的釣魚區域 ID。\n"
+                f"可用 ID：{', '.join(map(str, valid_zone_ids))}"
             )
-            yield event.plain_result("💡 请使用「/钓鱼区域 <ID>」命令指定区域ID")
+            yield event.plain_result("💡 請使用：/釣魚區域 <ID>")
             return
 
         # 切换用户的钓鱼区域
         result = self.fishing_service.set_user_fishing_zone(user_id, zone_id)
         yield event.plain_result(
-            result["message"] if result else "❌ 出错啦！请稍后再试。"
+            result["message"] if result else "❌ 系統忙碌中，請稍後再試。"
         )
 
     async def fish_pokedex(self, event: AstrMessageEvent):

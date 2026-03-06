@@ -19,6 +19,7 @@ class UserContext:
     owned_rod_rarities: Set[int]
     owned_accessory_rarities: Set[int]
     has_heavy_fish: bool
+    caught_fish_names: Set[str]
 
 
 

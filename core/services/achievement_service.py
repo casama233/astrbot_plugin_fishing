@@ -80,7 +80,8 @@ class AchievementService:
             min_wipe_bomb_multiplier=user.min_wipe_bomb_multiplier, # <--- 采用优化后的实现
             owned_rod_rarities=owned_rod_rarities,
             owned_accessory_rarities=owned_accessory_rarities,
-            has_heavy_fish=self.achievement_repo.has_caught_heavy_fish(user_id, 100000)
+            has_heavy_fish=self.achievement_repo.has_caught_heavy_fish(user_id, 100000),
+            caught_fish_names=self.achievement_repo.get_user_caught_fish_names(user_id)
         )
 
     def _grant_reward(self, user: User, achievement: BaseAchievement) -> bool:

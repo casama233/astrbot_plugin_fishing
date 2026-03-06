@@ -36,6 +36,7 @@ class Bait:
     garbage_reduction_modifier: float = 0.0 # 垃圾鱼出现几率减少
     value_modifier: float = 1.0 # 渔获价值加成
     quantity_modifier: float = 1.0 # 渔获数量加成
+    weight_modifier: float = 1.0 # 渔获重量加成
     is_consumable: bool = True # 是否消耗品
 
 

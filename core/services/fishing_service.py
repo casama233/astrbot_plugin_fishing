@@ -252,6 +252,7 @@ class FishingService:
         # 获取鱼饵并应用加成
         cur_bait_id = user.current_bait_id
         garbage_reduction_modifier = None
+        weight_modifier = 1.0
 
         # 判断鱼饵是否过期
         if user.current_bait_id is not None:
@@ -324,6 +325,7 @@ class FishingService:
                 rare_chance += bait_template.rare_chance_modifier
                 base_success_rate += bait_template.success_rate_modifier
                 garbage_reduction_modifier = bait_template.garbage_reduction_modifier
+                weight_modifier *= bait_template.weight_modifier
                 # value_modifier 是倍率型参数（1.15 = +15%）
                 # 转为增量叠加，避免 1.0 被当作额外效果
                 coins_chance += max(0.0, bait_template.value_modifier - 1.0)
@@ -412,7 +414,7 @@ class FishingService:
                     fish_template = new_fish_template
 
         # 计算最终属性
-        weight = random.randint(fish_template.min_weight, fish_template.max_weight)
+        weight = random.randint(fish_template.min_weight, int(fish_template.max_weight * weight_modifier))
         value = fish_template.base_value
 
         # 4.2 按品质加成给予额外品质（重量/价值）奖励

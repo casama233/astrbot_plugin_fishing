@@ -458,107 +458,13 @@ class FishingPlugin(Star):
             "\n    _____ _     _     _\n    |  ___(_)___| |__ (_)_ __   __ _\n    | |_  | / __| '_ \\| | '_ \\ / _` |\n    |  _| | \\__ \\ | | | | | | | (_| |\n    |_|   |_|___/_| |_|_|_| |_|\\__, |\n                               |___/\n                               "
         )
 
-    @filter.command_group("fish")
-    def fish_group(self):
-        """钓鱼主指令组（标准写法：/fish <子命令>）"""
-        pass
-
-    @fish_group.command("register")  # type: ignore
-    async def fish_register_subcmd(self, event: AstrMessageEvent):
-        """注册钓鱼账号"""
-        async for r in self.fish_cmd(event, "register"):
-            yield r
-
-    @fish_group.command("signin")  # type: ignore
-    async def fish_signin_subcmd(self, event: AstrMessageEvent):
-        """每日签到领取奖励"""
-        async for r in self.fish_cmd(event, "signin"):
-            yield r
-
-    @fish_group.command("bag")  # type: ignore
-    async def fish_bag_subcmd(self, event: AstrMessageEvent):
-        """查看个人背包"""
-        async for r in self.fish_cmd(event, "bag"):
-            yield r
-
-    @fish_group.command("status")  # type: ignore
-    async def fish_status_subcmd(self, event: AstrMessageEvent):
-        """查看个人状态"""
-        async for r in self.fish_cmd(event, "status"):
-            yield r
-
-    @fish_group.command("pond")  # type: ignore
-    async def fish_pond_subcmd(self, event: AstrMessageEvent):
-        """查看鱼塘信息"""
-        async for r in self.fish_cmd(event, "pond"):
-            yield r
-
-    @fish_group.command("shop")  # type: ignore
-    async def fish_shop_subcmd(
-        self,
-        event: AstrMessageEvent,
-        arg1: str = "",
-        arg2: str = "",
-        arg3: str = "",
-    ):
-        """商店相关操作（查看/购买）"""
-        args = [a for a in [arg1, arg2, arg3] if a]
-        async for r in self.fish_cmd(event, "shop", *args):
-            yield r
-
-    @fish_group.command("market")  # type: ignore
-    async def fish_market_subcmd(
-        self,
-        event: AstrMessageEvent,
-        sub: str = "",
-        arg1: str = "",
-        arg2: str = "",
-    ):
-        """市场相关操作（查看/上架/购买/下架）"""
-        args = [a for a in [sub, arg1, arg2] if a]
-        async for r in self.fish_cmd(event, "market", *args):
-            yield r
-
-    @fish_group.command("help")  # type: ignore
-    async def fish_help_subcmd(self, event: AstrMessageEvent):
-        """查看钓鱼帮助"""
-        async for r in self.fish_cmd(event, "help"):
-            yield r
-
-    @fish_group.command("sicbo")  # type: ignore
-    async def fish_sicbo_subcmd(self, event: AstrMessageEvent):
-        """骰宝玩法入口"""
-        async for r in self.fish_cmd(event, "sicbo"):
-            yield r
-
-    @fish_group.command("bet_pt")  # type: ignore
-    async def fish_bet_pt_subcmd(self, event: AstrMessageEvent, point: str = ""):
-        """骰宝押点（示例：/fish bet_pt 12 100）"""
-        args = [point] if point else []
-        async for r in self.fish_cmd(event, "bet_pt", *args):
-            yield r
-
     @filter.command_group("fish_admin")
+    @filter.permission_type(PermissionType.ADMIN)
     def fish_admin_group(self):
-        """钓鱼管理指令组（标准写法：/fish_admin <子命令>）"""
         pass
 
     @filter.permission_type(PermissionType.ADMIN)
-    @fish_admin_group.command("sync")  # type: ignore
-    async def fish_admin_sync_subcmd(self, event: AstrMessageEvent):
-        """同步初始配置数据（管理员）"""
-        async for r in self.fish_admin_cmd(event, "sync"):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @fish_admin_group.command("replenish")  # type: ignore
-    async def fish_admin_replenish_subcmd(self, event: AstrMessageEvent):
-        """补充鱼池数量（管理员）"""
-        async for r in self.fish_admin_cmd(event, "replenish"):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @fish_admin_group.command("coins")  # type: ignore
+    @fish_admin_group.command("coins")  # type: ignore[attr-defined]
     async def fish_admin_coins_subcmd(
         self,
         event: AstrMessageEvent,
@@ -570,7 +476,7 @@ class FishingPlugin(Star):
             yield r
 
     @filter.permission_type(PermissionType.ADMIN)
-    @fish_admin_group.command("premium")  # type: ignore
+    @fish_admin_group.command("premium")  # type: ignore[attr-defined]
     async def fish_admin_premium_subcmd(
         self,
         event: AstrMessageEvent,
@@ -721,32 +627,40 @@ class FishingPlugin(Star):
         async for r in common_handlers.register_user(self, event):
             yield r
 
-    @filter.command("钓鱼", alias=["釣魚"])
+    @filter.command("钓鱼", alias=["釣魚", "釣鱼"])
     async def cmd_fish_cn(self, event: AstrMessageEvent):
         """进行一次钓鱼"""
         async for r in self.fishing_handlers.fish(event):
             yield r
 
-    @filter.command("签到", alias=["簽到"])
+    @filter.command("签到", alias=["簽到", "簽到"])
     async def cmd_signin_cn(self, event: AstrMessageEvent):
         """每日签到"""
         async for r in common_handlers.sign_in(self, event):
             yield r
 
-    @filter.command("自动钓鱼", alias=["自動釣魚"])
+    @filter.command("自动钓鱼", alias=["自動釣魚", "自動钓鱼"])
     async def cmd_auto_fish_cn(self, event: AstrMessageEvent):
         """开启或关闭自动钓鱼"""
         async for r in self.fishing_handlers.auto_fish(event):
             yield r
 
-    @filter.command("钓鱼区域", alias=["釣魚區域", "区域", "區域"])
+    @filter.command("钓鱼区域", alias=["釣魚區域", "釣魚区域", "区域", "區域"])
     async def cmd_fishing_area_cn(self, event: AstrMessageEvent):
         """查看或切换钓鱼区域"""
         async for r in self.fishing_handlers.fishing_area(event):
             yield r
 
     @filter.command(
-        "钓鱼记录", alias=["釣魚記錄", "钓鱼日志", "釣魚日誌", "钓鱼历史", "釣魚歷史"]
+        "钓鱼记录",
+        alias=[
+            "釣魚記錄",
+            "釣魚记录",
+            "钓鱼日志",
+            "釣魚日誌",
+            "钓鱼历史",
+            "釣魚歷史",
+        ],
     )
     async def cmd_fishing_log_cn(self, event: AstrMessageEvent):
         """查看最近钓鱼记录"""
@@ -833,25 +747,25 @@ class FishingPlugin(Star):
         async for r in aquarium_handlers.upgrade_aquarium(self, event):
             yield r
 
-    @filter.command("鱼竿", alias=["魚竿"])
+    @filter.command("鱼竿", alias=["魚竿", "魚杆"])
     async def cmd_rod_cn(self, event: AstrMessageEvent):
         """查看鱼竿"""
         async for r in inventory_handlers.rod(self, event):
             yield r
 
-    @filter.command("鱼饵", alias=["魚餌"])
+    @filter.command("鱼饵", alias=["魚餌", "魚饵"])
     async def cmd_bait_cn(self, event: AstrMessageEvent):
         """查看鱼饵"""
         async for r in inventory_handlers.bait(self, event):
             yield r
 
-    @filter.command("饰品", alias=["飾品"])
+    @filter.command("饰品", alias=["飾品", "饰品列表", "飾品列表"])
     async def cmd_accessories_cn(self, event: AstrMessageEvent):
         """查看饰品"""
         async for r in inventory_handlers.accessories(self, event):
             yield r
 
-    @filter.command("道具", alias=["我的道具", "查看道具"])
+    @filter.command("道具", alias=["我的道具", "查看道具", "道具列表"])
     async def cmd_items_cn(self, event: AstrMessageEvent):
         """查看道具"""
         async for r in inventory_handlers.items(self, event):
@@ -1011,7 +925,7 @@ class FishingPlugin(Star):
         async for r in market_handlers.sell_all_accessories(self, event):
             yield r
 
-    @filter.command("商店")
+    @filter.command("商店", alias=["商店", "商店列表", "店鋪", "店铺"])
     async def cmd_shop_cn(self, event: AstrMessageEvent):
         """查看商店列表或详情"""
         async for r in market_handlers.shop(self, event):
@@ -1019,14 +933,22 @@ class FishingPlugin(Star):
 
     @filter.command(
         "商店购买",
-        alias=["商店購買", "购买商店商品", "購買商店商品", "购买商店", "購買商店"],
+        alias=[
+            "商店購買",
+            "购买商店商品",
+            "購買商店商品",
+            "购买商店",
+            "購買商店",
+            "商店买",
+            "商店買",
+        ],
     )
     async def cmd_buy_in_shop_cn(self, event: AstrMessageEvent):
         """从商店购买商品"""
         async for r in market_handlers.buy_in_shop(self, event):
             yield r
 
-    @filter.command("市场", alias=["市場"])
+    @filter.command("市场", alias=["市場", "市场列表", "市場列表"])
     async def cmd_market_cn(self, event: AstrMessageEvent):
         """查看玩家交易市场"""
         async for r in market_handlers.market(self, event):
@@ -1074,7 +996,7 @@ class FishingPlugin(Star):
         async for r in self.exchange_handlers.clear_inventory(event):
             yield r
 
-    @filter.command("抽卡", alias=["抽奖", "抽獎"])
+    @filter.command("抽卡", alias=["抽奖", "抽獎", "抽卡池", "抽獎池", "抽奖池"])
     async def cmd_gacha_cn(self, event: AstrMessageEvent):
         """进行单次抽卡"""
         async for r in gacha_handlers.gacha(self, event):
@@ -1086,19 +1008,19 @@ class FishingPlugin(Star):
         async for r in gacha_handlers.ten_gacha(self, event):
             yield r
 
-    @filter.command("查看卡池", alias=["卡池"])
+    @filter.command("查看卡池", alias=["卡池", "查看卡池詳情", "查看卡池详情"])
     async def cmd_view_pool_cn(self, event: AstrMessageEvent):
         """查看卡池详情"""
         async for r in gacha_handlers.view_gacha_pool(self, event):
             yield r
 
-    @filter.command("抽卡记录", alias=["抽卡記錄"])
+    @filter.command("抽卡记录", alias=["抽卡記錄", "抽卡历史", "抽卡歷史"])
     async def cmd_gacha_history_cn(self, event: AstrMessageEvent):
         """查看抽卡记录"""
         async for r in gacha_handlers.gacha_history(self, event):
             yield r
 
-    @filter.command("擦弹", alias=["擦彈"])
+    @filter.command("擦弹", alias=["擦彈", "擦弹玩法", "擦彈玩法"])
     async def cmd_wipe_bomb_cn(self, event: AstrMessageEvent):
         """进行擦弹玩法"""
         async for r in gacha_handlers.wipe_bomb(self, event):

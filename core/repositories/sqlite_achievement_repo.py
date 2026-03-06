@@ -1,6 +1,6 @@
 import sqlite3
 import threading
-from typing import Optional, List
+from typing import Optional, List, Set
 from datetime import datetime
 
 # 导入抽象基类和领域模型
@@ -150,3 +150,13 @@ class SqliteAchievementRepository(AbstractAchievementRepository):
             cursor = conn.cursor()
             cursor.execute(query, (user_id, rarity))
             return cursor.fetchone() is not None
+
+    def get_user_caught_fish_names(self, user_id: str) -> Set[str]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT f.name FROM user_fish_inventory ufi
+                JOIN fish f ON ufi.fish_id = f.fish_id
+                WHERE ufi.user_id = ?
+            """, (user_id,))
+            return {row["name"] for row in cursor.fetchall()}

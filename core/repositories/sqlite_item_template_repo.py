@@ -387,6 +387,7 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
                 ),
                 "value_modifier": data.get("value_modifier", 1.0),
                 "quantity_modifier": data.get("quantity_modifier", 1.0),
+                "weight_modifier": data.get("weight_modifier", 1.0),
                 "is_consumable": 1 if "is_consumable" in data else 0,
             }
             cursor.execute(
@@ -394,11 +395,11 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
                 INSERT INTO baits (
                     name, description, rarity, effect_description, duration_minutes, cost, required_rod_rarity,
                     success_rate_modifier, rare_chance_modifier, garbage_reduction_modifier,
-                    value_modifier, quantity_modifier, is_consumable
+                    value_modifier, quantity_modifier, weight_modifier, is_consumable
                 ) VALUES (
                     :name, :description, :rarity, :effect_description, :duration_minutes, :cost, :required_rod_rarity,
                     :success_rate_modifier, :rare_chance_modifier, :garbage_reduction_modifier,
-                    :value_modifier, :quantity_modifier, :is_consumable
+                    :value_modifier, :quantity_modifier, :weight_modifier, :is_consumable
                 )
             """,
                 params,
@@ -425,6 +426,7 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
                 ),
                 "value_modifier": data.get("value_modifier", 1.0),
                 "quantity_modifier": data.get("quantity_modifier", 1.0),
+                "weight_modifier": data.get("weight_modifier", 1.0),
                 "is_consumable": 1 if "is_consumable" in data else 0,
             }
             cursor.execute(
@@ -435,7 +437,7 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
                     cost = :cost, required_rod_rarity = :required_rod_rarity,
                     success_rate_modifier = :success_rate_modifier, rare_chance_modifier = :rare_chance_modifier,
                     garbage_reduction_modifier = :garbage_reduction_modifier, value_modifier = :value_modifier,
-                    quantity_modifier = :quantity_modifier, is_consumable = :is_consumable
+                    quantity_modifier = :quantity_modifier, weight_modifier = :weight_modifier, is_consumable = :is_consumable
                 WHERE bait_id = :bait_id
             """,
                 params,

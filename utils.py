@@ -56,7 +56,7 @@ def get_loading_tip(scene: str = "general") -> str:
             "💡 小知识：黑市商品通常限购，先买刚需道具再冲收藏。",
             "💡 小知识：有库存压力时，/保留卖出 往往比 /全部卖出 更稳。",
             "💡 小知识：同类商品别一次性满仓，分批进出更抗波动。",
-            "💡 小知识：交易所支持繁简与英文子命令，输入习惯可自由切换。",
+            "💡 小知识：交易所支持繁简子命令，输入习惯可自由切换。",
             "💡 小知识：清仓前先看 /持仓，避免把仍看涨的仓位一并卖掉。",
             "💡 小知识：高单价物品上架可先小量试价，再决定是否加仓。",
             "💡 小知识：夜市和黑市商品常有库存/限购，错过窗口成本更高。",
@@ -95,6 +95,36 @@ def should_send_loading_tip(game_config: Optional[Dict[str, Any]]) -> bool:
         return random.random() < chance
     except Exception:
         return True
+
+
+def build_tip_result(event, message: str):
+    platform_name = getattr(getattr(event, "platform_meta", None), "platform_name", "")
+    is_discord = "discord" in str(platform_name).lower()
+    if is_discord:
+        for method_name in [
+            "private_result",
+            "ephemeral_result",
+            "dm_result",
+            "reply_private",
+            "sender_only_result",
+        ]:
+            if hasattr(event, method_name):
+                fn = getattr(event, method_name)
+                try:
+                    return fn(message)
+                except TypeError:
+                    try:
+                        return fn(message, ephemeral=True)
+                    except Exception:
+                        pass
+        try:
+            return event.plain_result(message, private=True)
+        except Exception:
+            try:
+                return event.plain_result(message, ephemeral=True)
+            except Exception:
+                return event.plain_result(message)
+    return event.plain_result(message)
 
 
 async def get_local_ip():
@@ -339,32 +369,47 @@ def format_accessory_or_rod(accessory_or_rod: dict) -> str:
     message = f" - ID: {display_code}\n"
     message += f" - {accessory_or_rod['name']} (稀有度: {format_rarity_display(accessory_or_rod['rarity'])})\n"
     if accessory_or_rod.get("is_equipped", False):
-        message += f"   - {'✅ 已装备'}\n"
+        message += f"   - {'✅ 已裝備'}\n"
     # 显示锁定状态：锁定或未锁定
     if accessory_or_rod.get("is_locked", False):
-        message += f"   - {'🔒 已锁定'}\n"
+        message += f"   - {'🔒 已鎖定'}\n"
     else:
-        message += f"   - {'🔓 未锁定'}\n"
+        message += f"   - {'🔓 未鎖定'}\n"
+
+    # 耐久度显示 (针对鱼竿)
+    if "current_durability" in accessory_or_rod and accessory_or_rod["current_durability"] is not None:
+        dur = accessory_or_rod["current_durability"]
+        max_dur = accessory_or_rod.get("max_durability", dur)
+        message += f"   - 🔨 耐久度: {dur}/{max_dur}\n"
+
     if (
         accessory_or_rod.get("bonus_fish_quality_modifier", 1.0) != 1.0
         and accessory_or_rod.get("bonus_fish_quality_modifier", 1) != 1
         and accessory_or_rod.get("bonus_fish_quality_modifier", 1) > 0
     ):
-        message += f"   - ✨鱼类品质加成: {to_percentage(accessory_or_rod['bonus_fish_quality_modifier'])}\n"
+        message += f"   - ✨ 魚類品質加成: {to_percentage(accessory_or_rod['bonus_fish_quality_modifier'])}\n"
     if (
         accessory_or_rod.get("bonus_fish_quantity_modifier", 1.0) != 1.0
         and accessory_or_rod.get("bonus_fish_quantity_modifier", 1) != 1
         and accessory_or_rod.get("bonus_fish_quantity_modifier", 1) > 0
     ):
-        message += f"   - 📊鱼类数量加成: {to_percentage(accessory_or_rod['bonus_fish_quantity_modifier'])}\n"
+        message += f"   - 📊 魚類數量加成: {to_percentage(accessory_or_rod['bonus_fish_quantity_modifier'])}\n"
     if (
         accessory_or_rod.get("bonus_rare_fish_chance", 1.0) != 1.0
         and accessory_or_rod.get("bonus_rare_fish_chance", 1) != 1
         and accessory_or_rod.get("bonus_rare_fish_chance", 1) > 0
     ):
-        message += f"   - 🎣钓鱼几率加成: {to_percentage(accessory_or_rod['bonus_rare_fish_chance'])}\n"
+        message += f"   - 🎣 釣魚幾率加成: {to_percentage(accessory_or_rod['bonus_rare_fish_chance'])}\n"
+    if (
+        accessory_or_rod.get("bonus_coin_modifier", 1.0) != 1.0
+        and accessory_or_rod.get("bonus_coin_modifier", 1) != 1
+        and accessory_or_rod.get("bonus_coin_modifier", 1) > 0
+    ):
+        message += f"   - 💰 金幣獲取加成: {to_percentage(accessory_or_rod['bonus_coin_modifier'])}\n"
+    if accessory_or_rod.get("other_bonus_description"):
+        message += f"   - 🎁 特殊效果: {accessory_or_rod['other_bonus_description']}\n"
     if accessory_or_rod.get("description"):
-        message += f"   - 📋描述: {accessory_or_rod['description']}\n"
+        message += f"   - 📋 描述: {accessory_or_rod['description']}\n"
     message += "\n"
     return message
 

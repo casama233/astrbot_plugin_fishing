@@ -564,9 +564,12 @@ class AbstractAchievementRepository(ABC):
     # 检查擦弹是否达到过特定倍率
     @abstractmethod
     def has_wipe_bomb_multiplier(self, user_id: str, multiplier: float) -> bool: pass
-    # 检查用户是否拥有特定稀有度的物品
+    # 检查用戶是否拥有特定稀有度的物品
     @abstractmethod
     def has_item_of_rarity(self, user_id: str, item_type: str, rarity: int) -> bool: pass
+    # 获取用户钓到过的所有鱼类名称集合
+    @abstractmethod
+    def get_user_caught_fish_names(self, user_id: str) -> Set[str]: pass
 
 class AbstractUserBuffRepository(ABC):
     @abstractmethod
