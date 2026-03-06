@@ -425,12 +425,17 @@ async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += "• /出售 [魚竿ID] - 出售指定魚竿"
 
         message += "\n════════════════════════════\n"
-        message += "💡 快速操作：/使用 R短碼  /精煉 R短碼  /出售 R短碼"
+        message += "⌨️ 建議下一步\n"
+        message += "```\n/使用 R短碼\n```\n"
+        message += "```\n/精煉 R短碼\n```\n"
+        message += "```\n/出售 R短碼\n```"
 
         yield event.plain_result(message)
         yield build_tip_result(event, _build_dynamic_shortcuts(plugin, user_id, "rod"))
     else:
-        yield event.plain_result("🎣 你目前還沒有魚竿。\n\n建議：/商店  或  /抽卡")
+        yield event.plain_result(
+            "🎣 你目前還沒有魚竿。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```"
+        )
 
 
 async def bait(plugin: "FishingPlugin", event: AstrMessageEvent):
@@ -603,14 +608,19 @@ async def accessories(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += "• /出售 [飾品ID] - 出售指定飾品"
 
         message += "\n════════════════════════════\n"
-        message += "💡 快速操作：/使用 A短碼  /精煉 A短碼  /出售 A短碼"
+        message += "⌨️ 建議下一步\n"
+        message += "```\n/使用 A短碼\n```\n"
+        message += "```\n/精煉 A短碼\n```\n"
+        message += "```\n/出售 A短碼\n```"
 
         yield event.plain_result(message)
         yield build_tip_result(
             event, _build_dynamic_shortcuts(plugin, user_id, "accessory")
         )
     else:
-        yield event.plain_result("💍 你目前還沒有飾品。\n\n建議：/商店  或  /抽卡")
+        yield event.plain_result(
+            "💍 你目前還沒有飾品。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```"
+        )
 
 
 async def refine_help(plugin: "FishingPlugin", event: AstrMessageEvent):

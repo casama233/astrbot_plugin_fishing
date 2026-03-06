@@ -735,7 +735,7 @@ class FishingPlugin(Star):
         async for r in aquarium_handlers.add_to_aquarium(self, event):
             yield r
 
-    @filter.command("移出水族箱", alias=["移回鱼塘", "移回魚塘"])
+    @filter.command("移出水族箱", alias=["移回鱼塘", "移回魚塘", "取出水族箱"])
     async def cmd_remove_from_aquarium_cn(self, event: AstrMessageEvent):
         """将鱼移出水族箱"""
         async for r in aquarium_handlers.remove_from_aquarium(self, event):

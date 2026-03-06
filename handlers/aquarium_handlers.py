@@ -42,9 +42,18 @@ async def aquarium(self: "FishingPlugin", event: AstrMessageEvent):
     # 构造输出信息
     message = "【🐠 水族箱】：\n"
 
+    def _format_aquarium_rarity(value) -> str:
+        try:
+            rarity_int = int(value)
+        except (TypeError, ValueError):
+            rarity_int = 0
+        if rarity_int <= 0:
+            return "普通"
+        return format_rarity_display(rarity_int)
+
     for rarity in sorted(fishes_by_rarity.keys(), reverse=True):
         if fish_list := fishes_by_rarity[rarity]:
-            message += f"\n {format_rarity_display(rarity)}：\n"
+            message += f"\n {_format_aquarium_rarity(rarity)}：\n"
             for fish in fish_list:
                 fish_id = int(fish.get("fish_id", 0) or 0)
                 quality_level = fish.get("quality_level", 0)
@@ -57,7 +66,7 @@ async def aquarium(self: "FishingPlugin", event: AstrMessageEvent):
                 quality_display = ""
                 if quality_level == 1:
                     quality_display = " ✨高品质"
-                message += f"  - {fish['name']}{quality_display} x  {fish['quantity']} （{fish['actual_value']}金币 / 个） ID: {fcode}\n"
+                message += f"  - {fish['name']}{quality_display} x {fish['quantity']} （{fish['actual_value']}金币 / 个） ID: {fcode}\n"
 
     message += f"\n🐟 总鱼数：{stats['total_count']} / {stats['capacity']} 条\n"
     message += f"💰 总价值：{stats['total_value']} 金币\n"
