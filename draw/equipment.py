@@ -32,14 +32,19 @@ def draw_equipment_image(
     card_h = 116
     header_h = 110
     footer_h = 78
-    height = header_h + max(1, len(entries)) * card_h + footer_h
-
-    image = create_vertical_gradient(width, height, (238, 248, 255), (255, 255, 255))
-    draw = ImageDraw.Draw(image)
 
     title_font = load_font(32)
     body_font = load_font(20)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
+    card_h = max(card_h, body_h + small_h * 2 + 44)
+    bottom_pad = 24
+    height = header_h + max(1, len(entries)) * card_h + footer_h + bottom_pad
+
+    image = create_vertical_gradient(width, height, (238, 248, 255), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
 
     icon = "🎣" if kind == "rod" else "💍"
     draw.text((28, 22), f"{icon} {title}", font=title_font, fill=(40, 66, 94))
@@ -90,21 +95,18 @@ def draw_equipment_image(
             )
         y += card_h
 
-    draw.line(
-        (28, height - footer_h, width - 28, height - footer_h),
-        fill=(176, 204, 229),
-        width=2,
-    )
+    footer_y = height - footer_h - bottom_pad
+    draw.line((28, footer_y, width - 28, footer_y), fill=(176, 204, 229), width=2)
     if kind == "rod":
         draw.text(
-            (30, height - footer_h + 24),
+            (30, footer_y + 24),
             "💡 快速操作：/使用 R短碼   /精煉 R短碼   /出售 R短碼",
             font=small_font,
             fill=(63, 89, 112),
         )
     else:
         draw.text(
-            (30, height - footer_h + 24),
+            (30, footer_y + 24),
             "💡 快速操作：/使用 A短碼   /精煉 A短碼   /出售 A短碼",
             font=small_font,
             fill=(63, 89, 112),

@@ -113,7 +113,7 @@ async def state(self: "FishingPlugin", event: AstrMessageEvent):
         avatar_url = None
 
     # 生成状态图像
-    image = await draw_state_image(user_data, self.data_dir, avatar_url=avatar_url)
+    image = draw_state_image(user_data, self.data_dir, avatar_url=avatar_url)
     # 保存图像到临时文件
     image_path = os.path.join(self.tmp_dir, "user_status.png")
     image.save(image_path)

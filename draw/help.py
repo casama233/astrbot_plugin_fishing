@@ -323,7 +323,7 @@ def draw_help_image():
     draw_text_smart(draw, (width // 2 - footer_w // 2, footer_y), footer_text, font=desc_font, fill=(120, 120, 120))
 
     # 11. 保存（高度已自适应，无需再次裁剪）
-    final_height = footer_y + 30
+    final_height = footer_y + 48
     image = image.crop((0, 0, width, final_height))
 
     return image

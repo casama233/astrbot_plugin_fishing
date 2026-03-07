@@ -120,15 +120,17 @@ def draw_exchange_status_image(
     header_h = 100
     row_h = 100
     footer_h = 70
-    height = header_h + max(1, len(lines)) * row_h + footer_h
-
-    # 遊戲風格深色背景
-    image = create_game_gradient(width, height)
-    draw = ImageDraw.Draw(image)
-
     title_font = load_font(36)
     body_font = load_font(22)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    row_h = max(row_h, body_h + 52)
+    bottom_pad = 24
+    height = header_h + max(1, len(lines)) * row_h + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
 
     # 標題欄
     draw_game_title_bar(draw, width, 0, header_h, "交易所行情", title_font, "📈")
@@ -192,9 +194,10 @@ def draw_exchange_status_image(
         y += row_h
 
     # 底部提示
-    draw_game_divider(draw, 30, width - 30, height - footer_h + 10)
+    footer_y = height - footer_h - bottom_pad
+    draw_game_divider(draw, 30, width - 30, footer_y + 10)
     draw.text(
-        (30, height - footer_h + 30),
+        (30, footer_y + 30),
         "💡 交易指令：/交易所 買入 [商品] [數量]  |  /交易所 賣出 [商品] [數量]",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
@@ -225,14 +228,17 @@ def draw_exchange_inventory_image(
     header_h = 160
     row_h = 60
     footer_h = 70
-    height = header_h + max(1, len(rows)) * row_h + footer_h
-
-    image = create_game_gradient(width, height)
-    draw = ImageDraw.Draw(image)
-
     title_font = load_font(34)
     body_font = load_font(20)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    row_h = max(row_h, body_h + 36)
+    bottom_pad = 24
+    height = header_h + max(1, len(rows)) * row_h + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
 
     # 標題欄
     draw_game_title_bar(draw, width, 0, header_h, "我的交易所庫存", title_font, "📦")
@@ -325,9 +331,10 @@ def draw_exchange_inventory_image(
         y += row_h
 
     # 底部
-    draw_game_divider(draw, 30, width - 30, height - footer_h + 10)
+    footer_y = height - footer_h - bottom_pad
+    draw_game_divider(draw, 30, width - 30, footer_y + 10)
     draw.text(
-        (30, height - footer_h + 25),
+        (30, footer_y + 25),
         "💡 快捷指令：/交易所 買入 [商品] [數量]  |  /交易所 賣出 [商品] [數量]",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
@@ -353,15 +360,23 @@ def draw_exchange_help_image(
     content_h = 0
     for _, rows in sections:
         content_h += sec_title_h + max(1, len(rows)) * row_h + sec_gap
-    height = header_h + content_h + footer_h
-
-    image = create_game_gradient(width, height)
-    draw = ImageDraw.Draw(image)
-
     title_font = load_font(36)
     sub_font = load_font(16)
     body_font = load_font(18)
     sec_font = load_font(24)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    sec_h = measure.textbbox((0, 0), "測", font=sec_font)[3]
+    row_h = max(row_h, body_h + 12)
+    sec_title_h = max(sec_title_h, sec_h + 12)
+    content_h = 0
+    for _, rows in sections:
+        content_h += sec_title_h + max(1, len(rows)) * row_h + sec_gap
+    bottom_pad = 24
+    height = header_h + content_h + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
 
     # 標題欄
     draw_game_title_bar(draw, width, 0, header_h, "交易所指令總覽", title_font, "📈")
@@ -401,10 +416,10 @@ def draw_exchange_help_image(
 
         y += sec_gap
 
-    # 底部
-    draw_game_divider(draw, 30, width - 30, height - footer_h + 10)
+    footer_y = height - footer_h - bottom_pad
+    draw_game_divider(draw, 30, width - 30, footer_y + 10)
     draw.text(
-        (30, height - footer_h + 28),
+        (30, footer_y + 28),
         "💡 查行情：/交易所   💡 看持倉：/持倉",
         font=sub_font,
         fill=GAME_COLORS["text_secondary"],
@@ -426,14 +441,17 @@ def draw_exchange_history_image(
     gap = 16
     footer_h = 75
     count = max(1, len(series_map))
-    height = header_h + count * (card_h + gap) + footer_h
-
-    image = create_game_gradient(width, height)
-    draw = ImageDraw.Draw(image)
-
     title_font = load_font(36)
     body_font = load_font(18)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    card_h = max(card_h, body_h + 110)
+    bottom_pad = 24
+    height = header_h + count * (card_h + gap) + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
 
     # 標題欄
     draw_game_title_bar(draw, width, 0, header_h, "交易所歷史走勢", title_font, "📉")
@@ -511,9 +529,10 @@ def draw_exchange_history_image(
         y += card_h + gap
 
     # 底部
-    draw_game_divider(draw, 30, width - 30, height - footer_h + 10)
+    footer_y = height - footer_h - bottom_pad
+    draw_game_divider(draw, 30, width - 30, footer_y + 10)
     draw.text(
-        (30, height - footer_h + 28),
+        (30, footer_y + 28),
         "💡 指令：/交易所 歷史 [商品] [天數]（1-30）",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
@@ -528,14 +547,18 @@ def draw_exchange_analysis_image(rows: List[Dict[str, Any]], days: int) -> Image
     header_h = 120
     row_h = 120
     footer_h = 75
-    height = header_h + max(1, len(rows)) * row_h + footer_h
-
-    image = create_game_gradient(width, height)
-    draw = ImageDraw.Draw(image)
-
     title_font = load_font(36)
     body_font = load_font(18)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
+    row_h = max(row_h, body_h + small_h + 40)
+    bottom_pad = 24
+    height = header_h + max(1, len(rows)) * row_h + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
 
     # 標題欄
     draw_game_title_bar(draw, width, 0, header_h, "交易所市場分析", title_font, "📊")
@@ -601,9 +624,10 @@ def draw_exchange_analysis_image(rows: List[Dict[str, Any]], days: int) -> Image
         y += row_h
 
     # 底部
-    draw_game_divider(draw, 30, width - 30, height - footer_h + 10)
+    footer_y = height - footer_h - bottom_pad
+    draw_game_divider(draw, 30, width - 30, footer_y + 10)
     draw.text(
-        (30, height - footer_h + 28),
+        (30, footer_y + 28),
         "💡 指令：/交易所 分析 [商品] [天數]",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
@@ -620,13 +644,16 @@ def draw_exchange_result_image(
     header_h = 100
     row_h = 36
     footer_h = 60
-    height = header_h + max(2, len(lines)) * row_h + footer_h
+    title_font = load_font(32)
+    body_font = load_font(18)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    row_h = max(row_h, body_h + 12)
+    bottom_pad = 20
+    height = header_h + max(2, len(lines)) * row_h + footer_h + bottom_pad
 
     image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
-
-    title_font = load_font(32)
-    body_font = load_font(18)
 
     tag = "✅" if success else "❌"
     color = GAME_COLORS["success"] if success else GAME_COLORS["error"]

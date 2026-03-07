@@ -11,14 +11,19 @@ def draw_gacha_pool_list_image(pools: List[Dict[str, Any]]) -> Image.Image:
     row_h = 76
     header_h = 102
     footer_h = 84
-    height = header_h + max(1, len(pools)) * row_h + footer_h
-
-    image = create_vertical_gradient(width, height, (243, 246, 255), (255, 255, 255))
-    draw = ImageDraw.Draw(image)
 
     title_font = load_font(34)
     body_font = load_font(20)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
+    row_h = max(row_h, body_h + small_h + 28)
+    bottom_pad = 24
+    height = header_h + max(1, len(pools)) * row_h + footer_h + bottom_pad
+
+    image = create_vertical_gradient(width, height, (243, 246, 255), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
 
     draw.text((28, 24), "🎰 抽卡池列表", font=title_font, fill=(52, 58, 103))
     draw.line((28, 78, width - 28, 78), fill=(184, 194, 240), width=2)
@@ -47,19 +52,16 @@ def draw_gacha_pool_list_image(pools: List[Dict[str, Any]]) -> Image.Image:
             draw.text((390, y + 40), desc[:44], font=small_font, fill=(112, 122, 156))
         y += row_h
 
-    draw.line(
-        (28, height - footer_h, width - 28, height - footer_h),
-        fill=(184, 194, 240),
-        width=2,
-    )
+    footer_y = height - footer_h - bottom_pad
+    draw.line((28, footer_y, width - 28, footer_y), fill=(184, 194, 240), width=2)
     draw.text(
-        (30, height - footer_h + 16),
+        (30, footer_y + 16),
         "💡 查看詳情：/查看卡池 ID",
         font=small_font,
         fill=(74, 92, 134),
     )
     draw.text(
-        (30, height - footer_h + 42),
+        (30, footer_y + 42),
         "💡 單抽 / 十連：/抽卡 ID   /十連 ID [次數]",
         font=small_font,
         fill=(74, 92, 134),
@@ -75,14 +77,18 @@ def draw_gacha_pool_detail_image(
     row_h = 44
     header_h = 146
     footer_h = 70
-    height = header_h + max(1, len(probabilities)) * row_h + footer_h
-
-    image = create_vertical_gradient(width, height, (242, 245, 255), (255, 255, 255))
-    draw = ImageDraw.Draw(image)
 
     title_font = load_font(30)
     body_font = load_font(20)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
+    row_h = max(row_h, small_h + 18)
+    bottom_pad = 24
+    height = header_h + max(1, len(probabilities)) * row_h + footer_h + bottom_pad
+
+    image = create_vertical_gradient(width, height, (242, 245, 255), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
 
     draw.text(
         (28, 20),

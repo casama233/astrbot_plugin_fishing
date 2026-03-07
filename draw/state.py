@@ -46,9 +46,18 @@ def draw_state_image(
     header_h = 100
     section_gap = 15
     footer_h = 50
+    current_title = user_data.get("current_title")
 
-    # 計算高度
-    height = header_h + 400 + footer_h
+    y = header_h + 15
+    y += 105
+    y += 35
+    y += 155
+    y += 35
+    y += 145
+    if current_title:
+        y += 35
+        y += 65
+    height = y + footer_h + 60
 
     # 創建遊戲風格背景
     image = create_game_gradient(width, height)
@@ -308,7 +317,6 @@ def draw_state_image(
     y += 145
 
     # 4. 稱號
-    current_title = user_data.get("current_title")
     if current_title:
         draw.text(
             (25, y), "🏆 當前稱號", font=section_font, fill=GAME_COLORS["accent_gold"]

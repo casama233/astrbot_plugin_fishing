@@ -105,18 +105,26 @@ def draw_market_list_image(grouped_items: Dict[str, Iterable[Any]]) -> Image.Ima
     header_h = 98
     footer_h = 82
 
-    total_rows = sum(len(rows) for _, _, rows in sections)
-    total_sections = len(sections)
-    height = header_h + total_rows * row_h + total_sections * sec_head_h + footer_h
-    width = 1280
-
-    image = create_vertical_gradient(width, height, (239, 248, 255), (255, 255, 255))
-    draw = ImageDraw.Draw(image)
-
     title_font = load_font(34)
     head_font = load_font(22)
     body_font = load_font(18)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    head_h = measure.textbbox((0, 0), "測", font=head_font)[3]
+    row_h = max(row_h, body_h + 14)
+    sec_head_h = max(sec_head_h, head_h + 14)
+
+    total_rows = sum(len(rows) for _, _, rows in sections)
+    total_sections = len(sections)
+    bottom_pad = 24
+    height = (
+        header_h + total_rows * row_h + total_sections * sec_head_h + footer_h + bottom_pad
+    )
+    width = 1280
+
+    image = create_vertical_gradient(width, height, (239, 248, 255), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
 
     draw.text((28, 24), "🛒 市場商品列表", font=title_font, fill=(38, 62, 86))
     draw.line((28, 76, width - 28, 76), fill=(176, 204, 229), width=2)
@@ -142,19 +150,16 @@ def draw_market_list_image(grouped_items: Dict[str, Iterable[Any]]) -> Image.Ima
             draw.text((42, y + 6), line[:110], font=body_font, fill=(61, 86, 113))
             y += row_h
 
-    draw.line(
-        (28, height - footer_h, width - 28, height - footer_h),
-        fill=(176, 204, 229),
-        width=2,
-    )
+    footer_y = height - footer_h - bottom_pad
+    draw.line((28, footer_y, width - 28, footer_y), fill=(176, 204, 229), width=2)
     draw.text(
-        (30, height - footer_h + 16),
+        (30, footer_y + 16),
         "💡 掛單有效期 5 天，逾期自動下架返還",
         font=small_font,
         fill=(63, 89, 112),
     )
     draw.text(
-        (30, height - footer_h + 42),
+        (30, footer_y + 42),
         "💡 購買示例：/購買 C5",
         font=small_font,
         fill=(63, 89, 112),

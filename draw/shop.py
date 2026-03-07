@@ -53,15 +53,20 @@ def draw_shop_list_image(shops: List[Dict[str, Any]]) -> Image.Image:
     row_h = 75
     header_h = 100
     footer_h = 90
-    height = header_h + max(1, len(shops)) * row_h + footer_h
-
-    image = create_game_gradient(width, height)
-    draw = ImageDraw.Draw(image)
 
     title_font = load_font(36)
     head_font = load_font(24)
     body_font = load_font(20)
     sub_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    head_h = measure.textbbox((0, 0), "測", font=head_font)[3]
+    sub_h = measure.textbbox((0, 0), "測", font=sub_font)[3]
+    row_h = max(row_h, head_h + sub_h + 32)
+    bottom_pad = 24
+    height = header_h + max(1, len(shops)) * row_h + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
 
     # 標題欄
     draw_game_title_bar(draw, width, 0, header_h, "商店列表", title_font, "🛒")
@@ -124,15 +129,16 @@ def draw_shop_list_image(shops: List[Dict[str, Any]]) -> Image.Image:
         y += row_h
 
     # 底部提示
-    draw_game_divider(draw, 30, width - 30, height - footer_h + 15)
+    footer_y = height - footer_h - bottom_pad
+    draw_game_divider(draw, 30, width - 30, footer_y + 15)
     draw.text(
-        (30, height - footer_h + 30),
+        (30, footer_y + 30),
         "💡 查看詳情：/商店 商店ID",
         font=sub_font,
         fill=GAME_COLORS["text_secondary"],
     )
     draw.text(
-        (30, height - footer_h + 55),
+        (30, footer_y + 55),
         "💡 購買商品：/商店購買 商店ID 商品ID [數量]",
         font=sub_font,
         fill=GAME_COLORS["text_secondary"],
@@ -150,14 +156,19 @@ def draw_shop_detail_image(
     card_h = 115
     header_h = 130
     footer_h = 80
-    height = header_h + max(1, len(items)) * card_h + footer_h
-
-    image = create_game_gradient(width, height)
-    draw = ImageDraw.Draw(image)
 
     title_font = load_font(34)
     body_font = load_font(22)
     small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
+    card_h = max(card_h, body_h + small_h * 2 + 40)
+    bottom_pad = 24
+    height = header_h + max(1, len(items)) * card_h + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
 
     sname = str(shop.get("name", "未知商店"))
     sid = shop.get("shop_id", "?")

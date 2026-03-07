@@ -10,6 +10,7 @@ from ..utils import (
     should_send_loading_tip,
     build_tip_result,
 )
+from ..core.utils import get_now
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -133,6 +134,22 @@ def _build_dynamic_shortcuts(
         return "⌨️ 建議操作\n" + blocks
 
 
+def _format_remaining_time(expires_at) -> str:
+    if not expires_at:
+        return "永久"
+    now = get_now().replace(tzinfo=None)
+    remaining_seconds = int((expires_at - now).total_seconds())
+    if remaining_seconds <= 0:
+        return "0分鐘"
+    hours, remainder = divmod(remaining_seconds, 3600)
+    minutes = (remainder + 59) // 60
+    if hours > 0:
+        if minutes == 0:
+            return f"{hours}小時"
+        return f"{hours}小時{minutes}分鐘"
+    return f"{minutes}分鐘"
+
+
 async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
     """查看用户背包"""
     user_id = plugin._get_effective_user_id(event)
@@ -166,7 +183,7 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
                 )
 
             # 生成背包图像
-            image = await draw_backpack_image(backpack_data, plugin.data_dir)
+            image = draw_backpack_image(backpack_data, plugin.data_dir)
             # 保存图像到临时文件
             image_path = os.path.join(plugin.tmp_dir, "user_backpack.png")
             image.save(image_path)
@@ -239,13 +256,36 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
             if rarity not in fished_by_rarity:
                 fished_by_rarity[rarity] = []
             fished_by_rarity[rarity].append(fish)
+        protection_buff = plugin.buff_repo.get_active_by_user_and_type(
+            user_id, "STEAL_PROTECTION_BUFF"
+        )
+        has_guardian = protection_buff is not None
+        capacity = plugin.inventory_service.get_user_fish_pond_capacity(user_id)
+
         # 构造输出信息
-        message = "【🐠 鱼塘】：\n"
+        message = "【🐠 魚塘】：\n"
+        if has_guardian:
+            remaining_text = _format_remaining_time(protection_buff.expires_at)
+            message += f"🛡️ 守護海靈：有（剩餘 {remaining_text}）\n"
+        else:
+            message += "🛡️ 守護海靈：無\n"
+        if capacity.get("success"):
+            message += (
+                f"📦 容量：{capacity['current_fish_count']} / {capacity['fish_pond_capacity']} 條\n"
+            )
 
         for rarity in sorted(fished_by_rarity.keys(), reverse=True):
             fish_list = fished_by_rarity[rarity]
             if fish_list:
-                message += f"\n {format_rarity_display(rarity)}：\n"
+                message += f"\n{format_rarity_display(rarity)}：\n"
+                fish_list = sorted(
+                    fish_list,
+                    key=lambda f: (
+                        -(int(f.get("quality_level", 0) or 0)),
+                        -float(f.get("actual_value", f.get("base_value", 0)) or 0),
+                        str(f.get("name", "")),
+                    ),
+                )
                 for fish in fish_list:
                     fish_id = int(fish.get("fish_id", 0) or 0)
                     quality_level = fish.get("quality_level", 0)
@@ -259,8 +299,8 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                     if quality_level == 1:
                         quality_display = " ✨高品質"
                     message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({fish['actual_value']}金幣/個) ID: {fcode}\n"
-        message += f"\n🐟 总鱼数：{pond_fish['stats']['total_count']} 条\n"
-        message += f"💰 总价值：{pond_fish['stats']['total_value']} 金币\n"
+        message += f"\n🐟 總魚數：{pond_fish['stats']['total_count']} 條\n"
+        message += f"💰 總價值：{pond_fish['stats']['total_value']} 金幣\n"
         message += "\n" + _build_dynamic_shortcuts(plugin, user_id, "backpack")
         yield event.plain_result(message)
     else:
@@ -296,13 +336,31 @@ async def peek_pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                 fished_by_rarity[rarity] = []
             fished_by_rarity[rarity].append(fish)
 
+        protection_buff = plugin.buff_repo.get_active_by_user_and_type(
+            target_user_id, "STEAL_PROTECTION_BUFF"
+        )
+        has_guardian = protection_buff is not None
+
         # 构造输出信息
-        message = f"【🔍 偷看 {target_user.nickname} 的鱼塘】：\n"
+        message = f"【🔍 偷看 {target_user.nickname} 的魚塘】：\n"
+        if has_guardian:
+            remaining_text = _format_remaining_time(protection_buff.expires_at)
+            message += f"🛡️ 守護海靈：有（剩餘 {remaining_text}）\n"
+        else:
+            message += "🛡️ 守護海靈：無\n"
 
         for rarity in sorted(fished_by_rarity.keys(), reverse=True):
             fish_list = fished_by_rarity[rarity]
             if fish_list:
-                message += f"\n {format_rarity_display(rarity)} 稀有度 {rarity}：\n"
+                message += f"\n{format_rarity_display(rarity)}：\n"
+                fish_list = sorted(
+                    fish_list,
+                    key=lambda f: (
+                        -(int(f.get("quality_level", 0) or 0)),
+                        -float(f.get("actual_value", f.get("base_value", 0)) or 0),
+                        str(f.get("name", "")),
+                    ),
+                )
                 for fish in fish_list:
                     fish_id = int(fish.get("fish_id", 0) or 0)
                     quality_level = fish.get("quality_level", 0)
@@ -317,8 +375,8 @@ async def peek_pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                         quality_display = " ✨高品質"
                     actual_value = fish.get("actual_value", fish.get("base_value", 0))
                     message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({actual_value}金幣/個) ID: {fcode}\n"
-        message += f"\n🐟 总鱼数：{pond_fish['stats']['total_count']} 条\n"
-        message += f"💰 总价值：{pond_fish['stats']['total_value']} 金币\n"
+        message += f"\n🐟 總魚數：{pond_fish['stats']['total_count']} 條\n"
+        message += f"💰 總價值：{pond_fish['stats']['total_value']} 金幣\n"
         yield event.plain_result(message)
     else:
         yield event.plain_result(f"🐟 {target_user.nickname} 的鱼塘是空的！")

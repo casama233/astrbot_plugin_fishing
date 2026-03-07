@@ -47,7 +47,9 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     bait_h = 140 if baits else 60
     item_h = 140 if items else 60
 
-    height = header_h + rod_h + acc_h + bait_h + item_h + section_gap * 5 + footer_h
+    height = (
+        header_h + rod_h + acc_h + bait_h + item_h + section_gap * 5 + footer_h + 40
+    )
 
     # 創建遊戲風格背景
     image = create_game_gradient(width, height)
@@ -331,3 +333,62 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     )
 
     return image
+
+
+def get_user_backpack_data(
+    inventory_service, user_id: str, max_items_per_category: int = 50
+) -> Dict[str, Any]:
+    rod_result = inventory_service.get_user_rod_inventory(user_id) or {}
+    acc_result = inventory_service.get_user_accessory_inventory(user_id) or {}
+    bait_result = inventory_service.get_user_bait_inventory(user_id) or {}
+    item_result = inventory_service.get_user_item_inventory(user_id) or {}
+
+    rods = list(rod_result.get("rods", []) or [])
+    accessories = list(acc_result.get("accessories", []) or [])
+    baits = list(bait_result.get("baits", []) or [])
+    items = list(item_result.get("items", []) or [])
+
+    total_rods = len(rods)
+    total_accessories = len(accessories)
+    total_baits = len(baits)
+    total_items = len(items)
+
+    rods_filtered = False
+    accessories_filtered = False
+
+    if max_items_per_category and total_rods > max_items_per_category:
+        rods = [r for r in rods if int(r.get("rarity", 0) or 0) >= 5]
+        rods = rods[:max_items_per_category]
+        rods_filtered = True
+    if max_items_per_category and total_accessories > max_items_per_category:
+        accessories = [a for a in accessories if int(a.get("rarity", 0) or 0) >= 5]
+        accessories = accessories[:max_items_per_category]
+        accessories_filtered = True
+
+    if max_items_per_category and total_baits > max_items_per_category:
+        baits = baits[:max_items_per_category]
+    if max_items_per_category and total_items > max_items_per_category:
+        items = items[:max_items_per_category]
+
+    is_truncated = (
+        rods_filtered
+        or accessories_filtered
+        or total_baits > max_items_per_category
+        or total_items > max_items_per_category
+    )
+
+    return {
+        "rods": rods,
+        "accessories": accessories,
+        "baits": baits,
+        "items": items,
+        "total_rods": total_rods,
+        "total_accessories": total_accessories,
+        "total_baits": total_baits,
+        "total_items": total_items,
+        "displayed_rods": len(rods),
+        "displayed_accessories": len(accessories),
+        "is_truncated": is_truncated,
+        "rods_filtered": rods_filtered,
+        "accessories_filtered": accessories_filtered,
+    }

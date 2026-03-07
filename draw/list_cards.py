@@ -21,13 +21,17 @@ def draw_text_list_image(
     if not rows:
         rows = ["暫無資料"]
 
-    height = header_h + len(rows) * (row_h + card_gap) + footer_h + 24
-    image = create_vertical_gradient(width, height, (241, 249, 255), (255, 255, 255))
-    draw = ImageDraw.Draw(image)
-
     title_font = load_font(32)
     sub_font = load_font(16)
     body_font = load_font(18)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    row_h = max(row_h, body_h + 14)
+    content_bottom = 104 + len(rows) * (row_h + card_gap)
+    bottom_pad = 24
+    height = content_bottom + footer_h + bottom_pad
+    image = create_vertical_gradient(width, height, (241, 249, 255), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
 
     draw.text((26, 20), title, font=title_font, fill=(40, 66, 94))
     if subtitle:
@@ -46,13 +50,14 @@ def draw_text_list_image(
         y += row_h + card_gap
 
     if footer:
+        footer_y = content_bottom + 8
         draw.line(
-            (24, height - footer_h, width - 24, height - footer_h),
+            (24, footer_y, width - 24, footer_y),
             fill=(178, 204, 228),
             width=2,
         )
         draw.text(
-            (28, height - footer_h + 20), footer, font=sub_font, fill=(76, 98, 121)
+            (28, footer_y + 20), footer, font=sub_font, fill=(76, 98, 121)
         )
 
     return image
