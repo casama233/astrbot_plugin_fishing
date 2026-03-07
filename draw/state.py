@@ -1,659 +1,348 @@
+"""
+狀態面板 - 遊戲風格美化版
+"""
+
 import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import requests
-from io import BytesIO
-import time
-import json
-from .utils import get_user_avatar
-from .styles import (
-    COLOR_SUCCESS,
-    COLOR_WARNING,
-    COLOR_ERROR,
-    COLOR_GOLD,
-    COLOR_RARE,
-    COLOR_REFINE_RED,
-    COLOR_REFINE_ORANGE,
-    COLOR_CORNER,
-    load_font,
+from PIL import Image, ImageDraw
+
+from .game_ui import (
+    create_game_gradient,
+    draw_game_card,
+    draw_game_title_bar,
+    draw_game_divider,
+    GAME_COLORS,
+    get_rarity_color,
 )
-from .text_utils import load_font_with_cjk_fallback, draw_text_smart, get_primary_font_path
+from .styles import load_font
+from .text_utils import normalize_display_text
 
 
 def format_rarity_display(rarity: int) -> str:
-    """格式化稀有度显示，支持显示到10星，10星以上显示为★★★★★★★★★★+"""
+    """格式化稀有度顯示"""
     if rarity <= 10:
         return "★" * rarity
     else:
         return "★★★★★★★★★★+"
 
 
-async def draw_state_image(
+def format_time(seconds: int) -> str:
+    """格式化時間"""
+    if seconds <= 0:
+        return "可立即使用"
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    if hours > 0:
+        return f"{hours}小時{minutes}分鐘"
+    return f"{minutes}分鐘"
+
+
+def draw_state_image(
     user_data: Dict[str, Any], data_dir: str, avatar_url: Optional[str] = None
 ) -> Image.Image:
-    """
-    绘制用户状态图像
+    """用戶狀態面板 - 遊戲風格"""
+    width = 700
+    header_h = 100
+    section_gap = 15
+    footer_h = 50
 
-    Args:
-        user_data: 包含用户状态信息的字典，    # 定义状态信息的网格位置
-    status_col_x = card_margin + 15
-    status_row1_y = current_y + 12
-    status_row2_y = current_y + 35
-    status_row3_y = current_y + 58
+    # 計算高度
+    height = header_h + 400 + footer_h
 
-    # 自动钓鱼状态
-    auto_fishing = user_data.get('auto_fishing_enabled', False)
-    if auto_fishing:
-        auto_text = "自动钓鱼: 已开启"
-        auto_color = positive_color
-    else:
-        auto_text = "自动钓鱼: 已关闭"
-        auto_color = negative_color
-    draw.text((status_col_x, status_row1_y), auto_text, font=content_font, fill=auto_color)      - user_id: 用户ID
-            - nickname: 用户昵称
-            - coins: 金币数量
-            - current_rod: 当前装备的鱼竿信息
-            - current_accessory: 当前装备的饰品信息
-            - current_bait: 当前装备的鱼饵信息
-            - auto_fishing_enabled: 是否开启自动钓鱼
-            - steal_cooldown_remaining: 偷鱼剩余CD时间（秒）
-            - fishing_zone: 当前钓鱼区域
-            - current_title: 当前称号信息
-            - total_fishing_count: 总钓鱼次数
-            - steal_total_value: 偷鱼总价值 TODO
-            - signed_in_today: 今日是否签到
-            - wipe_bomb_remaining: 擦弹剩余次数
-            - electric_fish_cooldown_remaining: 电鱼剩余CD时间（秒）
-            - wof_remaining_plays: 命运之轮剩余次数
-            - pond_info: 鱼塘信息
-    Returns:
-        PIL.Image.Image: 生成的状态图像
-    """
-    # 画布尺寸
-    width, height = 620, 540
-
-    # 导入优化的渐变生成函数
-    from .gradient_utils import create_vertical_gradient
-
-    bg_top = (174, 214, 241)  # 柔和天蓝色
-    bg_bot = (245, 251, 255)  # 温和淡蓝色
-    image = create_vertical_gradient(width, height, bg_top, bg_bot)
+    # 創建遊戲風格背景
+    image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
-    # 2. 加载字体（称号字体使用CJK回退支持）
-    font_path = get_primary_font_path()
+    # 字體
+    title_font = load_font(32)
+    section_font = load_font(24)
+    content_font = load_font(18)
+    small_font = load_font(15)
+    tiny_font = load_font(13)
 
-    def load_font(size):
-        try:
-            return load_font_with_cjk_fallback(font_path, size)
-        except Exception as e:
-            return ImageFont.load_default()
-
-    title_font = load_font(28)
-    subtitle_font = load_font(24)
-    content_font = load_font(20)
-    # 称号字体使用CJK回退支持，确保繁体中文能正确显示
-    small_font = load_font_with_cjk_fallback(font_path, 16)
-    tiny_font = load_font(14)
-
-    # 3. 颜色定义 - 温和协调的海洋主题配色
-    # 主色调：柔和蓝系
-    primary_dark = (52, 73, 94)  # 温和深蓝 - 主标题
-    primary_medium = (74, 105, 134)  # 柔和中蓝 - 副标题
-    primary_light = (108, 142, 191)  # 淡雅蓝 - 强调色
-
-    # 文本色：和谐灰蓝色系
-    text_primary = (55, 71, 79)  # 温和深灰 - 主要文本
-    text_secondary = (120, 144, 156)  # 柔和灰蓝 - 次要文本
-    text_muted = (176, 190, 197)  # 温和浅灰 - 弱化文本
-
-    # 状态色：柔和自然色系
-    success_color = COLOR_SUCCESS
-    warning_color = COLOR_WARNING
-    error_color = COLOR_ERROR
-
-    # 背景色：更柔和的对比
-    card_bg = (255, 255, 255, 240)  # 高透明度白色
-
-    # 特殊色：温和特色
-    gold_color = COLOR_GOLD
-    rare_color = COLOR_RARE
-
-    # 4. 获取文本尺寸的辅助函数
-    def get_text_size(text, font):
-        # 如果是FontWithFallback类型，使用主字体测量（简化处理）
-        actual_font = font.primary_font if hasattr(font, "primary_font") else font
-        bbox = draw.textbbox((0, 0), text, font=actual_font)
-        return bbox[2] - bbox[0], bbox[3] - bbox[1]
-
-    # 5. 绘制圆角矩形
-    def draw_rounded_rectangle(draw, bbox, radius, fill=None, outline=None, width=1):
-        x1, y1, x2, y2 = bbox
-        # 绘制主体矩形
-        draw.rectangle(
-            [x1 + radius, y1, x2 - radius, y2], fill=fill, outline=outline, width=width
-        )
-        draw.rectangle(
-            [x1, y1 + radius, x2, y2 - radius], fill=fill, outline=outline, width=width
-        )
-        # 绘制圆角
-        draw.ellipse(
-            [x1, y1, x1 + 2 * radius, y1 + 2 * radius],
-            fill=fill,
-            outline=outline,
-            width=width,
-        )
-        draw.ellipse(
-            [x2 - 2 * radius, y1, x2, y1 + 2 * radius],
-            fill=fill,
-            outline=outline,
-            width=width,
-        )
-        draw.ellipse(
-            [x1, y2 - 2 * radius, x1 + 2 * radius, y2],
-            fill=fill,
-            outline=outline,
-            width=width,
-        )
-        draw.ellipse(
-            [x2 - 2 * radius, y2 - 2 * radius, x2, y2],
-            fill=fill,
-            outline=outline,
-            width=width,
-        )
-
-    # 绘制标题
-    title_text = "用户状态面板"
-    title_w, title_h = get_text_size(title_text, title_font)
-    title_x = (width - title_w) // 2
-    title_y = 20
-    draw.text((title_x, title_y), title_text, font=title_font, fill=primary_dark)
-
-    # 用户基本信息卡片
-    current_y = title_y + title_h + 15
-    card_height = 85
-    card_margin = 15
-
-    # 用户信息卡片
-    draw_rounded_rectangle(
-        draw,
-        (card_margin, current_y, width - card_margin, current_y + card_height),
-        10,
-        fill=card_bg,
+    # 標題欄
+    nickname = user_data.get("nickname", "未知用戶")
+    draw_game_title_bar(
+        draw, width, 0, header_h, f"{nickname} 的狀態", title_font, "👤"
     )
 
-    # 列位置
-    col1_x_without_avatar = card_margin + 20  # 第一列
-    avatar_size = 60
-    col1_x_with_avatar = col1_x_without_avatar + avatar_size + 20  # 有头像时偏移
-    col1_x = col1_x_without_avatar  # 默认无头像
-    col2_x = col1_x + 240  # 第二列位置
+    y = header_h + 15
 
-    # 行位置
-    row1_y = current_y + 12
-    row2_y = current_y + 52
+    # 1. 基本資訊卡片
+    draw_game_card(
+        draw,
+        (20, y, width - 20, y + 90),
+        radius=12,
+        fill=GAME_COLORS["bg_card"],
+        border_color=GAME_COLORS["border"],
+        shadow=True,
+    )
 
-    # 绘制用户头像 - 如有
-    if user_id := user_data.get("user_id"):
-        if avatar_image := await get_user_avatar(
-            user_id, data_dir, avatar_size, avatar_url=avatar_url
-        ):
-            image.paste(avatar_image, (col1_x, row1_y), avatar_image)
-            col1_x = col1_x_with_avatar  # 更新 col1_x 以适应头像位置
-
-    # 用户昵称
-    nickname = user_data.get("nickname", "未知用户")
-    nickname_text = f"{nickname}"
-    draw.text((col1_x, row1_y), nickname_text, font=subtitle_font, fill=primary_medium)
-
-    # 当前称号,跟在用户昵称后面
-    current_title = user_data.get("current_title")
-    nickname_width = get_text_size(nickname_text, subtitle_font)[0]
-    height_offset = 5
-    if current_title:
-        if isinstance(current_title, dict):
-            title_text = f"{current_title.get('name', '未知称号')}"
-        else:
-            title_text = f"{current_title}"
-
-        # 使用智能文本绘制，自动处理繁体中文等缺失字符
-        draw_text_smart(
-            draw,
-            (col1_x + nickname_width + 10, row1_y + height_offset),
-            title_text,
-            small_font,
-            rare_color,
-        )
-    # else:
-    #     title_text = "未装备
-    #     draw.text((col1_x + nickname_width + 10, row1_y + height_offset), title_text, font=small_font, fill=text_color)
-
-    # 金币
+    # 金幣
     coins = user_data.get("coins", 0)
-    coins_text = f"金币: {coins:,}"
-    draw.text((col1_x, row2_y - 12), coins_text, font=small_font, fill=gold_color)
+    draw.text(
+        (35, y + 12), "💰 金幣", font=small_font, fill=GAME_COLORS["text_secondary"]
+    )
+    draw.text(
+        (35, y + 35), f"{coins:,}", font=section_font, fill=GAME_COLORS["accent_gold"]
+    )
 
-    # 高级货币（另起一行，避免与右侧“钓鱼次数”重叠）
-    if "premium_currency" in user_data:
-        premium = user_data.get("premium_currency", 0)
-        premium_text = f"高级货币: {premium:,}"
-        # 另起新行显示并整体上移，避免超出白色卡片底部
-        draw.text(
-            (col1_x, row2_y + 8), premium_text, font=small_font, fill=primary_light
-        )
-
-    # 钓鱼次数 - 调整列位置以均分
+    # 釣魚次數
     total_fishing = user_data.get("total_fishing_count", 0)
-    fishing_text = f"钓鱼次数: {total_fishing:,}"
-    draw.text((col2_x, row2_y), fishing_text, font=small_font, fill=text_primary)
-
-    # 偷鱼总价值 - 调整列位置以均分 TODO
-    # steal_total = user_data.get('steal_total_value', 0)
-    # steal_text = f"偷鱼获金: {steal_total:,}"
-    # col3_adjusted_x = card_margin + (width - card_margin * 2) * 2 // 3 + card_margin
-    # draw.text((col3_adjusted_x, row2_y), steal_text, font=small_font, fill=warning_color)
-
-    # 装备信息区域
-    current_y += card_height + 5
-    equipment_title = "当前装备"
     draw.text(
-        (card_margin, current_y),
-        equipment_title,
-        font=subtitle_font,
-        fill=primary_medium,
+        (250, y + 12),
+        "🎣 釣魚次數",
+        font=small_font,
+        fill=GAME_COLORS["text_secondary"],
     )
-    current_y += 30
+    draw.text(
+        (250, y + 35),
+        f"{total_fishing:,}",
+        font=section_font,
+        fill=GAME_COLORS["accent_blue"],
+    )
 
-    # 装备卡片 - 两列等宽布局
-    equipment_card_height = 130
-    card_width = (width - card_margin * 2 - 15) // 2
+    # 今日簽到
+    signed_in = user_data.get("signed_in_today", False)
+    sign_text = "✅ 已簽到" if signed_in else "❌ 未簽到"
+    sign_color = GAME_COLORS["success"] if signed_in else GAME_COLORS["error"]
+    draw.text((450, y + 25), sign_text, font=content_font, fill=sign_color)
 
-    # 左列：鱼竿和饰品
-    left_card_x = card_margin
-    draw_rounded_rectangle(
+    y += 105
+
+    # 2. 當前裝備
+    draw.text((25, y), "⚔️ 當前裝備", font=section_font, fill=GAME_COLORS["accent_blue"])
+    y += 35
+
+    # 裝備卡片
+    draw_game_card(
         draw,
-        (
-            left_card_x,
-            current_y,
-            left_card_x + card_width,
-            current_y + equipment_card_height,
-        ),
-        8,
-        fill=card_bg,
+        (20, y, width - 20, y + 140),
+        radius=12,
+        fill=GAME_COLORS["bg_card"],
+        border_color=GAME_COLORS["border"],
     )
 
-    # 定义左列的布局位置
-    left_col_x = left_card_x + 12
-    equipment_row1_y = current_y + 10
-    equipment_row2_y = current_y + 30
-    equipment_row3_y = current_y + 50
-    equipment_row4_y = current_y + 70
-    equipment_row5_y = current_y + 90
-    equipment_row6_y = current_y + 110
+    # 魚竿
+    rod = user_data.get("current_rod")
+    if rod:
+        rod_name = rod.get("name", "無魚竿")
+        rarity = rod.get("rarity", 1)
+        stars = format_rarity_display(rarity)
+        color = get_rarity_color(rarity)
 
-    # 鱼竿标题
-    draw.text(
-        (left_col_x, equipment_row1_y), "鱼竿", font=small_font, fill=primary_light
-    )
-
-    # 鱼竿内容
-    current_rod = user_data.get("current_rod")
-    if current_rod:
-        rod_name = (
-            current_rod["name"][:15] + "..."
-            if len(current_rod["name"]) > 15
-            else current_rod["name"]
-        )
-
-        # 先获取耐久度信息用于显示
-        current_dur = current_rod.get("current_durability")
-        max_dur = current_rod.get("max_durability")
-
-        # 在鱼竿名称右边显示耐久度
-        if max_dur is not None and current_dur is not None:
-            # 有限耐久装备
-            durability_text = f" (耐久: {current_dur}/{max_dur})"
-            # 根据耐久度设置颜色 - 使用与整体设计一致的颜色系统
-            durability_ratio = current_dur / max_dur if max_dur > 0 else 0
-            if durability_ratio > 0.6:
-                dur_color = success_color  # 使用成功色 - 温和绿
-            elif durability_ratio > 0.3:
-                dur_color = warning_color  # 使用警告色 - 柔和橙
-            else:
-                dur_color = error_color  # 使用错误色 - 温和红
-        elif current_dur is None:
-            # 无限耐久装备
-            durability_text = " (无限耐久)"
-            dur_color = primary_light  # 使用主色调 - 淡雅蓝，与UI风格一致
-        else:
-            durability_text = ""
-            dur_color = text_primary
-
-        # 显示鱼竿名称
         draw.text(
-            (left_col_x, equipment_row2_y),
-            rod_name,
-            font=content_font,
-            fill=text_primary,
+            (35, y + 10), "🎣 魚竿", font=small_font, fill=GAME_COLORS["text_secondary"]
         )
+        draw.text(
+            (35, y + 32),
+            rod_name[:15],
+            font=content_font,
+            fill=GAME_COLORS["text_primary"],
+        )
+        draw.text((35, y + 55), stars, font=tiny_font, fill=color)
 
-        # 在鱼竿名称右边显示耐久度
-        if durability_text:
-            rod_name_width = get_text_size(rod_name, content_font)[0]
-            durability_x = left_col_x + rod_name_width + 5  # 5像素间隔
+        # 耐久
+        max_dur = rod.get("max_durability")
+        cur_dur = rod.get("current_durability")
+        if max_dur:
+            dur_pct = cur_dur / max_dur if max_dur > 0 else 0
+            dur_color = (
+                GAME_COLORS["success"] if dur_pct > 0.3 else GAME_COLORS["warning"]
+            )
             draw.text(
-                (durability_x, equipment_row2_y),
-                durability_text,
+                (35, y + 78),
+                f"耐久: {cur_dur}/{max_dur}",
                 font=tiny_font,
                 fill=dur_color,
             )
-
-        # 根据稀有度和精炼等级选择颜色
-        rarity = current_rod.get("rarity", 1)
-        refined_level = current_rod.get("refine_level", 1)
-        if refined_level >= 10:
-            star_color = COLOR_REFINE_RED  # 红色 - 10级
-        elif refined_level >= 6:
-            star_color = COLOR_REFINE_ORANGE  # 橙色 - 6-9级
-        elif rarity > 4 and refined_level > 4:
-            star_color = rare_color
-        elif rarity > 3:
-            star_color = warning_color
         else:
-            star_color = text_secondary
-
-        # 稀有度和精炼等级显示
-        rarity_refine_text = f"{format_rarity_display(rarity)} Lv.{refined_level}"
-        draw.text(
-            (left_col_x, equipment_row3_y),
-            rarity_refine_text,
-            font=tiny_font,
-            fill=star_color,
-        )
+            draw.text(
+                (35, y + 78),
+                "♾️ 無限耐久",
+                font=tiny_font,
+                fill=GAME_COLORS["accent_blue"],
+            )
     else:
         draw.text(
-            (left_col_x, equipment_row2_y), "未装备", font=content_font, fill=text_muted
-        )
-
-    # 饰品标题
-    draw.text(
-        (left_col_x, equipment_row4_y), "饰品", font=small_font, fill=primary_light
-    )
-
-    # 饰品内容
-    current_accessory = user_data.get("current_accessory")
-    if current_accessory:
-        acc_name = (
-            current_accessory["name"][:15] + "..."
-            if len(current_accessory["name"]) > 15
-            else current_accessory["name"]
-        )
-        draw.text(
-            (left_col_x, equipment_row5_y),
-            acc_name,
+            (35, y + 32),
+            "🎣 無裝備魚竿",
             font=content_font,
-            fill=text_primary,
-        )
-        rarity = current_accessory.get("rarity", 1)
-        refined_level = current_accessory.get("refine_level", 1)
-        if refined_level >= 10:
-            star_color = COLOR_REFINE_RED  # 红色 - 10级
-        elif refined_level >= 6:
-            star_color = COLOR_REFINE_ORANGE  # 橙色 - 6-9级
-        elif rarity > 4 and refined_level > 4:
-            star_color = rare_color
-        elif rarity > 3:
-            star_color = warning_color
-        else:
-            star_color = text_secondary
-        draw.text(
-            (left_col_x, equipment_row6_y),
-            f"{format_rarity_display(rarity)} Lv.{refined_level}",
-            font=tiny_font,
-            fill=star_color,
-        )
-    else:
-        draw.text(
-            (left_col_x, equipment_row5_y), "未装备", font=content_font, fill=text_muted
+            fill=GAME_COLORS["text_muted"],
         )
 
-    # 右列：鱼饵和区域
-    right_card_x = left_card_x + card_width + 15
-    draw_rounded_rectangle(
+    # 飾品
+    accessory = user_data.get("current_accessory")
+    if accessory:
+        acc_name = accessory.get("name", "無飾品")
+        rarity = accessory.get("rarity", 1)
+        stars = format_rarity_display(rarity)
+        color = get_rarity_color(rarity)
+
+        draw.text(
+            (280, y + 10),
+            "💍 飾品",
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
+        )
+        draw.text(
+            (280, y + 32),
+            acc_name[:15],
+            font=content_font,
+            fill=GAME_COLORS["text_primary"],
+        )
+        draw.text((280, y + 55), stars, font=tiny_font, fill=color)
+    else:
+        draw.text(
+            (280, y + 32),
+            "💍 無裝備飾品",
+            font=content_font,
+            fill=GAME_COLORS["text_muted"],
+        )
+
+    # 魚餌
+    bait = user_data.get("current_bait")
+    if bait:
+        bait_name = bait.get("name", "無魚餌")
+        draw.text(
+            (500, y + 10),
+            "🪱 魚餌",
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
+        )
+        draw.text(
+            (500, y + 32),
+            bait_name[:10],
+            font=content_font,
+            fill=GAME_COLORS["text_primary"],
+        )
+
+        duration = bait.get("duration_minutes", 0)
+        if duration > 0:
+            draw.text(
+                (500, y + 55),
+                f"剩餘 {duration} 分鐘",
+                font=tiny_font,
+                fill=GAME_COLORS["accent_blue"],
+            )
+    else:
+        draw.text(
+            (500, y + 32),
+            "🪱 無使用魚餌",
+            font=content_font,
+            fill=GAME_COLORS["text_muted"],
+        )
+
+    y += 155
+
+    # 3. 功能狀態
+    draw.text(
+        (25, y), "⚡ 功能狀態", font=section_font, fill=GAME_COLORS["accent_gold"]
+    )
+    y += 35
+
+    # 狀態卡片
+    draw_game_card(
         draw,
-        (
-            right_card_x,
-            current_y,
-            right_card_x + card_width,
-            current_y + equipment_card_height,
-        ),
-        8,
-        fill=card_bg,
+        (20, y, width - 20, y + 130),
+        radius=12,
+        fill=GAME_COLORS["bg_card"],
+        border_color=GAME_COLORS["border"],
     )
 
-    # 定义右列的布局位置
-    right_col_x = right_card_x + 12
-
-    # 鱼饵标题
-    draw.text(
-        (right_col_x, equipment_row1_y), "鱼饵", font=small_font, fill=primary_light
-    )
-
-    # 鱼饵内容
-    current_bait = user_data.get("current_bait")
-    if current_bait:
-        bait_name = (
-            current_bait["name"][:15] + "..."
-            if len(current_bait["name"]) > 15
-            else current_bait["name"]
-        )
-        draw.text(
-            (right_col_x, equipment_row2_y),
-            bait_name,
-            font=content_font,
-            fill=text_primary,
-        )
-        rarity = current_bait.get("rarity", 1)
-        star_color = (
-            rare_color
-            if rarity > 4
-            else warning_color
-            if rarity >= 3
-            else text_secondary
-        )
-        bait_detail = (
-            f"{format_rarity_display(rarity)} 剩余：{current_bait.get('quantity', 0)}"
-        )
-        draw.text(
-            (right_col_x, equipment_row3_y),
-            bait_detail,
-            font=tiny_font,
-            fill=star_color,
-        )
-    else:
-        draw.text(
-            (right_col_x, equipment_row2_y),
-            "未使用",
-            font=content_font,
-            fill=text_muted,
-        )
-
-    # 钓鱼区域标题
-    draw.text(
-        (right_col_x, equipment_row4_y), "钓鱼区域", font=small_font, fill=primary_light
-    )
-
-    # 钓鱼区域内容
-    fishing_zone = user_data.get("fishing_zone", {})
-    zone_name = fishing_zone.get("name", "未知区域")
-    zone_display = zone_name[:12] + "..." if len(zone_name) > 12 else zone_name
-    draw.text(
-        (right_col_x, equipment_row5_y),
-        zone_display,
-        font=content_font,
-        fill=text_primary,
-    )
-    if fishing_zone.get("rare_fish_quota", 0) == 0:
-        zone_detail = "此区域无稀有鱼"
-        detail_color = text_muted
-    elif (
-        fishing_zone.get("rare_fish_quota", 0) - fishing_zone.get("rare_fish_caught", 0)
-        > 0
-    ):
-        zone_detail = f"剩余稀有鱼：{fishing_zone.get('rare_fish_quota', 0) - fishing_zone.get('rare_fish_caught', 0)}条"
-        detail_color = success_color
-    else:
-        zone_detail = "今日稀有鱼已捕完"
-        detail_color = text_muted
-    draw.text(
-        (right_col_x, equipment_row6_y), zone_detail, font=tiny_font, fill=detail_color
-    )
-
-    # 状态信息区域 - 合并今日状态和钓鱼状态
-    current_y += equipment_card_height + 5
-    status_title = "状态信息"
-    draw.text(
-        (card_margin, current_y), status_title, font=subtitle_font, fill=primary_medium
-    )
-    current_y += 30
-
-    # 状态卡片 - 扩展高度容纳更多信息
-    status_card_height = 120
-    draw_rounded_rectangle(
-        draw,
-        (card_margin, current_y, width - card_margin, current_y + status_card_height),
-        8,
-        fill=card_bg,
-    )
-
-    # 定义状态信息的网格位置 - 多行两列布局
-    status_col1_x = card_margin + 15  # 左列
-    status_col2_x = card_margin + 315  # 右列
-    status_row1_y = current_y + 12  # 第一行
-    status_row2_y = current_y + 35  # 第二行
-    status_row3_y = current_y + 58  # 第三行
-    status_row4_y = current_y + 81  # 第四行 (鱼塘信息)
-
-    # 左列第一行：签到状态
-    signed_today = user_data.get("signed_in_today", False)
-    if signed_today:
-        sign_text = "今日签到: 已签到"
-        sign_color = success_color
-    else:
-        sign_text = "今日签到: 未签到"
-        sign_color = error_color
-    draw.text(
-        (status_col1_x, status_row1_y), sign_text, font=content_font, fill=sign_color
-    )
-
-    # 右列第一行：擦弹次数
-    wipe_remaining = user_data.get("wipe_bomb_remaining", 0)
-    if wipe_remaining > 0:
-        wipe_text = f"擦弹次数: 剩余 {wipe_remaining} 次"
-        wipe_color = error_color
-    else:
-        wipe_text = "擦弹次数: 已用完"
-        wipe_color = text_muted
-    draw.text(
-        (status_col2_x, status_row1_y), wipe_text, font=content_font, fill=wipe_color
-    )
-
-    # 左列第二行：自动钓鱼状态
+    # 自動釣魚
     auto_fishing = user_data.get("auto_fishing_enabled", False)
-    if auto_fishing:
-        auto_text = "自动钓鱼: 已开启"
-        auto_color = success_color
-    else:
-        auto_text = "自动钓鱼: 已关闭"
-        auto_color = error_color
+    auto_text = "🤖 自動釣魚: 已開啟" if auto_fishing else "🤖 自動釣魚: 已關閉"
+    auto_color = GAME_COLORS["success"] if auto_fishing else GAME_COLORS["error"]
+    draw.text((35, y + 12), auto_text, font=content_font, fill=auto_color)
+
+    # 電魚冷卻
+    electric_cd = user_data.get("electric_fish_cooldown_remaining", 0)
+    electric_text = format_time(electric_cd)
+    electric_color = (
+        GAME_COLORS["success"] if electric_cd <= 0 else GAME_COLORS["warning"]
+    )
     draw.text(
-        (status_col1_x, status_row2_y), auto_text, font=content_font, fill=auto_color
+        (35, y + 40),
+        f"⚡ 電魚: {electric_text}",
+        font=content_font,
+        fill=electric_color,
     )
 
-    # 右列第二行：偷鱼CD信息
+    # 偷魚冷卻
     steal_cd = user_data.get("steal_cooldown_remaining", 0)
-    if steal_cd > 0:
-        hours = steal_cd // 3600
-        minutes = (steal_cd % 3600) // 60
-        if hours > 0:
-            cd_text = f"偷鱼冷却: {hours}小时{minutes}分钟"
+    steal_text = format_time(steal_cd)
+    steal_color = GAME_COLORS["success"] if steal_cd <= 0 else GAME_COLORS["warning"]
+    draw.text(
+        (35, y + 68), f"🦹 偷魚: {steal_text}", font=content_font, fill=steal_color
+    )
+
+    # 擦彈次數
+    wipe_bomb = user_data.get("wipe_bomb_remaining", 0)
+    draw.text(
+        (380, y + 12),
+        f"💣 擦彈剩餘: {wipe_bomb} 次",
+        font=content_font,
+        fill=GAME_COLORS["accent_blue"],
+    )
+
+    # 命運之輪
+    wof_plays = user_data.get("wof_remaining_plays", 0)
+    draw.text(
+        (380, y + 40),
+        f"🎡 命運之輪: {wof_plays} 次",
+        font=content_font,
+        fill=GAME_COLORS["accent_gold"],
+    )
+
+    # 釣魚區域
+    zone = user_data.get("fishing_zone", "未知區域")
+    draw.text(
+        (380, y + 68),
+        f"🗺️ 區域: {zone}",
+        font=content_font,
+        fill=GAME_COLORS["text_secondary"],
+    )
+
+    y += 145
+
+    # 4. 稱號
+    current_title = user_data.get("current_title")
+    if current_title:
+        draw.text(
+            (25, y), "🏆 當前稱號", font=section_font, fill=GAME_COLORS["accent_gold"]
+        )
+        y += 35
+
+        draw_game_card(
+            draw,
+            (20, y, width - 20, y + 50),
+            radius=10,
+            fill=GAME_COLORS["bg_light"],
+            border_color=GAME_COLORS["border_highlight"],
+        )
+
+        if isinstance(current_title, dict):
+            title_name = current_title.get("name", "無稱號")
         else:
-            cd_text = f"偷鱼冷却: {minutes}分钟"
-        cd_color = text_muted
-    else:
-        cd_text = "准备好偷鱼了！"
-        cd_color = error_color
-    draw.text((status_col2_x, status_row2_y), cd_text, font=content_font, fill=cd_color)
+            title_name = str(current_title)
 
-    # 第三行左列: 电鱼CD
-    ef_cd = user_data.get("electric_fish_cooldown_remaining", 0)
-    if ef_cd > 0:
-        h, m = ef_cd // 3600, (ef_cd % 3600) // 60
-        ef_cd_text = f"电鱼冷却: {h}小时{m}分钟" if h > 0 else f"电鱼冷却: {m}分钟"
-        ef_cd_color = text_muted
-    else:
-        ef_cd_text = "准备好电鱼了！"
-        ef_cd_color = error_color
-    draw.text(
-        (status_col1_x, status_row3_y), ef_cd_text, font=content_font, fill=ef_cd_color
-    )
-
-    # 第三行右列: 命运之轮
-    wof_rem = user_data.get("wof_remaining_plays", 0)
-    if wof_rem > 0:
-        wof_text = f"命运之轮: 剩余 {wof_rem} 次"
-        wof_color = error_color
-    else:
-        wof_text = "命运之轮: 已用完"
-        wof_color = text_muted
-    draw.text(
-        (status_col2_x, status_row3_y), wof_text, font=content_font, fill=wof_color
-    )
-
-    # 第四行：鱼塘信息
-    pond_info = user_data.get("pond_info", {})
-    if pond_info and pond_info.get("total_count", 0) > 0:
-        # 左列：鱼塘鱼数
-        pond_count_text = f"鱼塘数量: {pond_info['total_count']} 条， 价值: {pond_info['total_value']:,} 金币"
         draw.text(
-            (status_col1_x, status_row4_y),
-            pond_count_text,
+            (35, y + 12),
+            f"✨ {title_name}",
             font=content_font,
-            fill=text_primary,
+            fill=GAME_COLORS["accent_gold"],
         )
-    else:
-        # 鱼塘为空时显示
-        pond_empty_text = "鱼塘里什么都没有..."
-        draw.text(
-            (status_col1_x, status_row4_y),
-            pond_empty_text,
-            font=content_font,
-            fill=text_muted,
-        )
+        y += 65
 
-    # 10. 底部信息 - 调整位置
-    current_y += status_card_height + 15
-    footer_text = f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    footer_w, footer_h = get_text_size(footer_text, small_font)
-    footer_x = (width - footer_w) // 2
-    draw.text((footer_x, current_y), footer_text, font=small_font, fill=text_secondary)
-
-    # 12. 添加装饰性元素 - 保持简洁
-    corner_size = 15  # 稍微减小装饰元素
-    corner_color = COLOR_CORNER
-
-    # 四角装饰
-    draw.ellipse([8, 8, 8 + corner_size, 8 + corner_size], fill=corner_color)
-    draw.ellipse(
-        [width - 8 - corner_size, 8, width - 8, 8 + corner_size], fill=corner_color
-    )
-    draw.ellipse(
-        [8, height - 8 - corner_size, 8 + corner_size, height - 8], fill=corner_color
-    )
-    draw.ellipse(
-        [width - 8 - corner_size, height - 8 - corner_size, width - 8, height - 8],
-        fill=corner_color,
+    # 底部
+    draw_game_divider(draw, 30, width - 30, y + 10)
+    draw.text(
+        (30, y + 25),
+        "💡 指令：/狀態 查看詳情  |  /幫助 查看所有指令",
+        font=small_font,
+        fill=GAME_COLORS["text_secondary"],
     )
 
     return image
@@ -683,6 +372,7 @@ def get_user_state_data(
     Returns:
         包含用户状态信息的字典，如果用户不存在则返回None
     """
+    import json
     from ..core.utils import get_now, get_today
 
     # 获取用户基本信息
@@ -750,16 +440,7 @@ def get_user_state_data(
     if user.fishing_zone_id:
         zone = inventory_repo.get_zone_by_id(user.fishing_zone_id)
         if zone:
-            fishing_zone = {
-                "name": zone.name,
-                "description": zone.description,
-                "rare_fish_quota": zone.daily_rare_fish_quota
-                if hasattr(zone, "daily_rare_fish_quota")
-                else 0,
-                "rare_fish_caught": zone.rare_fish_caught_today
-                if hasattr(zone, "rare_fish_caught_today")
-                else 0,
-            }
+            fishing_zone = zone.name if hasattr(zone, "name") else str(zone)
 
     # 计算偷鱼剩余CD时间
     steal_cooldown_remaining = 0
@@ -820,10 +501,6 @@ def get_user_state_data(
 
     # 获取总钓鱼次数
     total_fishing_count = getattr(user, "total_fishing_count", 0)
-
-    # 获取偷鱼总价值
-    # steal_total_value = getattr(user, 'steal_total_value', 0)
-    steal_total_value = "0"  # 似乎没有偷鱼总价值字段？
 
     # 检查今日是否签到
     signed_in_today = False
@@ -920,7 +597,6 @@ def get_user_state_data(
         "fishing_zone": fishing_zone,
         "current_title": current_title,
         "total_fishing_count": total_fishing_count,
-        "steal_total_value": steal_total_value,
         "signed_in_today": signed_in_today,
         "wipe_bomb_remaining": wipe_bomb_remaining,
         "pond_info": pond_info,

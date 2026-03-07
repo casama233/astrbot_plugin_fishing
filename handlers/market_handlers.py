@@ -1019,7 +1019,10 @@ async def buy_item(plugin: "FishingPlugin", event: AstrMessageEvent):
     args = event.message_str.split(" ")
     if len(args) < 2:
         yield event.plain_result(
-            "❌ 请指定要购买的商品ID，例如：/购买 MC 或 /购买 R1A2B\n💡 使用「市场」命令查看商品列表"
+            "❌ 請指定要購買的商品 ID\n"
+            "```\n/購買 MC\n```\n"
+            "```\n/購買 R1A2B\n```\n"
+            "💡 使用「市場」查看商品列表"
         )
         return
 
@@ -1095,7 +1098,10 @@ async def delist_item(plugin: "FishingPlugin", event: AstrMessageEvent):
     args = event.message_str.split(" ")
     if len(args) < 2:
         yield event.plain_result(
-            "❌ 请指定要下架的商品 ID或ID，例如：/下架 MC 或 /下架 R2N9C\n💡 使用「我的上架」命令查看您的商品列表"
+            "❌ 請指定要下架的商品 ID\n"
+            "```\n/下架 MC\n```\n"
+            "```\n/下架 R2N9C\n```\n"
+            "💡 使用「我的上架」查看列表"
         )
         return
     code = args[1]

@@ -1,96 +1,141 @@
+"""
+商店界面 - 遊戲風格美化版
+"""
+
 import math
 from typing import Any, Dict, List
 
 from PIL import Image, ImageDraw
 
-from .gradient_utils import create_vertical_gradient
-from .styles import FONT_PATH_BOLD
-from .text_utils import normalize_display_text, draw_text_smart, load_font_with_cjk_fallback
+from .game_ui import (
+    create_game_gradient,
+    draw_game_card,
+    draw_game_title_bar,
+    draw_game_divider,
+    GAME_COLORS,
+)
+from .styles import load_font
+from .text_utils import normalize_display_text
 
 
 def _format_cost(cost: Dict[str, Any]) -> str:
+    """格式化價格顯示"""
     ctype = cost.get("cost_type")
     amount = cost.get("cost_amount", 0)
     if ctype == "coins":
-        return f"💰{amount}金幣"
+        return f"💰 {amount:,} 金幣"
     if ctype == "premium":
-        return f"💎{amount}高級貨幣"
+        return f"💎 {amount:,} 高級貨幣"
     if ctype == "item":
-        return f"🎁道具x{amount}"
+        return f"🎁 道具 x{amount}"
     if ctype == "fish":
-        return f"🐟魚類x{amount}"
+        return f"🐟 魚類 x{amount}"
     if ctype == "rod":
-        return f"🎣魚竿x{amount}"
+        return f"🎣 魚竿 x{amount}"
     if ctype == "accessory":
-        return f"💍飾品x{amount}"
+        return f"💍 飾品 x{amount}"
     return f"{ctype}:{amount}"
 
 
+def _get_shop_type_style(stype: str) -> tuple:
+    """獲取商店類型樣式"""
+    styles = {
+        "normal": ("一般", GAME_COLORS["text_secondary"]),
+        "premium": ("高級", GAME_COLORS["accent_gold"]),
+        "limited": ("限時", GAME_COLORS["accent_red"]),
+    }
+    return styles.get(stype, ("一般", GAME_COLORS["text_secondary"]))
+
+
 def draw_shop_list_image(shops: List[Dict[str, Any]]) -> Image.Image:
-    width = 940
-    row_h = 66
-    header_h = 96
-    footer_h = 86
+    """商店列表 - 遊戲風格"""
+    width = 960
+    row_h = 75
+    header_h = 100
+    footer_h = 90
     height = header_h + max(1, len(shops)) * row_h + footer_h
 
-    image = create_vertical_gradient(width, height, (236, 247, 255), (255, 255, 255))
+    image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
-    title_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 34)
-    head_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 22)
-    body_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 20)
-    sub_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 16)
+    title_font = load_font(36)
+    head_font = load_font(24)
+    body_font = load_font(20)
+    sub_font = load_font(16)
 
-    draw_text_smart(draw, (28, 26), "🛒 商店列表", font=title_font, fill=(40, 66, 94))
-    draw.line((28, 76, width - 28, 76), fill=(176, 204, 229), width=2)
+    # 標題欄
+    draw_game_title_bar(draw, width, 0, header_h, "商店列表", title_font, "🛒")
 
-    y = header_h - 8
+    y = header_h + 12
+
     for idx, shop in enumerate(shops, start=1):
         stype = shop.get("shop_type", "normal")
-        tname = (
-            "一般" if stype == "normal" else ("高級" if stype == "premium" else "限時")
-        )
-        status = "🟢開門中" if shop.get("is_active") else "🔴休息中"
+        tname, tcolor = _get_shop_type_style(stype)
+
+        is_active = shop.get("is_active", False)
+        status = "🟢 營業中" if is_active else "🔴 休息中"
+        status_color = GAME_COLORS["success"] if is_active else GAME_COLORS["error"]
+
         name = str(shop.get("name", "未知商店"))
         sid = shop.get("shop_id", "?")
         desc = normalize_display_text(shop.get("description"))
 
-        draw.rounded_rectangle(
-            (24, y, width - 24, y + row_h - 10),
-            radius=10,
-            fill=(255, 255, 255),
-            outline=(214, 228, 240),
-        )
-        draw_text_smart(draw, (36, y + 10), f"{idx}. {name}", font=head_font, fill=(34, 56, 82))
-        draw_text_smart(
+        # 商店卡片
+        draw_game_card(
             draw,
-            (460, y + 12),
-            f"ID:{sid}  [{tname}]  {status}",
-            font=body_font,
-            fill=(58, 88, 116),
+            (20, y, width - 20, y + row_h - 12),
+            radius=12,
+            fill=GAME_COLORS["bg_card"],
+            border_color=GAME_COLORS["border"],
+            shadow=True,
         )
+
+        # 序號和名稱
+        draw.text(
+            (40, y + 12), f"{idx}.", font=head_font, fill=GAME_COLORS["accent_blue"]
+        )
+        draw.text((75, y + 12), name, font=head_font, fill=GAME_COLORS["text_primary"])
+
+        # 商店類型標籤
+        draw.rounded_rectangle(
+            (40, y + 42, 40 + len(tname) * 18 + 16, y + 62),
+            radius=6,
+            fill=GAME_COLORS["bg_light"],
+            outline=tcolor,
+            width=1,
+        )
+        draw.text((48, y + 44), tname, font=sub_font, fill=tcolor)
+
+        # ID 和狀態
+        draw.text(
+            (width - 200, y + 15),
+            f"ID: {sid}",
+            font=body_font,
+            fill=GAME_COLORS["text_secondary"],
+        )
+        draw.text((width - 200, y + 40), status, font=sub_font, fill=status_color)
+
+        # 描述
         if desc:
-            draw_text_smart(draw, (38, y + 38), desc[:58], font=sub_font, fill=(109, 129, 147))
+            draw.text(
+                (200, y + 44), desc[:45], font=sub_font, fill=GAME_COLORS["text_muted"]
+            )
+
         y += row_h
 
-    draw.line(
-        (28, height - footer_h, width - 28, height - footer_h),
-        fill=(176, 204, 229),
-        width=2,
-    )
-    draw_text_smart(
-        draw,
-        (30, height - footer_h + 16),
+    # 底部提示
+    draw_game_divider(draw, 30, width - 30, height - footer_h + 15)
+    draw.text(
+        (30, height - footer_h + 30),
         "💡 查看詳情：/商店 商店ID",
         font=sub_font,
-        fill=(63, 89, 112),
+        fill=GAME_COLORS["text_secondary"],
     )
-    draw_text_smart(
-        draw,
-        (30, height - footer_h + 42),
+    draw.text(
+        (30, height - footer_h + 55),
         "💡 購買商品：/商店購買 商店ID 商品ID [數量]",
         font=sub_font,
-        fill=(63, 89, 112),
+        fill=GAME_COLORS["text_secondary"],
     )
 
     return image
@@ -100,91 +145,137 @@ def draw_shop_detail_image(
     shop: Dict[str, Any],
     items: List[Dict[str, Any]],
 ) -> Image.Image:
-    width = 980
-    card_h = 104
-    header_h = 120
-    footer_h = 74
+    """商店詳情 - 遊戲風格"""
+    width = 1000
+    card_h = 115
+    header_h = 130
+    footer_h = 80
     height = header_h + max(1, len(items)) * card_h + footer_h
 
-    image = create_vertical_gradient(width, height, (239, 248, 255), (255, 255, 255))
+    image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
-    title_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 32)
-    body_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 20)
-    small_font = load_font_with_cjk_fallback(FONT_PATH_BOLD, 16)
+    title_font = load_font(34)
+    body_font = load_font(22)
+    small_font = load_font(16)
 
     sname = str(shop.get("name", "未知商店"))
     sid = shop.get("shop_id", "?")
     sdesc = normalize_display_text(shop.get("description"))
 
-    draw_text_smart(draw, (28, 20), f"🛍️ {sname}", font=title_font, fill=(40, 66, 94))
-    draw_text_smart(draw, (30, 60), f"ID: {sid}", font=body_font, fill=(76, 98, 120))
-    if sdesc:
-        draw_text_smart(draw, (130, 60), sdesc[:68], font=body_font, fill=(76, 98, 120))
-    draw.line((28, 96, width - 28, 96), fill=(176, 204, 229), width=2)
+    # 標題欄
+    draw_game_title_bar(draw, width, 0, header_h, sname, title_font, "🛍️")
 
-    y = 112
+    # 商店資訊
+    draw.text(
+        (35, 72), f"商店 ID: {sid}", font=body_font, fill=GAME_COLORS["text_secondary"]
+    )
+
+    if sdesc:
+        draw.text((250, 72), sdesc[:55], font=body_font, fill=GAME_COLORS["text_muted"])
+
+    y = header_h + 15
+
     for entry in items:
         item = entry.get("item", {})
         costs = entry.get("costs", []) or []
         stock_total = item.get("stock_total")
         stock_sold = int(item.get("stock_sold", 0) or 0)
-        stock_text = "無限" if stock_total is None else f"{stock_sold}/{stock_total}"
+
+        if stock_total is None:
+            stock_text = "♾️ 無限"
+            stock_color = GAME_COLORS["accent_blue"]
+        else:
+            remaining = stock_total - stock_sold
+            stock_text = f"📦 剩餘 {remaining}/{stock_total}"
+            stock_color = (
+                GAME_COLORS["warning"]
+                if remaining < stock_total * 0.2
+                else GAME_COLORS["success"]
+            )
 
         limit_parts = []
         if item.get("per_user_limit") is not None:
-            limit_parts.append(f"每人限買 {item.get('per_user_limit')}")
+            limit_parts.append(f"每人限 {item.get('per_user_limit')}")
         if item.get("per_user_daily_limit") is not None:
-            limit_parts.append(f"每日限買 {item.get('per_user_daily_limit')}")
-        limit_text = "｜".join(limit_parts) if limit_parts else "無"
+            limit_parts.append(f"每日限 {item.get('per_user_daily_limit')}")
+        limit_text = " ｜ ".join(limit_parts) if limit_parts else "無限制"
 
-        ctext = " + ".join(_format_cost(c) for c in costs[:3])
-        if len(costs) > 3:
+        ctext = " + ".join(_format_cost(c) for c in costs[:2])
+        if len(costs) > 2:
             ctext += " + ..."
 
+        # 商品卡片
+        draw_game_card(
+            draw,
+            (20, y, width - 20, y + card_h - 15),
+            radius=12,
+            fill=GAME_COLORS["bg_card"],
+            border_color=GAME_COLORS["border"],
+        )
+
+        item_id = item.get("item_id", "?")
+        item_name = item.get("name", "未知商品")
+
+        # 商品 ID 標籤
         draw.rounded_rectangle(
-            (24, y, width - 24, y + card_h - 12),
-            radius=10,
-            fill=(255, 255, 255),
-            outline=(214, 228, 240),
+            (35, y + 12, 80, y + 36), radius=6, fill=GAME_COLORS["bg_light"]
         )
-        draw_text_smart(
-            draw,
-            (36, y + 10),
-            f"#{item.get('item_id', '?')}  {item.get('name', '未知商品')}",
-            font=body_font,
-            fill=(34, 56, 82),
-        )
-        draw_text_smart(
-            draw,
-            (36, y + 40),
-            f"價值：{ctext or '免費'}",
+        draw.text(
+            (42, y + 14),
+            f"#{item_id}",
             font=small_font,
-            fill=(67, 92, 116),
+            fill=GAME_COLORS["accent_blue"],
         )
-        draw_text_smart(
-            draw,
-            (36, y + 64),
-            f"存貨：{stock_text}   限買：{limit_text}",
+
+        # 商品名稱
+        draw.text(
+            (95, y + 10), item_name, font=body_font, fill=GAME_COLORS["text_primary"]
+        )
+
+        # 價格
+        if ctext:
+            draw.text(
+                (35, y + 45),
+                f"💵 {ctext}",
+                font=small_font,
+                fill=GAME_COLORS["accent_gold"],
+            )
+        else:
+            draw.text(
+                (35, y + 45), "🎁 免費", font=small_font, fill=GAME_COLORS["success"]
+            )
+
+        # 存貨
+        draw.text((35, y + 70), stock_text, font=small_font, fill=stock_color)
+
+        # 限購
+        draw.text(
+            (250, y + 70),
+            f"🚫 限購: {limit_text}",
             font=small_font,
-            fill=(67, 92, 116),
+            fill=GAME_COLORS["text_secondary"],
         )
+
+        # 描述
         desc = normalize_display_text(item.get("description"))
         if desc:
-            draw_text_smart(draw, (520, y + 40), desc[:34], font=small_font, fill=(109, 129, 147))
+            draw.text(
+                (400, y + 45),
+                desc[:35],
+                font=small_font,
+                fill=GAME_COLORS["text_muted"],
+            )
+
         y += card_h
 
-    draw.line(
-        (28, height - footer_h, width - 28, height - footer_h),
-        fill=(176, 204, 229),
-        width=2,
-    )
-    draw_text_smart(
-        draw,
-        (30, height - footer_h + 22),
-        f"💡 購買：/商店購買 {sid} 商品ID [數量]",
+    # 底部
+    draw_game_divider(draw, 30, width - 30, height - footer_h + 15)
+    draw.text(
+        (30, height - footer_h + 30),
+        f"💡 購買指令：/商店購買 {sid} 商品ID [數量]",
         font=small_font,
-        fill=(63, 89, 112),
+        fill=GAME_COLORS["text_secondary"],
     )
 
     return image
