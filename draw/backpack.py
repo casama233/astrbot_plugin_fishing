@@ -4,6 +4,7 @@
 """
 
 import os
+import math
 from datetime import datetime
 from typing import Dict, Any, List
 from PIL import Image, ImageDraw
@@ -41,11 +42,15 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     baits = user_data.get("baits", [])
     items = user_data.get("items", [])
 
-    # 簡化高度計算
-    rod_h = 180 if rods else 60
-    acc_h = 180 if accessories else 60
-    bait_h = 140 if baits else 60
-    item_h = 140 if items else 60
+    rod_rows = math.ceil(len(rods) / 2) if rods else 0
+    acc_rows = math.ceil(len(accessories) / 2) if accessories else 0
+    bait_rows = math.ceil(len(baits) / 3) if baits else 0
+    item_rows = math.ceil(len(items) / 3) if items else 0
+
+    rod_h = rod_rows * 170 if rods else 60
+    acc_h = acc_rows * 170 if accessories else 60
+    bait_h = bait_rows * 120 if baits else 60
+    item_h = item_rows * 120 if items else 60
 
     height = (
         header_h + rod_h + acc_h + bait_h + item_h + section_gap * 5 + footer_h + 40
@@ -75,7 +80,7 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     y += 40
 
     if rods:
-        for i, rod in enumerate(rods[:4]):  # 最多顯示4個
+        for i, rod in enumerate(rods):
             col = i % 2
             row = i // 2
             x = 25 + col * 440
@@ -159,7 +164,7 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     y += 40
 
     if accessories:
-        for i, acc in enumerate(accessories[:4]):
+        for i, acc in enumerate(accessories):
             col = i % 2
             row = i // 2
             x = 25 + col * 440
@@ -217,7 +222,7 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     y += 40
 
     if baits:
-        for i, bait in enumerate(baits[:6]):
+        for i, bait in enumerate(baits):
             col = i % 3
             row = i // 3
             x = 25 + col * 290
@@ -277,7 +282,7 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     y += 40
 
     if items:
-        for i, item in enumerate(items[:6]):
+        for i, item in enumerate(items):
             col = i % 3
             row = i // 3
             x = 25 + col * 290
