@@ -165,6 +165,15 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
 
             # 设置用户昵称
             backpack_data["nickname"] = user.nickname or user_id
+            current_title_name = None
+            if getattr(user, "current_title_id", None):
+                title_tpl = plugin.item_template_repo.get_title_by_id(
+                    user.current_title_id
+                )
+                if title_tpl:
+                    current_title_name = title_tpl.name
+            if current_title_name:
+                backpack_data["current_title"] = current_title_name
 
             # 如果物品总数超过200，先给出警告提示
             total_items = (
@@ -183,14 +192,14 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
                 )
 
             # 生成背包图像
-            image = draw_backpack_image(backpack_data, plugin.data_dir)
-            # 保存图像到临时文件
-            image_path = os.path.join(plugin.tmp_dir, "user_backpack.png")
-            image.save(image_path)
-            yield event.image_result(image_path)
-            yield build_tip_result(
-                event, _build_dynamic_shortcuts(plugin, user_id, "backpack")
-            )
+    image = draw_backpack_image(backpack_data, plugin.data_dir)
+    # 保存图像到临时文件
+    image_path = os.path.join(plugin.tmp_dir, "user_backpack.png")
+    image.save(image_path)
+    yield event.image_result(image_path)
+    yield build_tip_result(
+        event, _build_dynamic_shortcuts(plugin, user_id, "backpack"), plugin, user_id
+    )
 
             # 如果内容被截断或过滤，额外发送提示
             if backpack_data.get("is_truncated", False):
@@ -249,6 +258,7 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
     user_id = plugin._get_effective_user_id(event)
     if pond_fish := plugin.inventory_service.get_user_fish_pond(user_id):
         fishes = pond_fish["fishes"]
+        user = plugin.user_repo.get_by_id(user_id)
         # 把fishes按稀有度分组
         fished_by_rarity = {}
         for fish in fishes:
@@ -262,7 +272,59 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
         has_guardian = protection_buff is not None
         capacity = plugin.inventory_service.get_user_fish_pond_capacity(user_id)
 
-        # 构造输出信息
+        # 优先图片渲染，统一卡片风格并显示短码
+        try:
+            from ..draw.list_cards import draw_game_card_list_image
+
+            sections = []
+            for rarity in sorted(fished_by_rarity.keys(), reverse=True):
+                fish_list = sorted(
+                    fished_by_rarity[rarity],
+                    key=lambda f: (
+                        -(int(f.get("quality_level", 0) or 0)),
+                        -float(f.get("actual_value", f.get("base_value", 0)) or 0),
+                        str(f.get("name", "")),
+                    ),
+                )
+                rows = []
+                for fish in fish_list[:20]:
+                    fish_id = int(fish.get("fish_id", 0) or 0)
+                    quality_level = int(fish.get("quality_level", 0) or 0)
+                    fcode = (
+                        f"F{fish_id}H"
+                        if quality_level == 1 and fish_id
+                        else (f"F{fish_id}" if fish_id else "F0")
+                    )
+                    quality_text = " ✨高品質" if quality_level == 1 else ""
+                    rows.append(
+                        f"{fish.get('name', '未知魚')} x{fish.get('quantity', 0)}{quality_text}  ID:{fcode}  {fish.get('actual_value', 0)}金幣/個"
+                    )
+                if rows:
+                    sections.append(
+                        {
+                            "title": f"{format_rarity_display(rarity)} 稀有度",
+                            "rows": rows,
+                        }
+                    )
+
+            image = draw_game_card_list_image(
+                title="🐠 魚塘",
+                sections=sections,
+                subtitle=f"{(user.nickname if user else user_id)}  |  總魚數 {pond_fish['stats']['total_count']}  |  總價值 {pond_fish['stats']['total_value']} 金幣",
+                footer="💡 操作：/出售 F短碼 [數量]  /上架 F短碼 價格 [數量]",
+                icon="🐠",
+            )
+            image_path = os.path.join(plugin.tmp_dir, f"fish_pond_{user_id}.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            yield event.plain_result(
+                _build_dynamic_shortcuts(plugin, user_id, "backpack")
+            )
+            return
+        except Exception:
+            pass
+
+        # 构造输出信息（文字回退）
         message = "【🐠 魚塘】：\n"
         if has_guardian:
             remaining_text = _format_remaining_time(protection_buff.expires_at)
@@ -270,9 +332,7 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
         else:
             message += "🛡️ 守護海靈：無\n"
         if capacity.get("success"):
-            message += (
-                f"📦 容量：{capacity['current_fish_count']} / {capacity['fish_pond_capacity']} 條\n"
-            )
+            message += f"📦 容量：{capacity['current_fish_count']} / {capacity['fish_pond_capacity']} 條\n"
 
         for rarity in sorted(fished_by_rarity.keys(), reverse=True):
             fish_list = fished_by_rarity[rarity]

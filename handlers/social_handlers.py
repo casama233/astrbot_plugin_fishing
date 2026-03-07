@@ -39,6 +39,46 @@ async def ranking(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result("❌ 当前没有排行榜数据。")
         return
 
+    try:
+        from ..draw.list_cards import draw_game_card_list_image
+
+        rank_label = {
+            "coins": "金币",
+            "fish_count": "钓获数量",
+            "total_weight_caught": "钓获重量",
+            "max_coins": "历史最高金币",
+        }.get(ranking_type, "金币")
+
+        rows = []
+        for idx, u in enumerate(user_data[:20], start=1):
+            nick = u.get("nickname", "未知用户")
+            title = u.get("title", "无称号")
+            score = (
+                u.get("max_coins", 0)
+                if ranking_type == "max_coins"
+                else u.get(ranking_type, u.get("coins", 0))
+            )
+            rows.append(
+                f"#{idx}  {nick} 【{title}】  {rank_label}:{score}  钓获:{u.get('fish_count', 0)}"
+            )
+
+        image = draw_game_card_list_image(
+            title="🏆 排行榜",
+            sections=[{"title": f"按{rank_label}排序", "rows": rows}],
+            subtitle=f"TOP {min(len(user_data), 20)}",
+            footer="💡 可用：/排行榜 数量  /排行榜 重量  /排行榜 历史",
+            icon="🏆",
+        )
+        user_id_for_filename = plugin._get_effective_user_id(event)
+        image_path = os.path.join(
+            plugin.tmp_dir, f"ranking_card_{user_id_for_filename}.png"
+        )
+        image.save(image_path)
+        yield event.image_result(image_path)
+        return
+    except Exception:
+        pass
+
     # 2. 遍历列表，为每个用户查询并填充装备和称号的【名称】
     for user_dict in user_data:
         user_id = user_dict.get("user_id")

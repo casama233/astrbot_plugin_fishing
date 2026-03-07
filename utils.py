@@ -97,7 +97,29 @@ def should_send_loading_tip(game_config: Optional[Dict[str, Any]]) -> bool:
         return True
 
 
-def build_tip_result(event, message: str):
+def build_tip_result(event, message: str, plugin=None, user_id: str = None):
+    """
+    构建提示结果，用于显示建议操作/下一步信息。
+
+    Args:
+        event: 事件对象
+        message: 提示消息内容
+        plugin: 插件实例（可选），用于检查是否启用建议显示
+        user_id: 用户ID（可选），用于检查用户个人偏好
+
+    Returns:
+        事件结果对象或None（如果建议显示被关闭）
+    """
+    if plugin is not None:
+        show_suggestions = plugin.game_config.get("show_suggestions", True)
+        if not show_suggestions:
+            return None
+
+        if user_id and hasattr(plugin, "user_repo"):
+            user = plugin.user_repo.get_by_id(user_id)
+            if user and not user.show_suggestions:
+                return None
+
     platform_name = getattr(getattr(event, "platform_meta", None), "platform_name", "")
     is_discord = "discord" in str(platform_name).lower()
     if is_discord:
@@ -117,13 +139,14 @@ def build_tip_result(event, message: str):
                         return fn(message, ephemeral=True)
                     except Exception:
                         pass
+    try:
+        return event.plain_result(message, private=True)
+    except Exception:
         try:
-            return event.plain_result(message, private=True)
+            return event.plain_result(message, ephemeral=True)
         except Exception:
-            try:
-                return event.plain_result(message, ephemeral=True)
-            except Exception:
-                return event.plain_result(message)
+            return event.plain_result(message)
+    return event.plain_result(message)
     return event.plain_result(message)
 
 
@@ -377,7 +400,10 @@ def format_accessory_or_rod(accessory_or_rod: dict) -> str:
         message += f"   - {'🔓 未鎖定'}\n"
 
     # 耐久度显示 (针对鱼竿)
-    if "current_durability" in accessory_or_rod and accessory_or_rod["current_durability"] is not None:
+    if (
+        "current_durability" in accessory_or_rod
+        and accessory_or_rod["current_durability"] is not None
+    ):
         dur = accessory_or_rod["current_durability"]
         max_dur = accessory_or_rod.get("max_durability", dur)
         message += f"   - 🔨 耐久度: {dur}/{max_dur}\n"

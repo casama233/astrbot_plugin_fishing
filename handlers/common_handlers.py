@@ -963,3 +963,55 @@ async def update_nickname(self: "FishingPlugin", event: AstrMessageEvent):
     # 调用用户服务更新昵称
     result = self.user_service.update_nickname(user_id, new_nickname)
     yield event.plain_result(result["message"])
+
+
+async def toggle_my_suggestions(self: "FishingPlugin", event: AstrMessageEvent):
+    """玩家自主开关建议/提示消息"""
+    user_id = self._get_effective_user_id(event)
+
+    if not self.user_repo.check_exists(user_id):
+        yield event.plain_result("❌ 请先使用 /注册 开启钓鱼之旅！")
+        return
+
+    user = self.user_repo.get_by_id(user_id)
+    if not user:
+        yield event.plain_result("❌ 获取用户信息失败！")
+        return
+
+    args = event.message_str.split(" ")
+
+    if len(args) < 2:
+        current_state = user.show_suggestions
+        status_text = "✅ 开启" if current_state else "❌ 关闭"
+        yield event.plain_result(
+            f"📊 您的建议消息显示状态：{status_text}\n\n"
+            "用法：\n"
+            "• /我的建议 on - 开启建议消息\n"
+            "• /我的建议 off - 关闭建议消息\n\n"
+            "说明：关闭后，您将不再收到「建议下一步」或「常用操作」等提示信息。"
+        )
+        return
+
+    action = args[1].lower().strip()
+
+    if action in ["on", "开", "开启", "true", "1"]:
+        user.show_suggestions = True
+        self.user_repo.update(user)
+        yield event.plain_result(
+            "✅ 已为您开启建议消息！\n\n"
+            "现在使用指令时将会显示「建议下一步」或「常用操作」提示信息。"
+        )
+    elif action in ["off", "关", "关闭", "false", "0"]:
+        user.show_suggestions = False
+        self.user_repo.update(user)
+        yield event.plain_result(
+            "✅ 已为您关闭建议消息！\n\n"
+            "现在使用指令时将不再显示「建议下一步」或「常用操作」提示信息。"
+        )
+    else:
+        yield event.plain_result(
+            f"❌ 无效的参数：{action}\n\n"
+            "用法：\n"
+            "• /我的建议 on - 开启建议消息\n"
+            "• /我的建议 off - 关闭建议消息"
+        )

@@ -24,6 +24,28 @@ def create_game_gradient(
         b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
         draw.line([(0, y), (width, y)], fill=(r, g, b))
 
+    # 疊加柔和光斑，提升層次感
+    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    glow_draw = ImageDraw.Draw(glow)
+    glow_draw.ellipse(
+        (-width // 4, -height // 3, width // 2, height // 2),
+        fill=(90, 145, 220, 55),
+    )
+    glow_draw.ellipse(
+        (width // 2, -height // 5, width + width // 4, height // 2),
+        fill=(255, 195, 95, 35),
+    )
+    glow = glow.filter(ImageFilter.GaussianBlur(46))
+    image = Image.alpha_composite(image.convert("RGBA"), glow).convert("RGB")
+
+    # 淡淡的網格線，讓版面更精緻
+    draw = ImageDraw.Draw(image)
+    grid_color = (72, 92, 128)
+    for x in range(0, width, 48):
+        draw.line((x, 0, x, height), fill=grid_color, width=1)
+    for y in range(0, height, 48):
+        draw.line((0, y, width, y), fill=grid_color, width=1)
+
     return image
 
 
@@ -60,6 +82,13 @@ def draw_game_card(
         fill=fill,
         outline=border_color,
         width=border_width,
+    )
+
+    # 頂部高光線
+    draw.line(
+        (x1 + radius, y1 + 1, x2 - radius, y1 + 1),
+        fill=(min(255, fill[0] + 26), min(255, fill[1] + 26), min(255, fill[2] + 26)),
+        width=1,
     )
 
 
@@ -109,6 +138,16 @@ def draw_game_title_bar(
     """繪製遊戲風格標題欄"""
     # 標題欄背景
     draw.rectangle((0, y, width, y + height), fill=(40, 55, 80))
+
+    # 輕微漸層疊加
+    for i in range(height):
+        alpha_ratio = i / max(1, height)
+        tint = int(26 * (1 - alpha_ratio))
+        draw.line(
+            (0, y + i, width, y + i),
+            fill=(40 + tint, 55 + tint, 80 + tint),
+            width=1,
+        )
 
     # 頂部裝飾線
     draw.line([(0, y), (width, y)], fill=(100, 150, 220), width=3)

@@ -6,9 +6,11 @@ from datetime import datetime, timedelta
 # 游戏配置实体 (Configuration Entities)
 # ---------------------------------
 
+
 @dataclass
 class Fish:
     """代表一种鱼的模板信息"""
+
     fish_id: int
     name: str
     rarity: int
@@ -18,9 +20,11 @@ class Fish:
     description: Optional[str] = None
     icon_url: Optional[str] = None
 
+
 @dataclass
 class Bait:
     """代表一种鱼饵的模板信息"""
+
     bait_id: int
     name: str
     rarity: int
@@ -31,18 +35,19 @@ class Bait:
     duration_minutes: int = 0
     cost: int = 0
     required_rod_rarity: int = 0
-    success_rate_modifier: float = 0.0 # 成功率加成
-    rare_chance_modifier: float = 0.0 # 稀有鱼出现几率加成
-    garbage_reduction_modifier: float = 0.0 # 垃圾鱼出现几率减少
-    value_modifier: float = 1.0 # 渔获价值加成
-    quantity_modifier: float = 1.0 # 渔获数量加成
-    weight_modifier: float = 1.0 # 渔获重量加成
-    is_consumable: bool = True # 是否消耗品
+    success_rate_modifier: float = 0.0  # 成功率加成
+    rare_chance_modifier: float = 0.0  # 稀有鱼出现几率加成
+    garbage_reduction_modifier: float = 0.0  # 垃圾鱼出现几率减少
+    value_modifier: float = 1.0  # 渔获价值加成
+    quantity_modifier: float = 1.0  # 渔获数量加成
+    weight_modifier: float = 1.0  # 渔获重量加成
+    is_consumable: bool = True  # 是否消耗品
 
 
 @dataclass
 class Rod:
     """代表一种鱼竿的模板信息"""
+
     rod_id: int
     name: str
     rarity: int
@@ -55,9 +60,11 @@ class Rod:
     durability: Optional[int] = None
     icon_url: Optional[str] = None
 
+
 @dataclass
 class Accessory:
     """代表一种饰品的模板信息"""
+
     accessory_id: int
     name: str
     rarity: int
@@ -70,9 +77,11 @@ class Accessory:
     other_bonus_description: Optional[str] = None
     icon_url: Optional[str] = None
 
+
 @dataclass
 class Item:
     """代表一道具的模板信息（背包道具栏）"""
+
     item_id: int
     name: str
     rarity: int
@@ -85,17 +94,21 @@ class Item:
     effect_type: Optional[str] = None
     effect_payload: Optional[str] = None
 
+
 @dataclass
 class Title:
     """代表一种称号的模板信息"""
+
     title_id: int
     name: str
     description: str
     display_format: str = "{name}"
 
+
 @dataclass
 class Achievement:
     """代表一个成就的模板信息"""
+
     achievement_id: int
     name: str
     description: str
@@ -108,9 +121,11 @@ class Achievement:
     is_repeatable: bool = False
     icon_url: Optional[str] = None
 
+
 @dataclass
 class GachaPoolItem:
     """代表抽卡池中的一个奖品项"""
+
     gacha_pool_item_id: int
     gacha_pool_id: int
     item_type: str
@@ -118,9 +133,11 @@ class GachaPoolItem:
     weight: int
     quantity: int = 1
 
+
 @dataclass
 class GachaPool:
     """代表一个抽卡池的配置"""
+
     gacha_pool_id: int
     name: str
     description: Optional[str] = None
@@ -136,9 +153,11 @@ class GachaPool:
         """允许通过属性名访问字段"""
         return getattr(self, item)
 
+
 @dataclass
 class Commodity:
     """代表一种大宗商品的模板信息"""
+
     commodity_id: str  # e.g., 'dried_fish', 'fish_roe', 'fish_oil'
     name: str
     description: str
@@ -148,9 +167,11 @@ class Commodity:
 # 交易所实体 (Exchange Entities)
 # ---------------------------------
 
+
 @dataclass
 class Exchange:
     """代表交易所的商品价格记录"""
+
     date: str  # YYYY-MM-DD
     time: str  # HH:MM:SS
     commodity_id: str
@@ -158,9 +179,11 @@ class Exchange:
     update_type: str = "auto"  # 'auto' 或 'manual'
     created_at: str = ""  # ISO格式时间戳
 
+
 @dataclass
 class UserCommodity:
     """代表用户持有的一个具体的大宗商品实例"""
+
     instance_id: int
     user_id: str
     commodity_id: str
@@ -169,13 +192,16 @@ class UserCommodity:
     purchased_at: datetime
     expires_at: datetime
 
+
 # ---------------------------------
 # 用户数据实体 (User Data Entities)
 # ---------------------------------
 
+
 @dataclass
 class UserRodInstance:
     """代表用户拥有的一个具体的鱼竿实例"""
+
     rod_instance_id: int
     user_id: str
     rod_id: int
@@ -185,9 +211,11 @@ class UserRodInstance:
     current_durability: Optional[int] = None
     is_locked: bool = False  # 是否锁定保护，默认为False
 
+
 @dataclass
 class UserAccessoryInstance:
     """代表用户拥有的一个具体的饰品实例"""
+
     accessory_instance_id: int
     user_id: str
     accessory_id: int
@@ -196,9 +224,11 @@ class UserAccessoryInstance:
     refine_level: int = 1
     is_locked: bool = False  # 是否锁定保护，默认为False
 
+
 @dataclass
 class User:
     """代表一个完整的用户领域模型"""
+
     # --- 无默认值的字段放前面 ---
     user_id: str
     created_at: datetime
@@ -215,7 +245,7 @@ class User:
     fish_pond_capacity: int = 480
     aquarium_capacity: int = 50  # 水族箱容量
     fishing_zone_id: int = 1  # 默认钓鱼区域ID
-    exchange_account_status: bool = False # 交易所账户状态
+    exchange_account_status: bool = False  # 交易所账户状态
 
     max_wipe_bomb_multiplier: float = 0.0
     min_wipe_bomb_multiplier: Optional[float] = None
@@ -245,43 +275,53 @@ class User:
     last_wof_play_time: datetime | None = None
     wof_last_action_time: datetime | None = None
     wof_plays_today: int = 0
-    last_wof_date: Optional[str] = None # YYYY-MM-DD 格式
-    
+    last_wof_date: Optional[str] = None  # YYYY-MM-DD 格式
+
     # --- 新增：用于“骰宝”游戏冷却 ---
     last_sicbo_time: Optional[datetime] = None
-    
+
     # --- 新增：用于每日擦弹次数追踪 ---
     wipe_bomb_attempts_today: int = 0
-    last_wipe_bomb_date: Optional[str] = None # YYYY-MM-DD 格式
+    last_wipe_bomb_date: Optional[str] = None  # YYYY-MM-DD 格式
+
+    # --- 新增：用户建议显示偏好 ---
+    show_suggestions: bool = True  # 用户是否愿意看到建议/提示信息
 
     def can_afford(self, cost: int) -> bool:
         """判断用户金币是否足够"""
         return self.coins >= cost
 
+
 # ---------------------------------
 # 关联与日志实体 (Association & Log Entities)
 # ---------------------------------
 
+
 @dataclass
 class UserFishInventoryItem:
     """用户鱼塘中的一项"""
+
     user_id: str
     fish_id: int
     quality_level: int  # 0=普通，1=高品质
     quantity: int
 
+
 @dataclass
 class UserAquariumItem:
     """用户水族箱中的一项"""
+
     user_id: str
     fish_id: int
     quality_level: int  # 0=普通，1=高品质
     quantity: int
     added_at: Optional[datetime] = None
 
+
 @dataclass
 class AquariumUpgrade:
     """水族箱升级配置"""
+
     upgrade_id: int
     level: int
     capacity: int
@@ -290,9 +330,11 @@ class AquariumUpgrade:
     description: Optional[str] = None
     created_at: Optional[datetime] = None
 
+
 @dataclass
 class FishingRecord:
     """一条详细的钓鱼记录"""
+
     record_id: int
     user_id: str
     fish_id: int
@@ -305,9 +347,11 @@ class FishingRecord:
     location_id: Optional[int] = None
     is_king_size: bool = False
 
+
 @dataclass
 class GachaRecord:
     """一条抽卡记录"""
+
     record_id: int
     user_id: str
     gacha_pool_id: int
@@ -322,9 +366,11 @@ class GachaRecord:
         """允许通过属性名访问字段"""
         return getattr(self, item)
 
+
 @dataclass
 class WipeBombLog:
     """一条擦弹记录"""
+
     log_id: int
     user_id: str
     contribution_amount: int
@@ -332,9 +378,11 @@ class WipeBombLog:
     reward_amount: int
     timestamp: datetime
 
+
 @dataclass
 class MarketListing:
     """一个市场商品条目"""
+
     market_id: int
     user_id: str
     seller_nickname: str
@@ -355,9 +403,11 @@ class MarketListing:
         """允许通过属性名访问字段"""
         return getattr(self, item)
 
+
 @dataclass
 class TaxRecord:
     """一条税收记录"""
+
     tax_id: int
     user_id: str
     tax_amount: int
@@ -366,6 +416,7 @@ class TaxRecord:
     balance_after: int
     timestamp: datetime
     tax_type: str = "daily"
+
 
 @dataclass
 class FishingZone:
@@ -396,6 +447,7 @@ class FishingZone:
         """允许通过属性名访问字段"""
         return getattr(self, item)
 
+
 @dataclass
 class UserBuff:
     id: int
@@ -410,9 +462,11 @@ class UserBuff:
 class UserItem:
     user_id: str
 
+
 @dataclass
 class UserFishStat:
     """用户对某鱼种的聚合统计，用于图鉴与个人纪录"""
+
     user_id: str
     fish_id: int
     first_caught_at: Optional[datetime]
@@ -422,13 +476,16 @@ class UserFishStat:
     total_caught: int
     total_weight: int
 
+
 # ---------------------------------
 # 商店实体 (Shop Entities) - 新设计
 # ---------------------------------
 
+
 @dataclass
 class Shop:
     """商店实体"""
+
     shop_id: int
     name: str
     description: Optional[str] = None
@@ -437,7 +494,7 @@ class Shop:
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     daily_start_time: Optional[str] = None  # 格式: "09:00"
-    daily_end_time: Optional[str] = None    # 格式: "18:00"
+    daily_end_time: Optional[str] = None  # 格式: "18:00"
     sort_order: int = 100
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -446,6 +503,7 @@ class Shop:
 @dataclass
 class ShopItem:
     """商店商品实体"""
+
     item_id: int
     shop_id: int
     name: str
@@ -466,6 +524,7 @@ class ShopItem:
 @dataclass
 class ShopItemCost:
     """商店商品成本实体（支持AND/OR关系）"""
+
     cost_id: int
     item_id: int
     cost_type: str  # 'coins' | 'premium' | 'item' | 'fish' | 'rod' | 'accessory'
@@ -479,6 +538,7 @@ class ShopItemCost:
 @dataclass
 class ShopItemReward:
     """商店商品奖励实体"""
+
     reward_id: int
     item_id: int
     reward_type: str  # 'rod' | 'accessory' | 'bait' | 'item' | 'fish' | 'coins'
@@ -491,6 +551,7 @@ class ShopItemReward:
 @dataclass
 class ShopPurchaseRecord:
     """商店购买记录实体"""
+
     record_id: int
     user_id: str
     item_id: int  # 现在引用 shop_items.item_id
@@ -502,9 +563,11 @@ class ShopPurchaseRecord:
 # 兼容性模型（向后兼容旧系统）
 # ---------------------------------
 
+
 @dataclass
 class ShopOfferCost:
     """商店消耗项（兼容旧接口）"""
+
     cost_id: int
     offer_id: int
     cost_type: str  # 'coins' | 'premium' | 'item' | 'fish'
@@ -515,6 +578,7 @@ class ShopOfferCost:
 @dataclass
 class ShopOffer:
     """商店在售条目（兼容旧接口）"""
+
     offer_id: int
     name: str
     category: Optional[str] = None
@@ -534,6 +598,7 @@ class ShopOffer:
 @dataclass
 class ShopOfferReward:
     """商店奖励项（兼容旧接口）"""
+
     reward_id: int
     offer_id: int
     item_type: str
@@ -546,9 +611,11 @@ class ShopOfferReward:
 # 红包系统实体 (Red Packet Entities)
 # ---------------------------------
 
+
 @dataclass
 class RedPacket:
     """红包实体"""
+
     packet_id: int
     sender_id: str
     group_id: str
@@ -562,9 +629,11 @@ class RedPacket:
     expires_at: datetime = None
     is_expired: bool = False
 
+
 @dataclass
 class RedPacketRecord:
     """红包领取记录"""
+
     record_id: int
     packet_id: int
     user_id: str

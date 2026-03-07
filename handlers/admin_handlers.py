@@ -145,9 +145,11 @@ async def reward_all_coins(plugin: "FishingPlugin", event: AstrMessageEvent):
     """给所有注册用户发放金币"""
     args = event.message_str.split(" ")
     if len(args) < 2:
-        yield event.plain_result("❌ 请指定奖励的金币数量，例如：/全体奖励金币 1000 或 /全体奖励金币 一万")
+        yield event.plain_result(
+            "❌ 请指定奖励的金币数量，例如：/全体奖励金币 1000 或 /全体奖励金币 一万"
+        )
         return
-    
+
     try:
         amount_int = parse_amount(args[1])
         if amount_int <= 0:
@@ -546,36 +548,42 @@ async def replenish_fish_pools(plugin: "FishingPlugin", event: AstrMessageEvent)
     try:
         # 获取所有钓鱼区域
         all_zones = plugin.inventory_repo.get_all_zones()
-        
+
         if not all_zones:
             yield event.plain_result("❌ 没有找到任何钓鱼区域。")
             return
-        
+
         # 重置所有有配额的区域的稀有鱼计数
         reset_count = 0
         zone_details = []
-        
+
         for zone in all_zones:
             if zone.daily_rare_fish_quota > 0:  # 只重置有配额的区域
                 zone.rare_fish_caught_today = 0
                 plugin.inventory_repo.update_fishing_zone(zone)
                 reset_count += 1
-                zone_details.append(f"🎣 {zone.name}：配额 {zone.daily_rare_fish_quota} 条")
-        
+                zone_details.append(
+                    f"🎣 {zone.name}：配额 {zone.daily_rare_fish_quota} 条"
+                )
+
         if reset_count == 0:
             yield event.plain_result("❌ 没有找到任何有稀有鱼配额的钓鱼区域。")
             return
-        
+
         # 构建结果消息
-        result_msg = f"✅ 鱼池补充完成！已重置 {reset_count} 个钓鱼区域的稀有鱼剩余数量。\n\n"
+        result_msg = (
+            f"✅ 鱼池补充完成！已重置 {reset_count} 个钓鱼区域的稀有鱼剩余数量。\n\n"
+        )
         result_msg += "📋 重置详情：\n"
         result_msg += "\n".join(zone_details)
         result_msg += f"\n\n🔄 所有区域的稀有鱼(4星及以上)剩余数量已重置为满配额状态。"
-        
+
         yield event.plain_result(result_msg)
-        
-        logger.info(f"管理员 {event.get_sender_id()} 执行了鱼池补充操作，重置了 {reset_count} 个钓鱼区域")
-        
+
+        logger.info(
+            f"管理员 {event.get_sender_id()} 执行了鱼池补充操作，重置了 {reset_count} 个钓鱼区域"
+        )
+
     except Exception as e:
         logger.error(f"补充鱼池时发生错误: {e}")
         yield event.plain_result(f"❌ 补充鱼池时发生错误：{str(e)}")
@@ -585,22 +593,22 @@ async def replenish_fish_pools(plugin: "FishingPlugin", event: AstrMessageEvent)
 async def grant_title(plugin: "FishingPlugin", event: AstrMessageEvent):
     """授予用户称号"""
     args = event.message_str.split(" ")
-    
+
     # 解析目标用户ID（支持@和用户ID两种方式）
     target_user_id, error_msg = parse_target_user_id(event, args, 1)
     if error_msg:
         yield event.plain_result(error_msg)
         return
-    
+
     # 检查称号名称参数
     if len(args) < 3:
         yield event.plain_result(
             "❌ 请指定称号名称，例如：/授予称号 @用户 钓鱼大师 或 /授予称号 123456789 钓鱼大师"
         )
         return
-    
+
     title_name = " ".join(args[2:])  # 支持称号名称中包含空格
-    
+
     result = plugin.user_service.grant_title_to_user_by_name(target_user_id, title_name)
     yield event.plain_result(result["message"])
 
@@ -608,44 +616,96 @@ async def grant_title(plugin: "FishingPlugin", event: AstrMessageEvent):
 async def revoke_title(plugin: "FishingPlugin", event: AstrMessageEvent):
     """移除用户称号"""
     args = event.message_str.split(" ")
-    
+
     # 解析目标用户ID（支持@和用户ID两种方式）
     target_user_id, error_msg = parse_target_user_id(event, args, 1)
     if error_msg:
         yield event.plain_result(error_msg)
         return
-    
+
     # 检查称号名称参数
     if len(args) < 3:
         yield event.plain_result(
             "❌ 请指定称号名称，例如：/移除称号 @用户 钓鱼大师 或 /移除称号 123456789 钓鱼大师"
         )
         return
-    
+
     title_name = " ".join(args[2:])  # 支持称号名称中包含空格
-    
-    result = plugin.user_service.revoke_title_from_user_by_name(target_user_id, title_name)
+
+    result = plugin.user_service.revoke_title_from_user_by_name(
+        target_user_id, title_name
+    )
     yield event.plain_result(result["message"])
 
 
 async def create_title(plugin: "FishingPlugin", event: AstrMessageEvent):
     """创建自定义称号"""
     args = event.message_str.split(" ")
-    
+
     if len(args) < 3:
         yield event.plain_result(
             "❌ 请指定称号名称和描述，例如：/创建称号 称号名称 描述 [显示格式]\n"
             "显示格式可选，默认为 {name}，可以使用 {name} 和 {username} 占位符"
         )
         return
-    
+
     title_name = args[1]
-    description = " ".join(args[2:-1]) if len(args) > 3 and args[-1].startswith("{") else " ".join(args[2:])
-    display_format = args[-1] if len(args) > 3 and args[-1].startswith("{") else "{name}"
-    
+    description = (
+        " ".join(args[2:-1])
+        if len(args) > 3 and args[-1].startswith("{")
+        else " ".join(args[2:])
+    )
+    display_format = (
+        args[-1] if len(args) > 3 and args[-1].startswith("{") else "{name}"
+    )
+
     # 如果描述为空，使用默认值
     if not description:
         description = f"自定义称号：{title_name}"
-    
-    result = plugin.user_service.create_custom_title(title_name, description, display_format)
+
+    result = plugin.user_service.create_custom_title(
+        title_name, description, display_format
+    )
     yield event.plain_result(result["message"])
+
+
+async def toggle_suggestions(plugin: "FishingPlugin", event: AstrMessageEvent):
+    """切换建议操作/下一步提示的显示状态"""
+    args = event.message_str.split(" ")
+
+    # 获取当前状态
+    current_state = plugin.game_config.get("show_suggestions", True)
+
+    # 如果没有参数，显示当前状态
+    if len(args) < 2:
+        status_text = "✅ 开启" if current_state else "❌ 关闭"
+        yield event.plain_result(
+            f"📊 当前建议操作显示状态：{status_text}\n\n"
+            "用法：\n"
+            "• /切换建议 on - 开启建议操作显示\n"
+            "• /切换建议 off - 关闭建议操作显示\n\n"
+            "说明：关闭后，玩家使用指令时将不再显示「建议下一步」或「常用操作」提示信息。"
+        )
+        return
+
+    action = args[1].lower().strip()
+
+    if action in ["on", "开", "开启", "true", "1"]:
+        plugin.game_config["show_suggestions"] = True
+        yield event.plain_result(
+            "✅ 已开启建议操作显示！\n\n"
+            "现在玩家使用指令时将会显示「建议下一步」或「常用操作」提示信息。"
+        )
+    elif action in ["off", "关", "关闭", "false", "0"]:
+        plugin.game_config["show_suggestions"] = False
+        yield event.plain_result(
+            "✅ 已关闭建议操作显示！\n\n"
+            "现在玩家使用指令时将不再显示「建议下一步」或「常用操作」提示信息。"
+        )
+    else:
+        yield event.plain_result(
+            f"❌ 无效的参数：{action}\n\n"
+            "用法：\n"
+            "• /切换建议 on - 开启建议操作显示\n"
+            "• /切换建议 off - 关闭建议操作显示"
+        )

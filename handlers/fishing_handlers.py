@@ -10,6 +10,7 @@ from ..utils import (
     build_tip_result,
 )
 from ..draw.pokedex import draw_pokedex
+from ..draw.fishing_zone import draw_fishing_zones_image
 from astrbot.api.message_components import Image as AstrImage
 from typing import TYPE_CHECKING
 
@@ -116,6 +117,7 @@ class FishingHandlers:
     async def fishing_area(self, event: AstrMessageEvent):
         """查看或切換釣魚區域"""
         user_id = self.plugin._get_effective_user_id(event)
+        user = self.plugin.user_repo.get_by_id(user_id)
         args = event.message_str.split()
         if len(args) < 2:
             result = self.fishing_service.get_user_fishing_zones(user_id)
@@ -126,8 +128,25 @@ class FishingHandlers:
                 yield event.plain_result(f"❌ 查看釣魚區域失敗：{result['message']}")
                 return
             zones = result.get("zones", [])
+            try:
+                image = draw_fishing_zones_image(
+                    zones,
+                    nickname=(user.nickname if user else "") or str(user_id),
+                )
+                image_path = safe_get_file_path(
+                    self.plugin, f"fishing_zones_{user_id}.png"
+                )
+                image.save(image_path)
+                yield event.image_result(image_path)
+                yield event.plain_result(
+                    "💡 切換區域：/釣魚區域 ID（例如：/釣魚區域 3）"
+                )
+                return
+            except Exception as e:
+                logger.error(f"绘制钓鱼区域图片失败: {e}", exc_info=e)
+
+            # 图片失败时回退文本
             message = "【🌊 釣魚區域列表】\n"
-            message += "════════════════════════════\n"
             for zone in zones:
                 status_icons = []
                 if zone["whether_in_use"]:
@@ -136,41 +155,11 @@ class FishingHandlers:
                     status_icons.append("🚫")
                 if zone.get("requires_pass"):
                     status_icons.append("🔑")
-                status_text = " ".join(status_icons) if status_icons else ""
-
                 zone_id = zone.get("zone_id")
                 zone_name = zone.get("name", "未知區域")
-                desc = zone.get("description", "")
-                fishing_cost = zone.get("fishing_cost", 10)
-                remaining_rare = max(
-                    0, zone["daily_rare_fish_quota"] - zone["rare_fish_caught_today"]
-                )
-
+                status_text = " ".join(status_icons)
                 message += f"• ID {zone_id}｜{zone_name} {status_text}\n"
-                if desc:
-                    message += f"  └─ {desc}\n"
-                message += f"  💰 消耗：{fishing_cost} 金幣 / 次\n"
-                if zone.get("requires_pass"):
-                    required_item_name = zone.get("required_item_name", "通行證")
-                    message += f"  🔑 進入需求：{required_item_name}\n"
-                if zone.get("available_from") or zone.get("available_until"):
-                    message += "  ⏰ 開放時間："
-                    if zone.get("available_from") and zone.get("available_until"):
-                        from_time = zone["available_from"].strftime("%Y-%m-%d %H:%M")
-                        until_time = zone["available_until"].strftime("%Y-%m-%d %H:%M")
-                        message += f"{from_time} 至 {until_time}\n"
-                    elif zone.get("available_from"):
-                        from_time = zone["available_from"].strftime("%Y-%m-%d %H:%M")
-                        message += f"{from_time} 開始\n"
-                    elif zone.get("available_until"):
-                        until_time = zone["available_until"].strftime("%Y-%m-%d %H:%M")
-                        message += f"至 {until_time} 結束\n"
-                if zone.get("daily_rare_fish_quota", 0) > 0:
-                    message += f"  🐟 今日稀有額度：剩餘 {remaining_rare}\n"
-                message += "────────────────────────────\n"
-
-            message += "💡 切換區域：/釣魚區域 ID\n"
-            message += "💡 示例：/釣魚區域 3"
+            message += "💡 切換區域：/釣魚區域 ID"
             yield event.plain_result(message)
             return
         zone_id = args[1]
@@ -218,6 +207,7 @@ class FishingHandlers:
             return
 
         user_info = self.plugin.user_repo.get_by_id(user_id)
+        user_nickname = user_info.nickname if user_info else str(user_id)
 
         # 绘制图片
         output_path = safe_get_file_path(
@@ -227,7 +217,7 @@ class FishingHandlers:
         try:
             await draw_pokedex(
                 pokedex_data,
-                {"nickname": user_info.nickname, "user_id": user_id},
+                {"nickname": user_nickname, "user_id": user_id},
                 output_path,
                 page=page,
                 data_dir=self.plugin.data_dir,

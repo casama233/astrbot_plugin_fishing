@@ -1,6 +1,7 @@
 import os
 
 from astrbot.api.event import filter, AstrMessageEvent
+from astrbot.api import logger
 from ..utils import parse_target_user_id, to_percentage, safe_datetime_handler
 from typing import TYPE_CHECKING
 
@@ -317,8 +318,10 @@ async def view_gacha_pool(self: "FishingPlugin", event: AstrMessageEvent):
                 image.save(image_path)
                 yield event.image_result(image_path)
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                from astrbot.api import logger
+
+                logger.error(f"绘制卡池详情图片失败: {e}", exc_info=True)
 
             yield event.plain_result(_format_pool_details(pool, probabilities))
         else:

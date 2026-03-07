@@ -166,6 +166,9 @@ class FishingPlugin(Star):
                 "enabled": tips_config.get("enabled", True),
                 "tip_probability": tips_config.get("tip_probability", 0.35),
             },
+            "show_suggestions": tips_config.get(
+                "show_suggestions", True
+            ),  # 是否显示建议操作/下一步提示
         }
 
         run_migrations(
@@ -850,6 +853,15 @@ class FishingPlugin(Star):
         async for r in common_handlers.update_nickname(self, event):
             yield r
 
+    @filter.command(
+        "我的建议",
+        alias=["我的建議", "个人建议", "個人建議", "切换我的建议", "切換我的建議"],
+    )
+    async def cmd_toggle_my_suggestions_cn(self, event: AstrMessageEvent):
+        """玩家自主开关建议消息"""
+        async for r in common_handlers.toggle_my_suggestions(self, event):
+            yield r
+
     @filter.command("高级货币", alias=["高級貨幣", "钻石", "鑽石", "星石"])
     async def cmd_premium_cn(self, event: AstrMessageEvent):
         """查看高级货币余额"""
@@ -1008,7 +1020,10 @@ class FishingPlugin(Star):
         async for r in gacha_handlers.ten_gacha(self, event):
             yield r
 
-    @filter.command("查看卡池", alias=["卡池", "查看卡池詳情", "查看卡池详情"])
+    @filter.command(
+        "查看卡池",
+        alias=["卡池", "卡池詳情", "卡池详情", "查看卡池詳情", "查看卡池详情"],
+    )
     async def cmd_view_pool_cn(self, event: AstrMessageEvent):
         """查看卡池详情"""
         async for r in gacha_handlers.view_gacha_pool(self, event):
@@ -1527,6 +1542,15 @@ class FishingPlugin(Star):
     async def cmd_admin_cleanup_red_packet_cn(self, event: AstrMessageEvent):
         """清理红包（管理员）"""
         async for r in red_packet_handlers.cleanup_red_packets(self, event):
+            yield r
+
+    @filter.permission_type(PermissionType.ADMIN)
+    @filter.command(
+        "切换建议", alias=["切換建議", "建议开关", "建議開關", "切换提示", "切換提示"]
+    )
+    async def cmd_admin_toggle_suggestions_cn(self, event: AstrMessageEvent):
+        """切换建议操作显示（管理员）"""
+        async for r in admin_handlers.toggle_suggestions(self, event):
             yield r
 
     async def terminate(self):

@@ -732,11 +732,57 @@ async def market(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result("🛒 市场中没有商品可供购买。")
         return
 
-    # 優先使用圖片渲染（若失敗則回退文字）
+    # 優先使用統一卡片圖片渲染（若失敗則回退文字）
     try:
-        from ..draw.market import draw_market_list_image
+        from ..draw.list_cards import draw_game_card_list_image
 
-        image = draw_market_list_image(grouped_items)
+        def _mk_rows(items):
+            rows = []
+            for item in list(items)[:12]:
+                display_code = _get_display_code_for_market_item(item)
+                seller_display = "🎭匿名" if item.is_anonymous else item.seller_nickname
+                refine_level_str = (
+                    f" 精{item.refine_level}"
+                    if hasattr(item, "refine_level") and item.refine_level > 1
+                    else ""
+                )
+                quantity_text = (
+                    f" x{item.quantity}"
+                    if hasattr(item, "quantity") and item.quantity > 1
+                    else ""
+                )
+                quality_str = (
+                    " ✨高品質"
+                    if item.item_type == "fish"
+                    and hasattr(item, "quality_level")
+                    and item.quality_level == 1
+                    else ""
+                )
+                rows.append(
+                    f"{item.item_name}{quality_str}{refine_level_str}{quantity_text}  ID:{display_code}  {item.price}金幣  {seller_display}"
+                )
+            return rows
+
+        sections = []
+        mapping = [
+            ("🎣 魚竿", grouped_items["rod"]),
+            ("💍 飾品", grouped_items["accessory"]),
+            ("📦 大宗商品", grouped_items["commodity"]),
+            ("🎁 道具", grouped_items["item"]),
+            ("🐟 魚類", grouped_items["fish"]),
+        ]
+        for sec_title, sec_items in mapping:
+            rows = _mk_rows(sec_items)
+            if rows:
+                sections.append({"title": sec_title, "rows": rows})
+
+        image = draw_game_card_list_image(
+            title="🛒 市場",
+            sections=sections,
+            subtitle="按類別分區展示（每類最多 12 條）",
+            footer="💡 購買：/購買 短碼（例：/購買 MC）",
+            icon="🛒",
+        )
         image_path = os.path.join(plugin.tmp_dir, "market_list.png")
         image.save(image_path)
         yield event.image_result(image_path)
@@ -1057,6 +1103,42 @@ async def my_listings(plugin: "FishingPlugin", event: AstrMessageEvent):
         if not listings:
             yield event.plain_result("📦 您还没有在市场上架任何商品。")
             return
+
+        try:
+            from ..draw.list_cards import draw_game_card_list_image
+
+            rows = []
+            for listing in listings[:20]:
+                code = _get_display_code_for_market_item(listing)
+                qty = (
+                    f" x{listing.quantity}"
+                    if getattr(listing, "quantity", 1) > 1
+                    else ""
+                )
+                refine = (
+                    f" 精{listing.refine_level}"
+                    if getattr(listing, "refine_level", 1) > 1
+                    else ""
+                )
+                rows.append(
+                    f"{listing.item_name}{refine}{qty}  ID:{code}  {listing.price}金幣  {listing.listed_at.strftime('%m-%d %H:%M')}"
+                )
+
+            image = draw_game_card_list_image(
+                title="🛒 我的上架",
+                sections=[{"title": "在售商品", "rows": rows}],
+                subtitle=f"共 {len(listings)} 件（展示前 20 件）",
+                footer="💡 下架：/下架 短碼（如 /下架 MC）",
+                icon="🛒",
+            )
+            image_path = os.path.join(
+                plugin.tmp_dir, f"my_market_listings_{user_id}.png"
+            )
+            image.save(image_path)
+            yield event.image_result(image_path)
+            return
+        except Exception:
+            pass
 
         total_count = len(listings)
 

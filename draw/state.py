@@ -72,9 +72,22 @@ def draw_state_image(
 
     # 標題欄
     nickname = user_data.get("nickname", "未知用戶")
+    header_title = user_data.get("current_title")
     draw_game_title_bar(
         draw, width, 0, header_h, f"{nickname} 的狀態", title_font, "👤"
     )
+    if header_title:
+        title_name = (
+            header_title.get("name")
+            if isinstance(header_title, dict)
+            else str(header_title)
+        )
+        draw.text(
+            (28, 74),
+            f"「{title_name[:24]}」",
+            font=small_font,
+            fill=GAME_COLORS["accent_gold"],
+        )
 
     y = header_h + 15
 
