@@ -82,11 +82,12 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     # 標題欄
     nickname = user_data.get("nickname", "未知用戶")
     current_title = user_data.get("current_title")
-    
+
     # 格式化用戶顯示名稱（包含稱號）
     from ..core.utils import format_user_display_name
+
     display_name = format_user_display_name(nickname, current_title)
-    
+
     draw_game_title_bar(
         draw, width, 0, header_h, f"{display_name} 的背包", title_font, "🎒"
     )
@@ -294,6 +295,9 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
             display_code = bait.get("display_code", "")
             name = bait.get("name", "未知魚餌")
             qty = bait.get("quantity", 0)
+            bait_id = int(bait.get("bait_id") or bait.get("id") or 0)
+            if not display_code and bait_id > 0:
+                display_code = f"B{bait_id}"
             if display_code:
                 draw.text(
                     (x + 12, card_y + 8),
@@ -302,7 +306,7 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                     fill=GAME_COLORS["text_primary"],
                 )
             else:
-                bait_id = bait.get("id", "?")
+                bait_id = bait.get("bait_id") or bait.get("id") or "?"
                 draw.text(
                     (x + 12, card_y + 8),
                     f"#{bait_id} {name[:8]}",
@@ -368,6 +372,9 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
             display_code = item.get("display_code", "")
             name = item.get("name", "未知道具")
             qty = item.get("quantity", 0)
+            item_id = int(item.get("item_id") or item.get("id") or 0)
+            if not display_code and item_id > 0:
+                display_code = f"D{item_id}"
             if display_code:
                 draw.text(
                     (x + 12, card_y + 8),
@@ -376,7 +383,7 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                     fill=GAME_COLORS["text_primary"],
                 )
             else:
-                item_id = item.get("id", "?")
+                item_id = item.get("item_id") or item.get("id") or "?"
                 draw.text(
                     (x + 12, card_y + 8),
                     f"#{item_id} {name[:8]}",
@@ -431,6 +438,18 @@ def get_user_backpack_data(
     accessories = list(acc_result.get("accessories", []) or [])
     baits = list(bait_result.get("baits", []) or [])
     items = list(item_result.get("items", []) or [])
+
+    for bait in baits:
+        if not bait.get("display_code"):
+            bait_id = int(bait.get("bait_id") or bait.get("id") or 0)
+            if bait_id > 0:
+                bait["display_code"] = f"B{bait_id}"
+
+    for item in items:
+        if not item.get("display_code"):
+            item_id = int(item.get("item_id") or item.get("id") or 0)
+            if item_id > 0:
+                item["display_code"] = f"D{item_id}"
 
     total_rods = len(rods)
     total_accessories = len(accessories)

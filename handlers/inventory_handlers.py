@@ -158,9 +158,9 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
             # 导入绘制函数
             from ..draw.backpack import draw_backpack_image, get_user_backpack_data
 
-            # 获取用户背包数据（限制每个分类最多显示50个物品）
+            # 获取用户背包数据（不截断，确保新获得物品都可见）
             backpack_data = get_user_backpack_data(
-                plugin.inventory_service, user_id, max_items_per_category=50
+                plugin.inventory_service, user_id, max_items_per_category=0
             )
 
             # 设置用户昵称
