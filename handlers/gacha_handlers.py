@@ -52,8 +52,6 @@ def _format_pool_details(pool, probabilities):
                 f"（機率：{to_percentage(item['probability'])}）\n"
             )
     message += "════════════════════════════\n"
-    message += "💡 抽卡：/抽卡 卡池ID\n"
-    message += "💡 十連：/十連 卡池ID [次數]"
     return message
 
 
@@ -82,9 +80,14 @@ async def gacha(self: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(self.tmp_dir, "gacha_pools.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield event.plain_result(
-                "📋 查看詳情：/查看卡池 ID\n🎲 單抽：/抽卡 ID\n🎯 十連：/十連 ID [次數]"
+            tip = build_tip_result(
+                event,
+                "📋 查看詳情：/查看卡池 ID\n🎲 單抽：/抽卡 ID\n🎯 十連：/十連 ID [次數]",
+                plugin=self,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
             return
         except Exception:
             pass
@@ -100,10 +103,15 @@ async def gacha(self: "FishingPlugin", event: AstrMessageEvent):
                 f"  {pool['description']}\n"
             )
         message += "════════════════════════════\n"
-        message += "📋 查看詳情：/查看卡池 ID\n"
-        message += "🎲 單抽：/抽卡 ID\n"
-        message += "🎯 十連：/十連 ID [次數]（最多 100 次）"
         yield event.plain_result(message)
+        tip = build_tip_result(
+            event,
+            "📋 查看詳情：/查看卡池 ID\n🎲 單抽：/抽卡 ID\n🎯 十連：/十連 ID [次數]（最多 100 次）",
+            plugin=self,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
         return
     pool_id = args[1]
     if not pool_id.isdigit():

@@ -132,6 +132,7 @@ async def sell_all_accessories(plugin: "FishingPlugin", event: AstrMessageEvent)
 
 async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
     """查看商店：/商店 [商店ID]"""
+    user_id = plugin._get_effective_user_id(event)
     args = event.message_str.split()
     # /商店 → 列表
     if len(args) == 1:
@@ -155,9 +156,14 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(plugin.tmp_dir, "shop_list.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield event.plain_result(
-                "💡 查看詳情：/商店 商店ID\n💡 購買商品：/商店購買 商店ID 商品ID [數量]"
+            tip = build_tip_result(
+                event,
+                "💡 查看詳情：/商店 商店ID\n💡 購買商品：/商店購買 商店ID 商品ID [數量]",
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
             return
         except Exception:
             pass
@@ -178,8 +184,6 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
             if s.get("description"):
                 msg += f"  └─ {s.get('description')}\n"
         msg += "════════════════════════════\n"
-        msg += "💡 查看詳情：/商店 商店ID\n"
-        msg += "💡 購買商品：/商店購買 商店ID 商品ID [數量]"
 
         # 检查消息长度，如果太长则分多次发送
         if len(msg) > 1500:
@@ -194,6 +198,14 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
             yield event.plain_result(second_part)
         else:
             yield event.plain_result(msg)
+        tip = build_tip_result(
+            event,
+            "💡 查看詳情：/商店 商店ID\n💡 購買商品：/商店購買 商店ID 商品ID [數量]",
+            plugin=plugin,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
         return
 
     # /商店 <ID> → 详情
@@ -217,9 +229,14 @@ async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
         )
         image.save(image_path)
         yield event.image_result(image_path)
-        yield event.plain_result(
-            f"💡 購買指令：/商店購買 {shop.get('shop_id')} 商品ID [數量]"
+        tip = build_tip_result(
+            event,
+            f"💡 購買指令：/商店購買 {shop.get('shop_id')} 商品ID [數量]",
+            plugin=plugin,
+            user_id=user_id,
         )
+        if tip is not None:
+            yield tip
         return
     except Exception:
         pass
@@ -809,9 +826,14 @@ async def market(plugin: "FishingPlugin", event: AstrMessageEvent):
         image_path = os.path.join(plugin.tmp_dir, "market_list.png")
         image.save(image_path)
         yield event.image_result(image_path)
-        yield event.plain_result(
-            "💡 掛單有效期為 5 天，過期將自動下架返還\n💡 購買示例：/購買 C5"
+        tip = build_tip_result(
+            event,
+            "💡 掛單有效期為 5 天，過期將自動下架返還\n💡 購買示例：/購買 C5",
+            plugin=plugin,
+            user_id=plugin._get_effective_user_id(event),
         )
+        if tip is not None:
+            yield tip
         return
     except Exception:
         pass
@@ -889,9 +911,6 @@ async def market(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result("🛒 市场中没有商品可供购买。")
         return
 
-    full_message += "💡 挂单有效期为5天，过期将自动下架返还\n"
-    full_message += "💡 使用「购买 ID」购买，例如：购买 C5"
-
     # 为避免消息过长，进行分割发送
     if len(full_message) > 1800:
         # 简单的按分区（双换行）分割
@@ -910,6 +929,14 @@ async def market(plugin: "FishingPlugin", event: AstrMessageEvent):
             yield event.plain_result(current_part.strip())
     else:
         yield event.plain_result(full_message)
+    tip = build_tip_result(
+        event,
+        "💡 挂单有效期为5天，过期将自动下架返还\n💡 使用「购买 ID」购买，例如：购买 C5",
+        plugin=plugin,
+        user_id=plugin._get_effective_user_id(event),
+    )
+    if tip is not None:
+        yield tip
 
 
 async def list_any(

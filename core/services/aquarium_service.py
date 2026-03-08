@@ -105,55 +105,14 @@ class AquariumService:
                 "message": f"鱼塘中没有足够的{quality_label}{fish_template.name}",
             }
 
-        # 从鱼塘移除鱼，添加到水族箱（保持品质）
-        # 使用事务确保两步操作原子性，避免并发下重复转移
-        conn_cm = self.inventory_repo._connection_manager.get_connection()
-        conn = conn_cm.__enter__()
-        try:
-            cursor = conn.cursor()
-            cursor.execute("BEGIN IMMEDIATE")
-
-            cursor.execute(
-                """
-                UPDATE user_fish_inventory
-                SET quantity = quantity - ?
-                WHERE user_id = ? AND fish_id = ? AND quality_level = ? AND quantity >= ?
-                """,
-                (quantity, user_id, fish_id, quality_level, quantity),
-            )
-
-            if cursor.rowcount == 0:
-                conn.rollback()
-                quality_label = "✨高品质" if quality_level == 1 else "普通"
-                return {
-                    "success": False,
-                    "message": f"鱼塘中没有足够的{quality_label}{fish_template.name}",
-                }
-
-            cursor.execute(
-                """
-                DELETE FROM user_fish_inventory
-                WHERE user_id = ? AND fish_id = ? AND quality_level = ? AND quantity <= 0
-                """,
-                (user_id, fish_id, quality_level),
-            )
-
-            cursor.execute(
-                """
-                INSERT INTO user_aquarium (user_id, fish_id, quality_level, quantity, added_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(user_id, fish_id, quality_level) DO UPDATE SET
-                    quantity = quantity + excluded.quantity
-                """,
-                (user_id, fish_id, quality_level, quantity),
-            )
-
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn_cm.__exit__(None, None, None)
+        if not self.inventory_repo.transfer_fish_to_aquarium(
+            user_id, fish_id, quantity, quality_level
+        ):
+            quality_label = "✨高品质" if quality_level == 1 else "普通"
+            return {
+                "success": False,
+                "message": f"鱼塘中没有足够的{quality_label}{fish_template.name}",
+            }
 
         quality_label = "✨高品质" if quality_level == 1 else "普通"
         return {
@@ -192,13 +151,14 @@ class AquariumService:
                 "message": f"水族箱中没有足够的{quality_label}{fish_template.name}",
             }
 
-        # 从水族箱移除鱼，添加到鱼塘（保持品质）
-        self.inventory_repo.remove_fish_from_aquarium(
+        if not self.inventory_repo.transfer_fish_from_aquarium(
             user_id, fish_id, quantity, quality_level
-        )
-        self.inventory_repo.add_fish_to_inventory(
-            user_id, fish_id, quantity, quality_level
-        )
+        ):
+            quality_label = "✨高品质" if quality_level == 1 else "普通"
+            return {
+                "success": False,
+                "message": f"水族箱中没有足够的{quality_label}{fish_template.name}",
+            }
 
         quality_label = "✨高品质" if quality_level == 1 else "普通"
         return {

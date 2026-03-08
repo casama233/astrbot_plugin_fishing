@@ -442,30 +442,36 @@
     }
   },
   "external_sql": {
-    "description": "外部SQL数据库配置（用于数据迁移）",
+    "description": "外部SQL数据库配置（当前仅建议用于迁移/人工同步，不是原生MySQL运行模式）",
     "type": "object",
     "items": {
+      "backend": {
+        "description": "存储后端类型（sqlite 或 mysql）",
+        "type": "string",
+        "hint": "sqlite 使用本地SQLite，mysql 使用MySQL远程数据库",
+        "default": "sqlite"
+      },
       "mysql_url": {
         "description": "MySQL连接URL",
         "type": "string",
         "hint": "格式: mysql://user:password@host:3306/database",
-        "default": "mysql://fish:i43iaSRFWSZ6mcrK@127.0.0.1:3306/fish"
+        "default": ""
       },
       "enabled": {
-        "description": "是否启用外部SQL持续同步模式",
+        "description": "是否启用外部SQL同步桥接",
         "type": "bool",
-        "default": true
+        "default": false
       },
       "sync_on_startup": {
         "description": "启动时是否先做一次同步",
         "type": "bool",
-        "default": true
+        "default": false
       },
       "startup_direction": {
         "description": "启动时同步方向",
         "type": "string",
         "hint": "mysql_to_sqlite 或 sqlite_to_mysql",
-        "default": "mysql_to_sqlite"
+        "default": "sqlite_to_mysql"
       },
       "fail_fast_on_startup": {
         "description": "启动同步失败时是否阻止插件启动",
@@ -480,7 +486,7 @@
       "host": {
         "description": "MySQL主机地址",
         "type": "string",
-        "default": "127.0.0.1"
+        "default": ""
       },
       "port": {
         "description": "MySQL端口",
@@ -490,17 +496,17 @@
       "database": {
         "description": "数据库名称",
         "type": "string",
-        "default": "fish"
+        "default": ""
       },
       "user": {
         "description": "数据库用户名",
         "type": "string",
-        "default": "fish"
+        "default": ""
       },
       "password": {
         "description": "数据库密码",
         "type": "string",
-        "default": "i43iaSRFWSZ6mcrK"
+        "default": ""
       },
       "charset": {
         "description": "字符集",

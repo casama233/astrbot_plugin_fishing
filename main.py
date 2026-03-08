@@ -21,6 +21,17 @@ from .core.repositories.sqlite_achievement_repo import SqliteAchievementReposito
 from .core.repositories.sqlite_user_buff_repo import SqliteUserBuffRepository
 from .core.repositories.sqlite_exchange_repo import SqliteExchangeRepository
 from .core.repositories.sqlite_red_packet_repo import SqliteRedPacketRepository
+from .core.repositories.mysql_user_repo import MysqlUserRepository
+from .core.repositories.mysql_item_template_repo import MysqlItemTemplateRepository
+from .core.repositories.mysql_user_buff_repo import MysqlUserBuffRepository
+from .core.repositories.mysql_exchange_repo import MysqlExchangeRepository
+from .core.repositories.mysql_gacha_repo import MysqlGachaRepository
+from .core.repositories.mysql_shop_repo import MysqlShopRepository
+from .core.repositories.mysql_log_repo import MysqlLogRepository
+from .core.repositories.mysql_inventory_repo import MysqlInventoryRepository
+from .core.repositories.mysql_achievement_repo import MysqlAchievementRepository
+from .core.repositories.mysql_market_repo import MysqlMarketRepository
+from .core.repositories.mysql_red_packet_repo import MysqlRedPacketRepository
 
 from .core.services.data_setup_service import DataSetupService
 from .core.services.item_template_service import ItemTemplateService
@@ -87,6 +98,7 @@ class FishingPlugin(Star):
 
         db_path = os.path.join(self.data_dir, "fish.db")
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        self.db_path = db_path
 
         fishing_config = config.get("fishing", {})
         steal_config = config.get("steal", {})
@@ -96,6 +108,7 @@ class FishingPlugin(Star):
         market_config = config.get("market", {})
         sell_prices_config = config.get("sell_prices", {})
         exchange_config = config.get("exchange", {})
+        signin_config = config.get("signin", {})
         tips_config = config.get("tips", {})
 
         self.game_config = {
@@ -122,6 +135,7 @@ class FishingPlugin(Star):
                 "wheel_of_fate_daily_limit", 3
             ),
             "daily_reset_hour": game_global_config.get("daily_reset_hour", 0),
+            "signin": signin_config,
             "user": {"initial_coins": user_config.get("initial_coins", 200)},
             "market": {"listing_tax_rate": market_config.get("listing_tax_rate", 0.05)},
             "tax": {
@@ -131,6 +145,7 @@ class FishingPlugin(Star):
                 "step_rate": self.step_rate,
                 "min_rate": self.min_rate,
                 "max_rate": self.max_rate,
+                "transfer_tax_rate": tax_config.get("transfer_tax_rate", 0.05),
             },
             "pond_upgrades": [
                 {"from": 480, "to": 999, "cost": 50000},
@@ -185,17 +200,18 @@ class FishingPlugin(Star):
             db_path, config.get("external_sql", {})
         )
         self.external_sql_sync_manager.startup_sync()
+        self.storage_backend = self._get_storage_backend(config)
 
-        self.user_repo = SqliteUserRepository(db_path)
-        self.item_template_repo = SqliteItemTemplateRepository(db_path)
-        self.inventory_repo = SqliteInventoryRepository(db_path)
-        self.gacha_repo = SqliteGachaRepository(db_path)
-        self.market_repo = SqliteMarketRepository(db_path)
-        self.shop_repo = SqliteShopRepository(db_path)
-        self.log_repo = SqliteLogRepository(db_path)
-        self.achievement_repo = SqliteAchievementRepository(db_path)
-        self.buff_repo = SqliteUserBuffRepository(db_path)
-        self.exchange_repo = SqliteExchangeRepository(db_path)
+        self.user_repo = self._build_user_repo(config)
+        self.item_template_repo = self._build_item_template_repo(config)
+        self.inventory_repo = self._build_inventory_repo(config)
+        self.gacha_repo = self._build_gacha_repo(config)
+        self.market_repo = self._build_market_repo(config)
+        self.shop_repo = self._build_shop_repo(config)
+        self.log_repo = self._build_log_repo(config)
+        self.achievement_repo = self._build_achievement_repo(config)
+        self.buff_repo = self._build_buff_repo(config)
+        self.exchange_repo = self._build_exchange_repo(config)
 
         self.fishing_zone_service = FishingZoneService(
             self.item_template_repo, self.inventory_repo, self.game_config
@@ -283,7 +299,7 @@ class FishingPlugin(Star):
         )
         self.sicbo_service.set_message_callback(self._send_sicbo_announcement)
 
-        self.red_packet_repo = SqliteRedPacketRepository(db_path)
+        self.red_packet_repo = self._build_red_packet_repo(config)
         self.red_packet_service = RedPacketService(self.red_packet_repo, self.user_repo)
 
         self.exchange_handlers = ExchangeHandlers(self)
@@ -330,6 +346,68 @@ class FishingPlugin(Star):
         self.secret_key = config.get("webui", {}).get("secret_key", "fishing-admin")
         self.port = config.get("webui", {}).get("port", 7777)
         self.impersonation_map = {}
+
+    def _get_storage_backend(self, config: AstrBotConfig) -> str:
+        external_sql = config.get("external_sql", {}) or {}
+        backend = str(external_sql.get("backend", "sqlite")).strip().lower()
+        if backend not in {"sqlite", "mysql"}:
+            backend = "sqlite"
+        return backend
+
+    def _build_user_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlUserRepository(config.get("external_sql", {}))
+        return SqliteUserRepository(self.db_path)
+
+    def _build_buff_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlUserBuffRepository(config.get("external_sql", {}))
+        return SqliteUserBuffRepository(self.db_path)
+
+    def _build_item_template_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlItemTemplateRepository(config.get("external_sql", {}))
+        return SqliteItemTemplateRepository(self.db_path)
+
+    def _build_inventory_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlInventoryRepository(config.get("external_sql", {}))
+        return SqliteInventoryRepository(self.db_path)
+
+    def _build_exchange_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlExchangeRepository(config.get("external_sql", {}))
+        return SqliteExchangeRepository(self.db_path)
+
+    def _build_market_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlMarketRepository(config.get("external_sql", {}))
+        return SqliteMarketRepository(self.db_path)
+
+    def _build_achievement_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlAchievementRepository(config.get("external_sql", {}))
+        return SqliteAchievementRepository(self.db_path)
+
+    def _build_red_packet_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlRedPacketRepository(config.get("external_sql", {}))
+        return SqliteRedPacketRepository(self.db_path)
+
+    def _build_gacha_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlGachaRepository(config.get("external_sql", {}))
+        return SqliteGachaRepository(self.db_path)
+
+    def _build_shop_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlShopRepository(config.get("external_sql", {}))
+        return SqliteShopRepository(self.db_path)
+
+    def _build_log_repo(self, config: AstrBotConfig):
+        if self.storage_backend == "mysql":
+            return MysqlLogRepository(config.get("external_sql", {}))
+        return SqliteLogRepository(self.db_path)
 
     def _normalize_subcommand(self, sub: str) -> str:
         if not sub:

@@ -163,9 +163,14 @@ class FishingHandlers:
                 )
                 image.save(image_path)
                 yield event.image_result(image_path)
-                yield event.plain_result(
-                    "💡 切換區域：/釣魚區域 ID（例如：/釣魚區域 3）"
+                tip = build_tip_result(
+                    event,
+                    "💡 切換區域：/釣魚區域 ID（例如：/釣魚區域 3）",
+                    plugin=self.plugin,
+                    user_id=user_id,
                 )
+                if tip is not None:
+                    yield tip
                 return
             except Exception as e:
                 logger.error(f"绘制钓鱼区域图片失败: {e}", exc_info=e)
@@ -184,8 +189,15 @@ class FishingHandlers:
                 zone_name = zone.get("name", "未知區域")
                 status_text = " ".join(status_icons)
                 message += f"• ID {zone_id}｜{zone_name} {status_text}\n"
-            message += "💡 切換區域：/釣魚區域 ID"
             yield event.plain_result(message)
+            tip = build_tip_result(
+                event,
+                "💡 切換區域：/釣魚區域 ID",
+                plugin=self.plugin,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
             return
         zone_id = args[1]
         if not zone_id.isdigit():
@@ -202,7 +214,14 @@ class FishingHandlers:
                 f"❌ 無效的釣魚區域 ID。\n"
                 f"可用 ID：{', '.join(map(str, valid_zone_ids))}"
             )
-            yield event.plain_result("💡 請使用：/釣魚區域 <ID>")
+            tip = build_tip_result(
+                event,
+                "💡 請使用：/釣魚區域 <ID>",
+                plugin=self.plugin,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
             return
 
         # 切换用户的钓鱼区域
@@ -237,12 +256,9 @@ class FishingHandlers:
         # 獲取用戶當前稱號信息
         current_title = None
         if user_info and user_info.current_title_id:
-            from ..core.repositories.sqlite_achievement_repo import (
-                SQLiteAchievementRepository,
+            title_info = self.plugin.item_template_repo.get_title_by_id(
+                user_info.current_title_id
             )
-
-            achievement_repo = SQLiteAchievementRepository(self.plugin.db_conn)
-            title_info = achievement_repo.get_title_by_id(user_info.current_title_id)
             if title_info:
                 current_title = {
                     "name": title_info.name,

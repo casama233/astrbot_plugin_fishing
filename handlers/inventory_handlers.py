@@ -224,7 +224,8 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
                     else ""
                 )
 
-                yield event.plain_result(
+                tip = build_tip_result(
+                    event,
                     f"💡 提示：由于物品过多，已自动过滤显示内容。\n"
                     f"{filter_text}\n\n"
                     "🧹 建议及时清理背包：\n"
@@ -235,8 +236,12 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
                     "• /鱼竿 - 查看所有鱼竿（自动过滤）\n"
                     "• /饰品 - 查看所有饰品（自动过滤）\n"
                     "• /鱼饵 - 查看所有鱼饵\n"
-                    "• /道具 - 查看所有道具"
+                    "• /道具 - 查看所有道具",
+                    plugin=plugin,
+                    user_id=user_id,
                 )
+                if tip is not None:
+                    yield tip
         except Exception as e:
             # 记录错误日志
             from astrbot.api import logger
@@ -244,7 +249,8 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
             logger.error(f"生成背包图片时发生错误: {e}", exc_info=True)
 
             # 返回错误信息
-            yield event.plain_result(
+            tip = build_tip_result(
+                event,
                 "❌ 生成背包图片时发生错误。\n\n"
                 "💡 可能的原因：\n"
                 "1. 背包物品过多导致处理超时\n"
@@ -252,8 +258,12 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
                 "🔧 建议操作：\n"
                 "• 使用「鱼竿」「饰品」「鱼饵」「道具」命令分类查看\n"
                 "• 清理不需要的物品（出售低品质装备、使用道具等）\n"
-                "• 如果问题持续存在，请联系管理员"
+                "• 如果问题持续存在，请联系管理员",
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
     else:
         yield event.plain_result("❌ 您还没有注册，请先使用 /注册 命令注册。")
 

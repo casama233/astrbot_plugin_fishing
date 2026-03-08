@@ -1,4 +1,5 @@
 import json
+import inspect
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
@@ -1860,10 +1861,16 @@ class InventoryService:
 
         return is_first_infinite
 
-    def use_item(self, user_id: str, item_id: int, quantity: int = 1, target_user_id: str = None) -> Dict[str, Any]:
+    def use_item(
+        self,
+        user_id: str,
+        item_id: int,
+        quantity: int = 1,
+        target_user_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         使用一個或多個道具，並將效果處理委託給 EffectManager。
-        
+
         Args:
             user_id: 使用道具的用戶ID
             item_id: 道具ID
@@ -1930,10 +1937,15 @@ class InventoryService:
                 else {}
             )
 
-            # 傳遞 quantity 和 target_user_id 參數給效果處理器
-            result = effect_handler.apply(
-                user, item_template, payload, quantity=quantity, target_user_id=target_user_id
-            )
+            # 仅传递效果处理器明确支持的参数，避免签名不一致导致异常
+            apply_kwargs: Dict[str, Any] = {}
+            supported_params = inspect.signature(effect_handler.apply).parameters
+            if "quantity" in supported_params:
+                apply_kwargs["quantity"] = quantity
+            if target_user_id and "target_user_id" in supported_params:
+                apply_kwargs["target_user_id"] = str(target_user_id)
+
+            result = effect_handler.apply(user, item_template, payload, **apply_kwargs)
 
             # 只有在效果處理成功時才消耗道具
             if result.get("success", False):

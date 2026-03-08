@@ -97,7 +97,7 @@ def should_send_loading_tip(game_config: Optional[Dict[str, Any]]) -> bool:
         return True
 
 
-def build_tip_result(event, message: str, plugin=None, user_id: str = None):
+def build_tip_result(event, message: str, plugin=None, user_id: Optional[str] = None):
     """
     构建提示结果，用于显示建议操作/下一步信息。
 
@@ -146,8 +146,6 @@ def build_tip_result(event, message: str, plugin=None, user_id: str = None):
             return event.plain_result(message, ephemeral=True)
         except Exception:
             return event.plain_result(message)
-    return event.plain_result(message)
-    return event.plain_result(message)
 
 
 async def get_local_ip():

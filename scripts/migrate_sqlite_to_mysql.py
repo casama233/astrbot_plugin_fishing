@@ -22,6 +22,17 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from urllib.parse import unquote, urlparse
 
 
+def resolve_default_sqlite_path() -> str:
+    candidates = [
+        "/opt/1panel/apps/astrbot/astrbot/data/plugin_data/astrbot_plugin_fishing/fish.db",
+        "/opt/1panel/apps/astrbot/astrbot/data/fish.db",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
+
+
 def _require_pymysql():
     try:
         import pymysql  # type: ignore
@@ -439,7 +450,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--sqlite",
-        default="/opt/1panel/apps/astrbot/astrbot/data/fish.db",
+        default=resolve_default_sqlite_path(),
         help="Path to SQLite source database",
     )
     parser.add_argument(

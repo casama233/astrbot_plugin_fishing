@@ -12,15 +12,20 @@ sys.path.insert(0, BASE_DIR)
 astrbot_module = types.ModuleType("astrbot")
 astrbot_api_module = types.ModuleType("astrbot.api")
 
+
 class DummyLogger:
     def info(self, *args, **kwargs):
         print(*args)
+
     def error(self, *args, **kwargs):
         print(*args)
+
     def warning(self, *args, **kwargs):
         print(*args)
+
     def debug(self, *args, **kwargs):
         print(*args)
+
 
 astrbot_api_module.logger = DummyLogger()
 astrbot_module.api = astrbot_api_module
@@ -52,7 +57,18 @@ def parse_reward(achievement):
 
 
 def main():
-    db_path = os.environ.get("FISH_DB_PATH", "/opt/1panel/apps/astrbot/astrbot/data/fish.db")
+    default_candidates = [
+        os.path.join(
+            ASTRBOT_ROOT, "data", "plugin_data", "astrbot_plugin_fishing", "fish.db"
+        ),
+        os.path.join(ASTRBOT_ROOT, "data", "fish.db"),
+    ]
+    db_path = os.environ.get("FISH_DB_PATH")
+    if not db_path:
+        db_path = next(
+            (path for path in default_candidates if os.path.exists(path)),
+            default_candidates[0],
+        )
     if not os.path.exists(db_path):
         print(f"找不到資料庫: {db_path}")
         return
@@ -87,7 +103,9 @@ def main():
     achievements_in_db = set()
     achievements_table_missing = False
     if "achievements" in tables:
-        achievements_in_db = {a.achievement_id for a in achievement_repo.get_all_achievements()}
+        achievements_in_db = {
+            a.achievement_id for a in achievement_repo.get_all_achievements()
+        }
     else:
         achievements_table_missing = True
 
@@ -114,7 +132,11 @@ def main():
         if not user_context:
             continue
         checked_users += 1
-        user_progress = {} if progress_table_missing else achievement_repo.get_user_progress(user_id)
+        user_progress = (
+            {}
+            if progress_table_missing
+            else achievement_repo.get_user_progress(user_id)
+        )
         owned_titles = set(inventory_repo.get_user_titles(user_id))
         for ach, title_id in title_achievements:
             if title_id in owned_titles:
@@ -129,7 +151,9 @@ def main():
                     achievement_repo.update_user_progress(
                         user_id, ach.id, progress_value, completed_at=datetime.now()
                     )
-                grants.append((user_id, ach.id, title_id, title_templates[title_id].name))
+                grants.append(
+                    (user_id, ach.id, title_id, title_templates[title_id].name)
+                )
 
     print("稱號補發完成")
     print(f"檢查用戶數: {checked_users}")
