@@ -20,10 +20,14 @@ async def sell_all(plugin: "FishingPlugin", event: AstrMessageEvent):
     user_id = plugin._get_effective_user_id(event)
     if result := plugin.inventory_service.sell_all_fish(user_id):
         yield event.plain_result(result["message"])
-        yield build_tip_result(
+        tip = build_tip_result(
             event,
             "⌨️ 建議下一步\n```\n/商店\n```\n```\n/市場\n```",
+            plugin=plugin,
+            user_id=user_id,
         )
+        if tip is not None:
+            yield tip
     else:
         yield event.plain_result("❌ 出錯啦！請稍後再試。")
 
@@ -33,10 +37,14 @@ async def sell_keep(plugin: "FishingPlugin", event: AstrMessageEvent):
     user_id = plugin._get_effective_user_id(event)
     if result := plugin.inventory_service.sell_all_fish(user_id, keep_one=True):
         yield event.plain_result(result["message"])
-        yield build_tip_result(
+        tip = build_tip_result(
             event,
             "⌨️ 建議下一步\n```\n/魚塘\n```\n```\n/市場 上架 F短碼 價格 數量\n```",
+            plugin=plugin,
+            user_id=user_id,
         )
+        if tip is not None:
+            yield tip
     else:
         yield event.plain_result("❌ 出錯啦！請稍後再試。")
 
@@ -47,10 +55,14 @@ async def sell_everything(plugin: "FishingPlugin", event: AstrMessageEvent):
     if result := plugin.inventory_service.sell_everything_except_locked(user_id):
         if result["success"]:
             yield event.plain_result(f"💥 {result['message']}")
-            yield build_tip_result(
+            tip = build_tip_result(
                 event,
                 "⌨️ 建議下一步\n```\n/商店\n```\n```\n/釣魚\n```",
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
         else:
             yield event.plain_result(f"❌ 砸鍋賣鐵失敗：{result['message']}")
     else:
@@ -695,12 +707,23 @@ async def buy_in_shop(plugin: "FishingPlugin", event: AstrMessageEvent):
     result = plugin.shop_service.purchase_item(user_id, int(item_id), qty)
     if result.get("success"):
         yield event.plain_result(result["message"])
-        yield build_tip_result(
+        tip = build_tip_result(
             event,
             "⌨️ 建議下一步\n```\n/背包\n```\n```\n/使用 D短碼\n```\n```\n/釣魚\n```",
+            plugin=plugin,
+            user_id=user_id,
         )
+        if tip is not None:
+            yield tip
         if should_send_loading_tip(plugin.game_config):
-            yield build_tip_result(event, get_loading_tip("trade"))
+            tip = build_tip_result(
+                event,
+                get_loading_tip("trade"),
+                plugin=plugin,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
     else:
         error_message = result.get("message", "购买失败")
         # 检查错误消息是否已经包含❌符号，避免重复添加
@@ -1082,12 +1105,23 @@ async def buy_item(plugin: "FishingPlugin", event: AstrMessageEvent):
     if result:
         if result["success"]:
             yield event.plain_result(result["message"])
-            yield build_tip_result(
+            tip = build_tip_result(
                 event,
                 "⌨️ 建議下一步\n```\n/背包\n```\n```\n/市場\n```",
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
             if should_send_loading_tip(plugin.game_config):
-                yield build_tip_result(event, get_loading_tip("trade"))
+                tip = build_tip_result(
+                    event,
+                    get_loading_tip("trade"),
+                    plugin=plugin,
+                    user_id=user_id,
+                )
+                if tip is not None:
+                    yield tip
         else:
             yield event.plain_result(f"❌ 购买失败：{result['message']}")
     else:

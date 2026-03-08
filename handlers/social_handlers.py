@@ -4,7 +4,7 @@ import re
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api import logger
 from ..draw.rank import draw_fishing_ranking
-from ..utils import parse_target_user_id
+from ..utils import parse_target_user_id, build_tip_result
 
 from typing import TYPE_CHECKING
 
@@ -118,7 +118,9 @@ async def ranking(plugin: "FishingPlugin", event: AstrMessageEvent):
             if title_info:
                 title_info_dict = {
                     "name": title_info.name,
-                    "display_format": title_info.display_format if hasattr(title_info, "display_format") else "{name}"
+                    "display_format": title_info.display_format
+                    if hasattr(title_info, "display_format")
+                    else "{name}",
                 }
                 title_name = title_info.name
         user_dict["title"] = title_name
@@ -260,7 +262,14 @@ async def view_titles(plugin: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(plugin.tmp_dir, "title_list.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield event.plain_result("⌨️ 建議下一步\n```\n/使用稱號 [ID]\n```")
+            tip = build_tip_result(
+                event,
+                "⌨️ 建議下一步\n```\n/使用稱號 [ID]\n```",
+                plugin=plugin,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
             return
         except Exception:
             pass
@@ -366,9 +375,6 @@ async def view_achievements(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += "────────────────────────────\n"
 
         message += "💡 成就是你在釣魚世界的里程碑，完成後可解鎖各類限定獎勵！"
-        message += "\n\n⌨️ 建議下一步\n"
-        message += "```\n/查看稱號\n```\n"
-        message += "```\n/使用稱號 [ID]\n```"
 
         # 訊息過長處理
         if len(message) > 4000:
@@ -384,7 +390,6 @@ async def view_achievements(plugin: "FishingPlugin", event: AstrMessageEvent):
                 message += f"   獎勵：{format_reward(ach.get('reward'))}\n"
             message += "...\n(成就過多，僅顯示部分進行中項目)\n"
             message += "────────────────────────────\n"
-            message += "⌨️ 建議下一步\n```\n/查看稱號\n```"
 
         try:
             from ..draw.list_cards import draw_text_list_image
@@ -409,14 +414,27 @@ async def view_achievements(plugin: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(plugin.tmp_dir, "achievement_list.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield event.plain_result(
-                "⌨️ 建議下一步\n```\n/查看稱號\n```\n```\n/使用稱號 [ID]\n```"
+            tip = build_tip_result(
+                event,
+                "⌨️ 建議下一步\n```\n/查看稱號\n```\n```\n/使用稱號 [ID]\n```",
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
             return
         except Exception:
             pass
 
         yield event.plain_result(message)
+        tip = build_tip_result(
+            event,
+            "⌨️ 建議下一步\n```\n/查看稱號\n```\n```\n/使用稱號 [ID]\n```",
+            plugin=plugin,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
     else:
         yield event.plain_result(
             "❌ 您目前沒有任何成就記錄。\n"

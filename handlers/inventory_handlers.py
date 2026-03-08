@@ -197,12 +197,14 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(plugin.tmp_dir, "user_backpack.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield build_tip_result(
+            tip = build_tip_result(
                 event,
                 _build_dynamic_shortcuts(plugin, user_id, "backpack"),
-                plugin,
-                user_id,
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
 
             # 如果内容被截断或过滤，额外发送提示
             if backpack_data.get("is_truncated", False):
@@ -320,9 +322,14 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(plugin.tmp_dir, f"fish_pond_{user_id}.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield event.plain_result(
-                _build_dynamic_shortcuts(plugin, user_id, "backpack")
+            tip = build_tip_result(
+                event,
+                _build_dynamic_shortcuts(plugin, user_id, "backpack"),
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
             return
         except Exception:
             pass
@@ -364,8 +371,15 @@ async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                     message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({fish['actual_value']}金幣/個) ID: {fcode}\n"
         message += f"\n🐟 總魚數：{pond_fish['stats']['total_count']} 條\n"
         message += f"💰 總價值：{pond_fish['stats']['total_value']} 金幣\n"
-        message += "\n" + _build_dynamic_shortcuts(plugin, user_id, "backpack")
         yield event.plain_result(message)
+        tip = build_tip_result(
+            event,
+            _build_dynamic_shortcuts(plugin, user_id, "backpack"),
+            plugin=plugin,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
     else:
         yield event.plain_result("🐟 您的鱼塘是空的，快去钓鱼吧！")
 
@@ -509,9 +523,14 @@ async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(plugin.tmp_dir, f"rod_list_{user_id}.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield build_tip_result(
-                event, _build_dynamic_shortcuts(plugin, user_id, "rod")
+            tip = build_tip_result(
+                event,
+                _build_dynamic_shortcuts(plugin, user_id, "rod"),
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
             return
         except Exception:
             pass
@@ -545,16 +564,26 @@ async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += "• /出售所有魚竿 - 快速清理\n"
             message += "• /出售 [魚竿ID] - 出售指定魚竿"
 
-        message += "\n⌨️ 建議下一步\n"
-        message += "```\n/使用 R短碼\n```\n"
-        message += "```\n/精煉 R短碼\n```"
-
         yield event.plain_result(message)
-        yield build_tip_result(event, _build_dynamic_shortcuts(plugin, user_id, "rod"))
-    else:
-        yield event.plain_result(
-            "🎣 你目前還沒有魚竿。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```"
+        tip = build_tip_result(
+            event,
+            _build_dynamic_shortcuts(plugin, user_id, "rod"),
+            plugin=plugin,
+            user_id=user_id,
         )
+        if tip is not None:
+            yield tip
+    else:
+        tip = build_tip_result(
+            event,
+            "🎣 你目前還沒有魚竿。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```",
+            plugin=plugin,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
+        else:
+            yield event.plain_result("🎣 你目前還沒有魚竿。")
 
 
 async def bait(plugin: "FishingPlugin", event: AstrMessageEvent):
@@ -575,7 +604,14 @@ async def bait(plugin: "FishingPlugin", event: AstrMessageEvent):
                 message += f"   - 效果: {bait['effect_description']}\n"
             message += "\n"
         yield event.plain_result(message)
-        yield build_tip_result(event, _build_dynamic_shortcuts(plugin, user_id, "bait"))
+        tip = build_tip_result(
+            event,
+            _build_dynamic_shortcuts(plugin, user_id, "bait"),
+            plugin=plugin,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
     else:
         yield event.plain_result("🐟 您还没有鱼饵，快去商店购买或抽奖获得吧！")
 
@@ -595,7 +631,14 @@ async def items(plugin: "FishingPlugin", event: AstrMessageEvent):
                 message += f"   - 效果: {it['effect_description']}\n"
             message += "\n"
         yield event.plain_result(message)
-        yield build_tip_result(event, _build_dynamic_shortcuts(plugin, user_id, "item"))
+        tip = build_tip_result(
+            event,
+            _build_dynamic_shortcuts(plugin, user_id, "item"),
+            plugin=plugin,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
     else:
         yield event.plain_result("📦 您还没有道具。")
 
@@ -695,9 +738,14 @@ async def accessories(plugin: "FishingPlugin", event: AstrMessageEvent):
             image_path = os.path.join(plugin.tmp_dir, f"accessory_list_{user_id}.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield build_tip_result(
-                event, _build_dynamic_shortcuts(plugin, user_id, "accessory")
+            tip = build_tip_result(
+                event,
+                _build_dynamic_shortcuts(plugin, user_id, "accessory"),
+                plugin=plugin,
+                user_id=user_id,
             )
+            if tip is not None:
+                yield tip
             return
         except Exception:
             pass
@@ -726,18 +774,26 @@ async def accessories(plugin: "FishingPlugin", event: AstrMessageEvent):
             message += "• /出售所有飾品 - 快速清理\n"
             message += "• /出售 [飾品ID] - 出售指定飾品"
 
-        message += "\n⌨️ 建議下一步\n"
-        message += "```\n/使用 A短碼\n```\n"
-        message += "```\n/精煉 A短碼\n```"
-
         yield event.plain_result(message)
-        yield build_tip_result(
-            event, _build_dynamic_shortcuts(plugin, user_id, "accessory")
+        tip = build_tip_result(
+            event,
+            _build_dynamic_shortcuts(plugin, user_id, "accessory"),
+            plugin=plugin,
+            user_id=user_id,
         )
+        if tip is not None:
+            yield tip
     else:
-        yield event.plain_result(
-            "💍 你目前還沒有飾品。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```"
+        tip = build_tip_result(
+            event,
+            "💍 你目前還沒有飾品。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```",
+            plugin=plugin,
+            user_id=user_id,
         )
+        if tip is not None:
+            yield tip
+        else:
+            yield event.plain_result("💍 你目前還沒有飾品。")
 
 
 async def refine_help(plugin: "FishingPlugin", event: AstrMessageEvent):
@@ -930,13 +986,14 @@ async def use_equipment(
         # 處理數量參數和目標用戶參數
         quantity = 1
         target_user_id = None
-        
+
         # 解析參數：可能是數量、@用戶、或用戶ID
         if len(args) > 2:
             # 檢查是否為@用戶
             from ..utils import parse_target_user_id
+
             target_id, error_msg = parse_target_user_id(event, args, 2)
-            
+
             if target_id:
                 # 找到了目標用戶
                 target_user_id = target_id
@@ -946,7 +1003,7 @@ async def use_equipment(
                 if quantity <= 0:
                     yield event.plain_result("❌ 數量必須是正整數。")
                     return
-                
+
                 # 檢查是否還有第三個參數（目標用戶）
                 if len(args) > 3:
                     target_id, error_msg = parse_target_user_id(event, args, 3)
@@ -954,7 +1011,9 @@ async def use_equipment(
                         target_user_id = target_id
 
         # 使用道具
-        if result := plugin.inventory_service.use_item(user_id, int(item_id), quantity, target_user_id=target_user_id):
+        if result := plugin.inventory_service.use_item(
+            user_id, int(item_id), quantity, target_user_id=target_user_id
+        ):
             if result["success"]:
                 yield event.plain_result(result["message"])
             else:
@@ -1147,7 +1206,14 @@ async def sell_equipment(
             if result["success"]:
                 yield event.plain_result(result["message"])
                 if should_send_loading_tip(plugin.game_config):
-                    yield build_tip_result(event, get_loading_tip("inventory"))
+                    tip = build_tip_result(
+                        event,
+                        get_loading_tip("inventory"),
+                        plugin=plugin,
+                        user_id=user_id,
+                    )
+                    if tip is not None:
+                        yield tip
             else:
                 yield event.plain_result(f"❌ 出售失败：{result['message']}")
         else:
@@ -1174,7 +1240,14 @@ async def sell_equipment(
         if result["success"]:
             yield event.plain_result(result["message"])
             if should_send_loading_tip(plugin.game_config):
-                yield build_tip_result(event, get_loading_tip("inventory"))
+                tip = build_tip_result(
+                    event,
+                    get_loading_tip("inventory"),
+                    plugin=plugin,
+                    user_id=user_id,
+                )
+                if tip is not None:
+                    yield tip
         else:
             yield event.plain_result(f"❌ 出售失败：{result['message']}")
     else:

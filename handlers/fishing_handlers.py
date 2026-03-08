@@ -106,7 +106,14 @@ class FishingHandlers:
             return
         yield event.plain_result(_build_fish_message(result, fishing_cost))
         if should_send_loading_tip(self.plugin.game_config):
-            yield build_tip_result(event, get_loading_tip("fishing"))
+            tip = build_tip_result(
+                event,
+                get_loading_tip("fishing"),
+                plugin=self.plugin,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
 
     async def auto_fish(self, event: AstrMessageEvent):
         """自动钓鱼"""
@@ -133,19 +140,23 @@ class FishingHandlers:
                 current_title = None
                 if user and hasattr(user, "current_title_id") and user.current_title_id:
                     try:
-                        title_info = self.plugin.item_template_repo.get_title_by_id(user.current_title_id)
+                        title_info = self.plugin.item_template_repo.get_title_by_id(
+                            user.current_title_id
+                        )
                         if title_info:
                             current_title = {
                                 "name": title_info.name,
-                                "display_format": title_info.display_format if hasattr(title_info, "display_format") else "{name}"
+                                "display_format": title_info.display_format
+                                if hasattr(title_info, "display_format")
+                                else "{name}",
                             }
                     except:
                         pass
-                
+
                 image = draw_fishing_zones_image(
                     zones,
                     nickname=(user.nickname if user else "") or str(user_id),
-                    current_title=current_title
+                    current_title=current_title,
                 )
                 image_path = safe_get_file_path(
                     self.plugin, f"fishing_zones_{user_id}.png"
@@ -222,17 +233,20 @@ class FishingHandlers:
 
         user_info = self.plugin.user_repo.get_by_id(user_id)
         user_nickname = user_info.nickname if user_info else str(user_id)
-        
+
         # 獲取用戶當前稱號信息
         current_title = None
         if user_info and user_info.current_title_id:
-            from ..core.repositories.sqlite_achievement_repo import SQLiteAchievementRepository
+            from ..core.repositories.sqlite_achievement_repo import (
+                SQLiteAchievementRepository,
+            )
+
             achievement_repo = SQLiteAchievementRepository(self.plugin.db_conn)
             title_info = achievement_repo.get_title_by_id(user_info.current_title_id)
             if title_info:
                 current_title = {
-                    'name': title_info.name,
-                    'display_format': title_info.display_format
+                    "name": title_info.name,
+                    "display_format": title_info.display_format,
                 }
 
         # 绘制图片
@@ -246,14 +260,14 @@ class FishingHandlers:
                 {
                     "nickname": user_nickname,
                     "user_id": user_id,
-                    "current_title": current_title
+                    "current_title": current_title,
                 },
                 output_path,
                 page=page,
                 data_dir=self.plugin.data_dir,
             )
             yield event.image_result(output_path)
-            
+
             # 添加翻頁提示
             total_pages = (len(pokedex_list) + 14) // 15  # FISH_PER_PAGE = 15
             if total_pages > 1:
@@ -262,12 +276,12 @@ class FishingHandlers:
                     tip_lines.append(f"/圖鑒 {page - 1}")
                 if page < total_pages:
                     tip_lines.append(f"/圖鑒 {page + 1}")
-                
+
                 tip = build_tip_result(
                     event,
                     "\n```\n" + "\n```\n```\n".join(tip_lines) + "\n```",
                     plugin=self.plugin,
-                    user_id=user_id
+                    user_id=user_id,
                 )
                 if tip:
                     yield tip

@@ -35,10 +35,16 @@ def draw_gacha_pool_list_image(pools: List[Any]) -> Image.Image:
     title_font = load_font(32)
     body_font = load_font(20)
     small_font = load_font(16)
-    
+
     # 計算高度並添加安全邊距
     num_pools = max(1, len(pools))
-    calculated_height = title_bar_height + padding + (card_height + spacing) * num_pools + footer_height + padding
+    calculated_height = (
+        title_bar_height
+        + padding
+        + (card_height + spacing) * num_pools
+        + footer_height
+        + padding
+    )
     height = calculated_height + SAFETY_MARGIN
 
     # 使用統一遊戲風格背景
@@ -47,7 +53,9 @@ def draw_gacha_pool_list_image(pools: List[Any]) -> Image.Image:
 
     # 繪製標題欄
     y = padding
-    draw_game_title_bar(draw, 0, y, width, title_bar_height, "🎰 抽卡池列表", title_font)
+    draw_game_title_bar(
+        draw, width, y, title_bar_height, "抽卡池列表", title_font, "🎰"
+    )
     y += title_bar_height + padding
 
     # 繪製卡池列表
@@ -61,34 +69,34 @@ def draw_gacha_pool_list_image(pools: List[Any]) -> Image.Image:
             cost_text = f"💰 {_safe_get(pool, 'cost_coins', 0)} 金幣 / 次"
 
         # 使用統一卡片樣式
-        draw_game_card(draw, padding, y, width - padding * 2, card_height)
-        
+        draw_game_card(draw, (padding, y, width - padding, y + card_height))
+
         # 卡池信息
         draw.text(
-            (padding + 16, y + 12), 
-            f"{idx}. ID {pid}｜{name[:20]}", 
-            font=body_font, 
-            fill=GAME_COLORS["text_primary"]
+            (padding + 16, y + 12),
+            f"{idx}. ID {pid}｜{name[:20]}",
+            font=body_font,
+            fill=GAME_COLORS["text_primary"],
         )
         draw.text(
-            (padding + 16, y + 42), 
-            cost_text, 
-            font=small_font, 
-            fill=GAME_COLORS["text_secondary"]
+            (padding + 16, y + 42),
+            cost_text,
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
         )
         if desc:
             draw.text(
-                (padding + 16, y + 64), 
-                desc[:50], 
-                font=small_font, 
-                fill=GAME_COLORS["text_tertiary"]
+                (padding + 16, y + 64),
+                desc[:50],
+                font=small_font,
+                fill=GAME_COLORS["text_tertiary"],
             )
-        
+
         y += card_height + spacing
 
     # 繪製底部提示
     y = height - footer_height - padding - SAFETY_MARGIN
-    draw_game_divider(draw, padding, y, width - padding * 2)
+    draw_game_divider(draw, padding, width - padding, y)
     y += 16
     draw.text(
         (padding + 8, y),
@@ -122,10 +130,17 @@ def draw_gacha_pool_detail_image(
     title_font = load_font(30)
     body_font = load_font(20)
     small_font = load_font(16)
-    
+
     # 計算高度並添加安全邊距
     num_items = max(1, len(probabilities))
-    calculated_height = title_bar_height + info_section_height + padding + (item_height + spacing) * num_items + footer_height + padding
+    calculated_height = (
+        title_bar_height
+        + info_section_height
+        + padding
+        + (item_height + spacing) * num_items
+        + footer_height
+        + padding
+    )
     height = calculated_height + SAFETY_MARGIN
 
     # 使用統一遊戲風格背景
@@ -133,27 +148,29 @@ def draw_gacha_pool_detail_image(
     draw = ImageDraw.Draw(image)
 
     # 繪製標題欄
-    pool_name = _safe_get(pool, 'name', '卡池詳情')
+    pool_name = _safe_get(pool, "name", "卡池詳情")
     y = padding
-    draw_game_title_bar(draw, 0, y, width, title_bar_height, f"🎰 {pool_name[:30]}", title_font)
+    draw_game_title_bar(
+        draw, width, y, title_bar_height, f"{pool_name[:30]}", title_font, "🎰"
+    )
     y += title_bar_height + 12
-    
+
     # 卡池信息區域
-    pool_id = _safe_get(pool, 'gacha_pool_id', '?')
+    pool_id = _safe_get(pool, "gacha_pool_id", "?")
     draw.text(
         (padding + 8, y),
         f"ID：{pool_id}",
         font=body_font,
         fill=GAME_COLORS["text_primary"],
     )
-    
+
     cost_premium = _safe_get(pool, "cost_premium_currency")
     if cost_premium:
         cost_text = f"💎 消耗：{cost_premium} 高級貨幣 / 次"
     else:
-        cost_coins = _safe_get(pool, 'cost_coins', 0)
+        cost_coins = _safe_get(pool, "cost_coins", 0)
         cost_text = f"💰 消耗：{cost_coins} 金幣 / 次"
-    
+
     draw.text(
         (padding + 200, y),
         cost_text,
@@ -166,15 +183,15 @@ def draw_gacha_pool_detail_image(
     desc = str(_safe_get(pool, "description") or "")
     if desc:
         draw.text(
-            (padding + 8, y), 
-            f"📖 {desc[:60]}", 
-            font=small_font, 
-            fill=GAME_COLORS["text_secondary"]
+            (padding + 8, y),
+            f"📖 {desc[:60]}",
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
         )
         y += 28
-    
+
     y += 12
-    draw_game_divider(draw, padding, y, width - padding * 2)
+    draw_game_divider(draw, padding, width - padding, y)
     y += spacing + 12
 
     # 概率列表
@@ -190,27 +207,27 @@ def draw_gacha_pool_detail_image(
             ptext = str(prob)
 
         # 使用統一卡片樣式
-        draw_game_card(draw, padding, y, width - padding * 2, item_height)
-        
+        draw_game_card(draw, (padding, y, width - padding, y + item_height))
+
         # 使用統一稀有度顏色
         rarity_color = get_rarity_color(rarity)
         draw.text(
-            (padding + 16, y + 14), 
-            f"{stars} {name[:35]}", 
-            font=small_font, 
-            fill=rarity_color
+            (padding + 16, y + 14),
+            f"{stars} {name[:35]}",
+            font=small_font,
+            fill=rarity_color,
         )
         draw.text(
-            (width - 200, y + 14), 
-            f"機率：{ptext}", 
-            font=small_font, 
-            fill=GAME_COLORS["text_secondary"]
+            (width - 200, y + 14),
+            f"機率：{ptext}",
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
         )
         y += item_height + spacing
 
     # 底部提示
     y = height - footer_height - padding - SAFETY_MARGIN
-    draw_game_divider(draw, padding, y, width - padding * 2)
+    draw_game_divider(draw, padding, width - padding, y)
     y += 20
     draw.text(
         (padding + 8, y),

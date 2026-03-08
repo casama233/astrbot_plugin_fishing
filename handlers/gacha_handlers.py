@@ -2,7 +2,12 @@ import os
 
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api import logger
-from ..utils import parse_target_user_id, to_percentage, safe_datetime_handler
+from ..utils import (
+    parse_target_user_id,
+    to_percentage,
+    safe_datetime_handler,
+    build_tip_result,
+)
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -118,10 +123,15 @@ async def gacha(self: "FishingPlugin", event: AstrMessageEvent):
                 else:
                     message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\n"
             message += "════════════════════════════\n"
-            message += "⌨️ 建議下一步\n"
-            message += f"```\n/抽卡 {pool_id}\n```\n"
-            message += f"```\n/十連 {pool_id}\n```"
             yield event.plain_result(message)
+            tip = build_tip_result(
+                event,
+                f"⌨️ 建議下一步\n```\n/抽卡 {pool_id}\n```\n```\n/十連 {pool_id}\n```",
+                plugin=self,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
         else:
             yield event.plain_result(f"❌ 抽卡失敗：{result['message']}")
     else:
@@ -182,10 +192,15 @@ async def ten_gacha(self: "FishingPlugin", event: AstrMessageEvent):
                     message += f"• 💰 金幣 x{item['quantity']}\n"
                 else:
                     message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\n"
-            message += "⌨️ 建議下一步\n"
-            message += f"```\n/十連 {pool_id}\n```\n"
-            message += "```\n/抽卡記錄\n```"
             yield event.plain_result(message)
+            tip = build_tip_result(
+                event,
+                f"⌨️ 建議下一步\n```\n/十連 {pool_id}\n```\n```\n/抽卡記錄\n```",
+                plugin=self,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
         else:
             yield event.plain_result(f"❌ 抽卡失敗：{result['message']}")
     else:
@@ -352,8 +367,6 @@ async def gacha_history(self: "FishingPlugin", event: AstrMessageEvent):
                     message += "────────────────────────────\n"
 
             message += "════════════════════════════\n"
-            message += "⌨️ 建議下一步\n"
-            message += "```\n/查看卡池 1\n```"
 
             try:
                 from ..draw.list_cards import draw_text_list_image
@@ -372,12 +385,27 @@ async def gacha_history(self: "FishingPlugin", event: AstrMessageEvent):
                 image_path = os.path.join(self.tmp_dir, "gacha_history_list.png")
                 image.save(image_path)
                 yield event.image_result(image_path)
-                yield event.plain_result("⌨️ 建議下一步\n```\n/查看卡池 1\n```")
+                tip = build_tip_result(
+                    event,
+                    "⌨️ 建議下一步\n```\n/查看卡池 1\n```",
+                    plugin=self,
+                    user_id=user_id,
+                )
+                if tip is not None:
+                    yield tip
                 return
             except Exception:
                 pass
 
             yield event.plain_result(message)
+            tip = build_tip_result(
+                event,
+                "⌨️ 建議下一步\n```\n/查看卡池 1\n```",
+                plugin=self,
+                user_id=user_id,
+            )
+            if tip is not None:
+                yield tip
         else:
             yield event.plain_result(f"❌ 查看抽卡記錄失敗：{result['message']}")
     else:

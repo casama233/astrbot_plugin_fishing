@@ -5,7 +5,12 @@ from astrbot.api import logger
 from astrbot.api.event import filter, AstrMessageEvent
 from ..draw.state import draw_state_image, get_user_state_data
 from ..core.utils import get_now
-from ..utils import safe_datetime_handler, parse_target_user_id, parse_amount
+from ..utils import (
+    safe_datetime_handler,
+    parse_target_user_id,
+    parse_amount,
+    build_tip_result,
+)
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -138,11 +143,23 @@ async def state(self: "FishingPlugin", event: AstrMessageEvent):
             tips.append("```\n/自動釣魚\n```")
         else:
             tips.append("```\n/交易所\n```")
-        yield event.plain_result("\n".join(tips[:4]))
-    except Exception:
-        yield event.plain_result(
-            "⌨️ 建議下一步\n```\n/釣魚\n```\n```\n/商店\n```\n```\n/市場\n```"
+        tip_result = build_tip_result(
+            event,
+            "\n".join(tips[:4]),
+            plugin=self,
+            user_id=user_id,
         )
+        if tip_result is not None:
+            yield tip_result
+    except Exception:
+        tip_result = build_tip_result(
+            event,
+            "⌨️ 建議下一步\n```\n/釣魚\n```\n```\n/商店\n```\n```\n/市場\n```",
+            plugin=self,
+            user_id=user_id,
+        )
+        if tip_result is not None:
+            yield tip_result
 
 
 async def fishing_log(self: "FishingPlugin", event: AstrMessageEvent):
@@ -194,10 +211,6 @@ async def fishing_log(self: "FishingPlugin", event: AstrMessageEvent):
                 if idx < len(records):
                     message += "────────────────────────────\n"
 
-            message += "⌨️ 建議下一步\n"
-            message += "```\n/釣魚\n```\n"
-            message += "```\n/魚類圖鑑\n```"
-
             # 列表命令優先圖片渲染（失敗回退文字）
             try:
                 from ..draw.list_cards import draw_text_list_image
@@ -222,13 +235,26 @@ async def fishing_log(self: "FishingPlugin", event: AstrMessageEvent):
                 image_path = os.path.join(self.tmp_dir, "fishing_log_list.png")
                 image.save(image_path)
                 yield event.image_result(image_path)
-                yield event.plain_result(
-                    "⌨️ 建議下一步\n```\n/釣魚\n```\n```\n/魚類圖鑑\n```"
+                tip_result = build_tip_result(
+                    event,
+                    "⌨️ 建議下一步\n```\n/釣魚\n```\n```\n/魚類圖鑑\n```",
+                    plugin=self,
+                    user_id=user_id,
                 )
+                if tip_result is not None:
+                    yield tip_result
                 return
             except Exception:
                 pass
             yield event.plain_result(message)
+            tip_result = build_tip_result(
+                event,
+                "⌨️ 建議下一步\n```\n/釣魚\n```\n```\n/魚類圖鑑\n```",
+                plugin=self,
+                user_id=user_id,
+            )
+            if tip_result is not None:
+                yield tip_result
         else:
             yield event.plain_result(f"❌ 取得釣魚記錄失敗：{result['message']}")
     else:
@@ -1008,14 +1034,18 @@ async def toggle_my_suggestions(self: "FishingPlugin", event: AstrMessageEvent):
         user.show_suggestions = False
         logger.info(f"用戶 {user_id} 設置 show_suggestions = False，準備更新數據庫")
         self.user_repo.update(user)
-        
+
         # 驗證更新是否成功
         updated_user = self.user_repo.get_by_id(user_id)
         if updated_user:
-            logger.info(f"更新後從數據庫讀取的 show_suggestions 值: {updated_user.show_suggestions}")
+            logger.info(
+                f"更新後從數據庫讀取的 show_suggestions 值: {updated_user.show_suggestions}"
+            )
             if updated_user.show_suggestions:
-                logger.error(f"警告：用戶 {user_id} 的 show_suggestions 更新失敗，數據庫中仍為 True")
-        
+                logger.error(
+                    f"警告：用戶 {user_id} 的 show_suggestions 更新失敗，數據庫中仍為 True"
+                )
+
         yield event.plain_result(
             "✅ 已为您关闭建议消息！\n\n"
             "现在使用指令时将不再显示「建议下一步」或「常用操作」提示信息。"

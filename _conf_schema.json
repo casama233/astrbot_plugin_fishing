@@ -440,5 +440,78 @@
         }
       }
     }
+  },
+  "external_sql": {
+    "description": "外部SQL数据库配置（用于数据迁移）",
+    "type": "object",
+    "items": {
+      "mysql_url": {
+        "description": "MySQL连接URL",
+        "type": "string",
+        "hint": "格式: mysql://user:password@host:3306/database",
+        "default": "mysql://fish:i43iaSRFWSZ6mcrK@127.0.0.1:3306/fish"
+      },
+      "enabled": {
+        "description": "是否启用外部SQL持续同步模式",
+        "type": "bool",
+        "default": true
+      },
+      "sync_on_startup": {
+        "description": "启动时是否先做一次同步",
+        "type": "bool",
+        "default": true
+      },
+      "startup_direction": {
+        "description": "启动时同步方向",
+        "type": "string",
+        "hint": "mysql_to_sqlite 或 sqlite_to_mysql",
+        "default": "mysql_to_sqlite"
+      },
+      "fail_fast_on_startup": {
+        "description": "启动同步失败时是否阻止插件启动",
+        "type": "bool",
+        "default": false
+      },
+      "sync_interval_seconds": {
+        "description": "周期同步间隔（秒）",
+        "type": "int",
+        "default": 300
+      },
+      "host": {
+        "description": "MySQL主机地址",
+        "type": "string",
+        "default": "127.0.0.1"
+      },
+      "port": {
+        "description": "MySQL端口",
+        "type": "int",
+        "default": 3306
+      },
+      "database": {
+        "description": "数据库名称",
+        "type": "string",
+        "default": "fish"
+      },
+      "user": {
+        "description": "数据库用户名",
+        "type": "string",
+        "default": "fish"
+      },
+      "password": {
+        "description": "数据库密码",
+        "type": "string",
+        "default": "i43iaSRFWSZ6mcrK"
+      },
+      "charset": {
+        "description": "字符集",
+        "type": "string",
+        "default": "utf8mb4"
+      },
+      "connect_timeout": {
+        "description": "连接超时秒数",
+        "type": "int",
+        "default": 10
+      }
+    }
   }
 }

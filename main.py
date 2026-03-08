@@ -39,6 +39,7 @@ from .core.services.sicbo_service import SicboService
 from .core.services.red_packet_service import RedPacketService
 
 from .core.database.migration import run_migrations
+from .core.database.external_sql_sync import ExternalSqlSyncManager
 
 # ==========================================================
 # 导入所有指令函数
@@ -80,10 +81,10 @@ class FishingPlugin(Star):
 
         self.tmp_dir = os.path.join(self.data_dir, "tmp")
         os.makedirs(self.tmp_dir, exist_ok=True)
-        
+
         # 清理舊的臨時圖片文件（保留最近1小時的文件）
         self._cleanup_old_temp_files()
-        
+
         db_path = os.path.join(self.data_dir, "fish.db")
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
@@ -179,6 +180,11 @@ class FishingPlugin(Star):
             db_path,
             os.path.join(os.path.dirname(__file__), "core", "database", "migrations"),
         )
+
+        self.external_sql_sync_manager = ExternalSqlSyncManager(
+            db_path, config.get("external_sql", {})
+        )
+        self.external_sql_sync_manager.startup_sync()
 
         self.user_repo = SqliteUserRepository(db_path)
         self.item_template_repo = SqliteItemTemplateRepository(db_path)
@@ -309,6 +315,7 @@ class FishingPlugin(Star):
         self._red_packet_cleanup_task = asyncio.create_task(
             self._red_packet_cleanup_scheduler()
         )
+        self.external_sql_sync_manager.start_periodic_sync()
 
         data_setup_service = DataSetupService(
             self.item_template_repo, self.gacha_repo, self.shop_repo
@@ -364,26 +371,27 @@ class FishingPlugin(Star):
 
     def _cleanup_old_temp_files(self, max_age_hours: int = 1):
         """清理舊的臨時圖片文件
-        
+
         Args:
             max_age_hours: 保留文件的最大小時數，默認1小時
         """
         try:
             import time
+
             current_time = time.time()
             max_age_seconds = max_age_hours * 3600
-            
+
             if not os.path.exists(self.tmp_dir):
                 return
-            
+
             cleaned_count = 0
             for filename in os.listdir(self.tmp_dir):
                 file_path = os.path.join(self.tmp_dir, filename)
-                
+
                 # 只處理圖片文件
-                if not filename.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                if not filename.endswith((".png", ".jpg", ".jpeg", ".gif")):
                     continue
-                
+
                 try:
                     # 檢查文件年齡
                     file_age = current_time - os.path.getmtime(file_path)
@@ -392,7 +400,7 @@ class FishingPlugin(Star):
                         cleaned_count += 1
                 except Exception as e:
                     logger.warning(f"清理臨時文件失敗 {filename}: {e}")
-            
+
             if cleaned_count > 0:
                 logger.info(f"已清理 {cleaned_count} 個舊的臨時圖片文件")
         except Exception as e:
@@ -1603,4 +1611,6 @@ class FishingPlugin(Star):
             self._red_packet_cleanup_task.cancel()
         if self.web_admin_task:
             self.web_admin_task.cancel()
+        if hasattr(self, "external_sql_sync_manager"):
+            await self.external_sql_sync_manager.stop()
         logger.info("釣魚插件已終止。")
