@@ -2,6 +2,7 @@ import os
 from astrbot.api.event import AstrMessageEvent
 from typing import Optional, Dict, Any, TYPE_CHECKING, List
 from datetime import datetime, timedelta
+from ..utils import build_tip_result
 
 if TYPE_CHECKING:
     from ..main import FishingPlugin
@@ -356,9 +357,16 @@ class ExchangeHandlers:
             image_path = os.path.join(self.plugin.tmp_dir, "exchange_history.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield event.plain_result(
-                "⌨️ 建議下一步\n```\n/交易所 分析\n```"
+            
+            user_id = self._get_effective_user_id(event)
+            tip = build_tip_result(
+                event,
+                "⌨️ 建議下一步\n```\n/交易所 分析\n```",
+                plugin=self.plugin,
+                user_id=user_id
             )
+            if tip:
+                yield tip
             return
         except Exception:
             pass
@@ -534,9 +542,16 @@ class ExchangeHandlers:
             image_path = os.path.join(self.plugin.tmp_dir, "exchange_analysis.png")
             image.save(image_path)
             yield event.image_result(image_path)
-            yield event.plain_result(
-                "⌨️ 建議下一步\n```\n/交易所 買入 商品 數量\n```\n```\n/交易所 歷史\n```"
+            
+            user_id = self._get_effective_user_id(event)
+            tip = build_tip_result(
+                event,
+                "⌨️ 建議下一步\n```\n/交易所 買入 商品 數量\n```\n```\n/交易所 歷史\n```",
+                plugin=self.plugin,
+                user_id=user_id
             )
+            if tip:
+                yield tip
             return
         except Exception:
             pass
@@ -691,43 +706,111 @@ class ExchangeHandlers:
     def _get_exchange_help(self) -> str:
         """获取交易所帮助信息"""
         schedule_display = self._get_formatted_update_schedule()
-        return f"""【📈 交易所帮助】
+        return f"""【📈 交易所完整指南】
 ══════════════════════════════
-📊 市场信息
-• 交易所: 查看市场状态和价格
-• 交易所 历史: 查看价格历史图表
-• 交易所 分析: 查看市场分析报告
-
-💼 账户管理
-• 交易所 开户: 开通交易所账户
-• 交易所 状态: 查看账户状态
-• 交易所 统计: 查看交易统计
-
-💰 交易操作
-• 交易所 买入 [商品] [数量]: 购买大宗商品
-• 交易所 卖出 [商品] [数量]: 卖出大宗商品
-• 交易所 卖出 [库存ID] [数量]: 按库存ID卖出
-
-📦 库存管理
-• /持仓（/持倉）: 查看我的库存详情
-• /清仓（/清倉）: 卖出所有库存
-• /清仓 [商品]: 卖出指定商品
-• /清仓 [库存ID]: 卖出指定库存
-• 也支持：交易所 持仓 / 交易所 清仓
-
-⏰ 时间信息
-• 价格更新: 每日{schedule_display}
-• 商品保质期: 鱼干3天、鱼卵2天、鱼油1-3天
-• 交易时间: 24小时开放
-
-💡 交易提示
-• 关注价格涨跌幅，把握买卖时机
-• 注意商品保质期，及时卖出避免腐败
-• 合理控制仓位，分散投资风险
-• 关注市场情绪和供需状态
+🎯 快速入門
+1. /交易所 開戶 - 開通交易所帳戶
+2. /交易所 - 查看當前市場行情
+3. /交易所 買入 魚乾 10 - 購買10個魚乾
+4. /持倉 - 查看我的庫存
+5. /交易所 賣出 魚乾 5 - 賣出5個魚乾
 
 ══════════════════════════════
-💬 使用【交易所 帮助 [分类]】查看详细说明
+📊 市場資訊指令
+• /交易所 - 查看當前市場行情和價格
+• /交易所 歷史 [商品] [天數] - 查看價格歷史走勢圖
+  範例：/交易所 歷史 魚乾 7（查看魚乾7天走勢）
+• /交易所 分析 [商品] [天數] - 查看市場技術分析
+  範例：/交易所 分析 魚油 5（查看魚油5天分析）
+• /交易所 統計 - 查看個人交易統計數據
+
+══════════════════════════════
+💰 交易操作指令
+【買入】
+• /交易所 買入 [商品名稱] [數量]
+  範例：/交易所 買入 魚乾 10
+  說明：購買指定數量的大宗商品
+
+【賣出】
+• /交易所 賣出 [商品名稱] [數量]
+  範例：/交易所 賣出 魚乾 5
+  說明：賣出指定數量的商品（先進先出）
+
+• /交易所 賣出 [庫存ID] [數量]
+  範例：/交易所 賣出 C123 3
+  說明：按庫存ID精準賣出（查看/持倉獲取ID）
+
+• /交易所 賣出 [商品名稱] - 賣出該商品全部庫存
+  範例：/交易所 賣出 魚油
+
+══════════════════════════════
+📦 庫存管理指令
+• /持倉（/持倉）- 查看我的庫存詳情
+  顯示：持有商品、數量、成本、當前價值、盈虧
+
+• /清倉（/清倉）- 賣出所有庫存
+  警告：會賣出所有商品，請謹慎使用
+
+• /清倉 [商品名稱] - 賣出指定商品全部庫存
+  範例：/清倉 魚乾
+
+• /清倉 [庫存ID] - 賣出指定庫存
+  範例：/清倉 C123
+
+══════════════════════════════
+⏰ 重要時間資訊
+• 價格更新時間：每日 {schedule_display}
+• 商品保質期：
+  - 魚乾：3天
+  - 魚卵：2天
+  - 魚油：1-3天（隨機）
+• 交易時間：24小時全天開放
+
+══════════════════════════════
+💡 交易技巧與建議
+【新手建議】
+• 先小額試水，熟悉市場規律
+• 關注價格歷史，了解波動範圍
+• 注意保質期，及時賣出避免腐敗
+• 不要把所有金幣投入交易所
+
+【進階策略】
+• 低買高賣：在價格低點買入，高點賣出
+• 分散投資：不要只買一種商品
+• 趨勢跟隨：觀察市場情緒和價格趨勢
+• 止損止盈：設定心理價位，控制風險
+
+【風險提示】
+⚠️ 商品會腐敗！過期商品價值歸零
+⚠️ 價格波動大！可能虧損
+⚠️ 盈利需繳稅！賣出盈利部分會扣稅
+⚠️ 倉位有限！注意庫存容量
+
+══════════════════════════════
+📈 可交易商品
+• 魚乾 - 保質期3天，價格相對穩定，低風險
+• 魚卵 - 保質期2天，價格波動較大，高風險
+• 魚油 - 保質期1-3天，高風險高收益，投機品
+• 魚骨 - 保質期7天，價格最穩定，超低風險
+• 魚鱗 - 保質期4天，價格波動適中，平衡之選
+• 魚露 - 保質期1天，價格劇烈波動，僅供高手
+
+══════════════════════════════
+❓ 常見問題
+Q: 如何查看庫存ID？
+A: 使用 /持倉 指令，會顯示每個庫存的ID
+
+Q: 為什麼賣出時扣的錢比預期少？
+A: 盈利部分需要繳稅，虧損不退稅
+
+Q: 商品腐敗了怎麼辦？
+A: 腐敗商品價值歸零，無法賣出，注意保質期
+
+Q: 可以取消交易嗎？
+A: 交易一旦完成無法取消，請謹慎操作
+
+══════════════════════════════
+💬 需要幫助？使用 /交易所 幫助 查看本指南
     """
 
     async def exchange_status(self, event: AstrMessageEvent):
@@ -899,9 +982,16 @@ class ExchangeHandlers:
                 image_path = os.path.join(self.plugin.tmp_dir, "exchange_status.png")
                 image.save(image_path)
                 yield event.image_result(image_path)
-                yield event.plain_result(
-                    "⌨️ 建議下一步\n```\n/交易所 分析\n```\n```\n/持倉\n```"
+                
+                user_id = self._get_effective_user_id(event)
+                tip = build_tip_result(
+                    event,
+                    "⌨️ 建議下一步\n```\n/交易所 分析\n```\n```\n/持倉\n```",
+                    plugin=self.plugin,
+                    user_id=user_id
                 )
+                if tip:
+                    yield tip
                 return
             except Exception:
                 pass
@@ -1071,9 +1161,16 @@ class ExchangeHandlers:
                 image_path = os.path.join(self.plugin.tmp_dir, "exchange_inventory.png")
                 image.save(image_path)
                 yield event.image_result(image_path)
-                yield event.plain_result(
-                    "⌨️ 建議下一步\n```\n/交易所 賣出 商品 數量\n```\n```\n/交易所 歷史\n```"
+                
+                user_id = self._get_effective_user_id(event)
+                tip = build_tip_result(
+                    event,
+                    "⌨️ 建議下一步\n```\n/交易所 賣出 商品 數量\n```\n```\n/交易所 歷史\n```",
+                    plugin=self.plugin,
+                    user_id=user_id
                 )
+                if tip:
+                    yield tip
                 return
             except Exception:
                 pass
@@ -1232,53 +1329,115 @@ class ExchangeHandlers:
                 )
 
             elif len(args) == 2:
-                inventory_id_str = args[0]
-
-                instance_id = self._parse_commodity_display_code(inventory_id_str)
-                if instance_id is None:
-                    yield event.plain_result("❌ 库存ID格式错误，请使用C开头的ID")
-                    return
-
-                try:
-                    quantity = int(args[1])
-                    if quantity <= 0:
-                        yield event.plain_result("❌ 数量必须是正整数")
+                # 判斷第一個參數是庫存ID還是商品名稱
+                first_arg = args[0]
+                
+                # 嘗試解析為庫存ID（C開頭）
+                instance_id = self._parse_commodity_display_code(first_arg)
+                
+                if instance_id is not None:
+                    # 第一個參數是庫存ID
+                    try:
+                        quantity = int(args[1])
+                        if quantity <= 0:
+                            yield event.plain_result("❌ 数量必须是正整数")
+                            return
+                    except ValueError:
+                        yield event.plain_result("❌ 数量必须是有效的数字")
                         return
-                except ValueError:
-                    yield event.plain_result("❌ 数量必须是有效的数字")
-                    return
 
-                inventory = self.exchange_service.get_user_commodities(user_id)
-                commodity_item = next(
-                    (item for item in inventory if item.instance_id == instance_id),
-                    None,
-                )
+                    inventory = self.exchange_service.get_user_commodities(user_id)
+                    commodity_item = next(
+                        (item for item in inventory if item.instance_id == instance_id),
+                        None,
+                    )
 
-                if not commodity_item:
-                    yield event.plain_result("❌ 找不到指定的库存项目")
-                    return
+                    if not commodity_item:
+                        yield event.plain_result("❌ 找不到指定的库存项目")
+                        return
 
-                current_price = market_status["prices"].get(
-                    commodity_item.commodity_id, 0
-                )
-                if current_price <= 0:
-                    yield event.plain_result(f"❌ 商品价格异常")
-                    return
+                    current_price = market_status["prices"].get(
+                        commodity_item.commodity_id, 0
+                    )
+                    if current_price <= 0:
+                        yield event.plain_result(f"❌ 商品价格异常")
+                        return
 
-                result = self.exchange_service.sell_commodity_by_instance(
-                    user_id, instance_id, quantity, current_price
-                )
+                    result = self.exchange_service.sell_commodity_by_instance(
+                        user_id, instance_id, quantity, current_price
+                    )
+                else:
+                    # 第一個參數是商品名稱
+                    commodity_name = first_arg
+                    
+                    try:
+                        quantity = int(args[1])
+                        if quantity <= 0:
+                            yield event.plain_result("❌ 数量必须是正整数")
+                            return
+                    except ValueError:
+                        yield event.plain_result("❌ 数量必须是有效的数字")
+                        return
+
+                    commodity_id = None
+                    for cid, info in market_status["commodities"].items():
+                        if info["name"] == commodity_name:
+                            commodity_id = cid
+                            break
+
+                    if not commodity_id:
+                        yield event.plain_result(f"❌ 找不到商品: {commodity_name}")
+                        return
+
+                    current_price = market_status["prices"].get(commodity_id, 0)
+                    if current_price <= 0:
+                        yield event.plain_result(f"❌ 商品 {commodity_name} 价格异常")
+                        return
+
+                    inventory = self.exchange_service.get_user_commodities(user_id)
+                    commodity_items = [
+                        item for item in inventory if item.commodity_id == commodity_id
+                    ]
+
+                    if not commodity_items:
+                        yield event.plain_result(f"❌ 您没有 {commodity_name}")
+                        return
+
+                    # 檢查數量是否足夠
+                    total_quantity = sum(item.quantity for item in commodity_items)
+                    if quantity > total_quantity:
+                        yield event.plain_result(
+                            f"❌ 数量不足！您只有 {total_quantity} 个 {commodity_name}"
+                        )
+                        return
+
+                    result = self.exchange_service.sell_commodity(
+                        user_id, commodity_id, quantity, current_price
+                    )
+                
+                # 統一處理結果
                 try:
                     from ..draw.exchange import draw_exchange_result_image
 
                     ok = bool(result.get("success"))
                     title = "賣出完成" if ok else "賣出失敗"
-                    lines = [
-                        f"庫存ID: {inventory_id_str}",
-                        f"數量: {quantity}",
-                        f"成交價: {current_price:,} 金幣",
-                        str(result.get("message", "")),
-                    ]
+                    
+                    # 根據是使用庫存ID還是商品名稱來顯示不同信息
+                    if instance_id is not None:
+                        lines = [
+                            f"庫存ID: {first_arg}",
+                            f"數量: {quantity}",
+                            f"成交價: {current_price:,} 金幣",
+                            str(result.get("message", "")),
+                        ]
+                    else:
+                        lines = [
+                            f"商品: {commodity_name}",
+                            f"數量: {quantity}",
+                            f"成交價: {current_price:,} 金幣",
+                            str(result.get("message", "")),
+                        ]
+                    
                     image = draw_exchange_result_image(title, lines, success=ok)
                     image_path = os.path.join(
                         self.plugin.tmp_dir, "exchange_sell_result.png"

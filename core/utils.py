@@ -117,3 +117,46 @@ def calculate_after_refine(before_value: float, refine_level: int, rarity: int =
     if before_value < 1:
         return before_value * (1 + total_bonus)
     return (before_value - 1) * (1 + total_bonus) + 1
+
+
+def format_user_display_name(username: str, title_info: Any = None) -> str:
+    """
+    格式化用戶顯示名稱，包含稱號
+    
+    Args:
+        username: 用戶名稱
+        title_info: 稱號信息（可以是 Title 對象或包含 'name' 和 'display_format' 的字典）
+    
+    Returns:
+        格式化後的顯示名稱
+        
+    Examples:
+        format_user_display_name("玩家A", None) -> "玩家A"
+        format_user_display_name("玩家A", {"name": "Lucky☆Star", "display_format": "{username}, Lucky☆Star"}) 
+            -> "玩家A, Lucky☆Star"
+        format_user_display_name("玩家A", {"name": "釣魚大師", "display_format": "釣魚大師 {username}"}) 
+            -> "釣魚大師 玩家A"
+    """
+    if not title_info:
+        return username
+    
+    # 獲取稱號名稱和顯示格式
+    if isinstance(title_info, dict):
+        title_name = title_info.get("name", "")
+        display_format = title_info.get("display_format", "{name}")
+    else:
+        # 假設是 Title 對象
+        title_name = getattr(title_info, "name", "")
+        display_format = getattr(title_info, "display_format", "{name}")
+    
+    if not title_name:
+        return username
+    
+    # 格式化顯示
+    try:
+        # 替換 {username} 和 {name} 佔位符
+        formatted = display_format.replace("{username}", username).replace("{name}", title_name)
+        return formatted
+    except Exception:
+        # 如果格式化失敗，返回原始用戶名
+        return username

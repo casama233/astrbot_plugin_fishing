@@ -80,6 +80,10 @@ class FishingPlugin(Star):
 
         self.tmp_dir = os.path.join(self.data_dir, "tmp")
         os.makedirs(self.tmp_dir, exist_ok=True)
+        
+        # 清理舊的臨時圖片文件（保留最近1小時的文件）
+        self._cleanup_old_temp_files()
+        
         db_path = os.path.join(self.data_dir, "fish.db")
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
@@ -357,6 +361,42 @@ class FishingPlugin(Star):
             "高级": "premium",
         }
         return alias_map.get(normalized, normalized)
+
+    def _cleanup_old_temp_files(self, max_age_hours: int = 1):
+        """清理舊的臨時圖片文件
+        
+        Args:
+            max_age_hours: 保留文件的最大小時數，默認1小時
+        """
+        try:
+            import time
+            current_time = time.time()
+            max_age_seconds = max_age_hours * 3600
+            
+            if not os.path.exists(self.tmp_dir):
+                return
+            
+            cleaned_count = 0
+            for filename in os.listdir(self.tmp_dir):
+                file_path = os.path.join(self.tmp_dir, filename)
+                
+                # 只處理圖片文件
+                if not filename.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                    continue
+                
+                try:
+                    # 檢查文件年齡
+                    file_age = current_time - os.path.getmtime(file_path)
+                    if file_age > max_age_seconds:
+                        os.remove(file_path)
+                        cleaned_count += 1
+                except Exception as e:
+                    logger.warning(f"清理臨時文件失敗 {filename}: {e}")
+            
+            if cleaned_count > 0:
+                logger.info(f"已清理 {cleaned_count} 個舊的臨時圖片文件")
+        except Exception as e:
+            logger.error(f"臨時文件清理過程出錯: {e}")
 
     def _get_effective_user_id(self, event: AstrMessageEvent) -> str:
         user_id = str(event.get_sender_id())

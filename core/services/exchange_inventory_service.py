@@ -28,7 +28,10 @@ class ExchangeInventoryService:
         self.commodities = {
             "dried_fish": {"name": "鱼干", "description": "经过晾晒处理的鱼类，保质期较长"},
             "fish_roe": {"name": "鱼卵", "description": "珍贵的鱼类卵子，营养价值极高"},
-            "fish_oil": {"name": "鱼油", "description": "从鱼类中提取的油脂，用途广泛"}
+            "fish_oil": {"name": "鱼油", "description": "从鱼类中提取的油脂，用途广泛"},
+            "fish_bone": {"name": "鱼骨", "description": "坚硬的鱼骨，保质期长，价格最稳定"},
+            "fish_scale": {"name": "鱼鳞", "description": "闪亮的鱼鳞，中等保质期，价格波动适中"},
+            "fish_sauce": {"name": "鱼露", "description": "发酵的鱼露，极短保质期，价格剧烈波动"}
         }
 
     def get_user_commodities(self, user_id: str) -> List[UserCommodity]:
@@ -119,6 +122,12 @@ class ExchangeInventoryService:
                 day_of_year = today.timetuple().tm_yday
                 days = (day_of_year % 3) + 1  # 1, 2, 3 循环
                 expires_at = datetime.now() + timedelta(days=days)
+            elif commodity_id == 'fish_bone':
+                expires_at = datetime.now() + timedelta(days=7)  # 鱼骨：7天
+            elif commodity_id == 'fish_scale':
+                expires_at = datetime.now() + timedelta(days=4)  # 鱼鳞：4天
+            elif commodity_id == 'fish_sauce':
+                expires_at = datetime.now() + timedelta(days=1)  # 鱼露：1天
             else:
                 expires_at = datetime.now() + timedelta(days=3)  # 默认3天
             from ..domain.models import UserCommodity

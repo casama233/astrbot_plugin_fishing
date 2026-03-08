@@ -17,6 +17,9 @@ from .game_ui import (
 from .styles import load_font
 from .text_utils import normalize_display_text
 
+# Safety margin to prevent content truncation
+SAFETY_MARGIN = 50
+
 
 def _format_cost(cost: Dict[str, Any]) -> str:
     """格式化價格顯示"""
@@ -63,7 +66,8 @@ def draw_shop_list_image(shops: List[Dict[str, Any]]) -> Image.Image:
     sub_h = measure.textbbox((0, 0), "測", font=sub_font)[3]
     row_h = max(row_h, head_h + sub_h + 32)
     bottom_pad = 24
-    height = header_h + max(1, len(shops)) * row_h + footer_h + bottom_pad
+    calculated_height = header_h + max(1, len(shops)) * row_h + footer_h + bottom_pad
+    height = calculated_height + SAFETY_MARGIN
 
     image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
@@ -165,7 +169,8 @@ def draw_shop_detail_image(
     small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
     card_h = max(card_h, body_h + small_h * 2 + 40)
     bottom_pad = 24
-    height = header_h + max(1, len(items)) * card_h + footer_h + bottom_pad
+    calculated_height = header_h + max(1, len(items)) * card_h + footer_h + bottom_pad
+    height = calculated_height + SAFETY_MARGIN
 
     image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)

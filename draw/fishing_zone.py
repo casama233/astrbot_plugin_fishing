@@ -12,6 +12,9 @@ from .game_ui import (
 )
 from .styles import load_font
 
+# Safety margin to prevent content truncation
+SAFETY_MARGIN = 50
+
 
 def _fmt_time(dt: Any) -> str:
     if not dt:
@@ -33,7 +36,7 @@ def _build_zone_badges(zone: Dict[str, Any]) -> str:
 
 
 def draw_fishing_zones_image(
-    zones: List[Dict[str, Any]], nickname: str = ""
+    zones: List[Dict[str, Any]], nickname: str = "", current_title: Any = None
 ) -> Image.Image:
     width = 940
     header_h = 106
@@ -44,7 +47,8 @@ def draw_fishing_zones_image(
     if not zones:
         zones = []
 
-    height = header_h + 24 + (len(zones) * (card_h + section_gap)) + footer_h + 24
+    calculated_height = header_h + 24 + (len(zones) * (card_h + section_gap)) + footer_h + 24
+    height = calculated_height + SAFETY_MARGIN
     height = max(height, 320)
 
     image = create_game_gradient(width, height)
@@ -57,7 +61,9 @@ def draw_fishing_zones_image(
 
     title = "釣魚區域"
     if nickname:
-        title = f"{nickname} 的釣魚區域"
+        from ..core.utils import format_user_display_name
+        display_name = format_user_display_name(nickname, current_title)
+        title = f"{display_name} 的釣魚區域"
     draw_game_title_bar(draw, width, 0, header_h, title, title_font, "🌊")
 
     y = header_h + 18

@@ -74,9 +74,12 @@ async def draw_pokedex(pokedex_data: Dict[str, Any], user_info: Dict[str, Any], 
     end_index = start_index + FISH_PER_PAGE
     page_fishes = pokedex_list[start_index:end_index]
 
-    # 页脚高度
+    # 页脚高度和安全边距
     FOOTER_HEIGHT = 50
-    img_height = HEADER_HEIGHT + (FISH_CARD_HEIGHT + FISH_CARD_MARGIN) * len(page_fishes) + PADDING * 2 + FOOTER_HEIGHT
+    SAFETY_MARGIN = 50
+    
+    calculated_height = HEADER_HEIGHT + (FISH_CARD_HEIGHT + FISH_CARD_MARGIN) * len(page_fishes) + PADDING * 2 + FOOTER_HEIGHT
+    img_height = calculated_height + SAFETY_MARGIN
     
     # 创建渐变背景 - 参考背包设计
     bg_top = (174, 214, 241)  # 柔和天蓝色
@@ -108,7 +111,13 @@ async def draw_pokedex(pokedex_data: Dict[str, Any], user_info: Dict[str, Any], 
             header_x += avatar_size + 20  # 头像存在时，标题向右偏移
     
     # 标题 - 使用背包颜色，调整到头像中间位置
-    header_text = f"{user_info.get('nickname', '玩家')}的图鉴"
+    nickname = user_info.get('nickname', '玩家')
+    current_title = user_info.get('current_title')
+    
+    from ..core.utils import format_user_display_name
+    display_name = format_user_display_name(nickname, current_title)
+    
+    header_text = f"{display_name}的图鉴"
     draw.text((header_x, header_y + 12), header_text, font=FONT_HEADER, fill=primary_dark)
 
     # 进度 - 使用背包颜色

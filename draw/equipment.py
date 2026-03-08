@@ -7,6 +7,9 @@ from .gradient_utils import create_vertical_gradient
 from .styles import load_font
 from .text_utils import normalize_display_text
 
+# Safety margin to prevent content truncation
+SAFETY_MARGIN = 50
+
 
 def _star(rarity: int) -> str:
     r = int(rarity or 1)
@@ -39,9 +42,11 @@ def draw_equipment_image(
     measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
     small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
-    card_h = max(card_h, body_h + small_h * 2 + 44)
+    # Increase padding to 60 to ensure all text lines fit
+    card_h = max(card_h, body_h + small_h * 2 + 60)
     bottom_pad = 24
-    height = header_h + max(1, len(entries)) * card_h + footer_h + bottom_pad
+    calculated_height = header_h + max(1, len(entries)) * card_h + footer_h + bottom_pad
+    height = calculated_height + SAFETY_MARGIN
 
     image = create_vertical_gradient(width, height, (238, 248, 255), (255, 255, 255))
     draw = ImageDraw.Draw(image)

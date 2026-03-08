@@ -841,9 +841,12 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
         # 預設返回精美圖片幫助
         try:
             img = draw_help_image()
-            yield event.make_result().file_image(img)
+            image_path = os.path.join(self.tmp_dir, "fishing_help.png")
+            img.save(image_path)
+            yield event.image_result(image_path)
             return
         except Exception as e:
+            logger.error(f"生成釣魚幫助圖片失敗: {e}", exc_info=True)
             # 如果圖片生成失敗，回退到文字版首頁
             for chunk in _chunk_text(pages["index"]):
                 yield event.plain_result(chunk)
@@ -1003,7 +1006,16 @@ async def toggle_my_suggestions(self: "FishingPlugin", event: AstrMessageEvent):
         )
     elif action in ["off", "关", "关闭", "false", "0"]:
         user.show_suggestions = False
+        logger.info(f"用戶 {user_id} 設置 show_suggestions = False，準備更新數據庫")
         self.user_repo.update(user)
+        
+        # 驗證更新是否成功
+        updated_user = self.user_repo.get_by_id(user_id)
+        if updated_user:
+            logger.info(f"更新後從數據庫讀取的 show_suggestions 值: {updated_user.show_suggestions}")
+            if updated_user.show_suggestions:
+                logger.error(f"警告：用戶 {user_id} 的 show_suggestions 更新失敗，數據庫中仍為 True")
+        
         yield event.plain_result(
             "✅ 已为您关闭建议消息！\n\n"
             "现在使用指令时将不再显示「建议下一步」或「常用操作」提示信息。"

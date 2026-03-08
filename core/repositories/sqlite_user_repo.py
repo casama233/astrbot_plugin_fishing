@@ -179,6 +179,13 @@ class SqliteUserRepository(AbstractUserRepository):
         values.append(user.user_id)
 
         sql = f"UPDATE users SET {set_clause} WHERE user_id = ?"
+        
+        # 調試日誌：檢查 show_suggestions 是否在更新字段中
+        if "show_suggestions" in fields:
+            show_suggestions_value = getattr(user, "show_suggestions")
+            logger.debug(f"更新用戶 {user.user_id} 的 show_suggestions 為: {show_suggestions_value}")
+        else:
+            logger.warning(f"show_suggestions 字段未在更新字段列表中！字段列表: {fields}")
 
         try:
             with self._get_connection() as conn:
@@ -191,6 +198,7 @@ class SqliteUserRepository(AbstractUserRepository):
                     self.add(user)  # 如果更新失败（比如用户不存在），则尝试添加
                 else:
                     conn.commit()
+                    logger.debug(f"成功更新用戶 {user.user_id}，影響 {cursor.rowcount} 行")
         except sqlite3.Error as e:
             logger.error(f"更新用户 {user.user_id} 数据时发生数据库错误: {e}")
             raise

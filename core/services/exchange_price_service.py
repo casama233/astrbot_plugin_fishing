@@ -22,7 +22,10 @@ class ExchangePriceService:
         self.commodities = {
             "dried_fish": {"name": "鱼干", "description": "经过晾晒处理的鱼类，保质期较长"},
             "fish_roe": {"name": "鱼卵", "description": "珍贵的鱼类卵子，营养价值极高"},
-            "fish_oil": {"name": "鱼油", "description": "从鱼类中提取的油脂，用途广泛"}
+            "fish_oil": {"name": "鱼油", "description": "从鱼类中提取的油脂，用途广泛"},
+            "fish_bone": {"name": "鱼骨", "description": "坚硬的鱼骨，保质期长，价格最稳定"},
+            "fish_scale": {"name": "鱼鳞", "description": "闪亮的鱼鳞，中等保质期，价格波动适中"},
+            "fish_sauce": {"name": "鱼露", "description": "发酵的鱼露，极短保质期，价格剧烈波动"}
         }
         
         # 价格更新任务
@@ -54,7 +57,10 @@ class ExchangePriceService:
                 initial_prices = self.config.get("initial_prices", {
                     "dried_fish": 6000,
                     "fish_roe": 12000,
-                    "fish_oil": 10000
+                    "fish_oil": 10000,
+                    "fish_bone": 4000,
+                    "fish_scale": 8000,
+                    "fish_sauce": 15000
                 })
                 return {
                     "success": True,
@@ -249,7 +255,10 @@ class ExchangePriceService:
             initial_prices = self.config.get("initial_prices", {
                 "dried_fish": 6000,
                 "fish_roe": 12000,
-                "fish_oil": 10000
+                "fish_oil": 10000,
+                "fish_bone": 4000,
+                "fish_scale": 8000,
+                "fish_sauce": 15000
             })
             
             for commodity_id, price in initial_prices.items():
@@ -495,7 +504,10 @@ class ExchangePriceService:
                 init_prices = self.config.get("initial_prices", {
                     "dried_fish": 6000,
                     "fish_roe": 12000,
-                    "fish_oil": 10000
+                    "fish_oil": 10000,
+                    "fish_bone": 4000,
+                    "fish_scale": 8000,
+                    "fish_sauce": 15000
                 })
                 for commodity_id in self.commodities.keys():
                     if commodity_id not in last_prices:

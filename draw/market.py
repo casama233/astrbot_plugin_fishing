@@ -6,6 +6,9 @@ from PIL import Image, ImageDraw
 from .gradient_utils import create_vertical_gradient
 from .styles import load_font
 
+# Safety margin to prevent content truncation
+SAFETY_MARGIN = 50
+
 
 def _get_attr(obj: Any, name: str, default: Any = None) -> Any:
     return getattr(obj, name, default)
@@ -118,9 +121,10 @@ def draw_market_list_image(grouped_items: Dict[str, Iterable[Any]]) -> Image.Ima
     total_rows = sum(len(rows) for _, _, rows in sections)
     total_sections = len(sections)
     bottom_pad = 24
-    height = (
+    calculated_height = (
         header_h + total_rows * row_h + total_sections * sec_head_h + footer_h + bottom_pad
     )
+    height = calculated_height + SAFETY_MARGIN
     width = 1280
 
     image = create_vertical_gradient(width, height, (239, 248, 255), (255, 255, 255))

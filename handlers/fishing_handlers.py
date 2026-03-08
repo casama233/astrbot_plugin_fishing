@@ -129,9 +129,23 @@ class FishingHandlers:
                 return
             zones = result.get("zones", [])
             try:
+                # 獲取用戶稱號信息
+                current_title = None
+                if user and hasattr(user, "current_title_id") and user.current_title_id:
+                    try:
+                        title_info = self.plugin.item_template_repo.get_title_by_id(user.current_title_id)
+                        if title_info:
+                            current_title = {
+                                "name": title_info.name,
+                                "display_format": title_info.display_format if hasattr(title_info, "display_format") else "{name}"
+                            }
+                    except:
+                        pass
+                
                 image = draw_fishing_zones_image(
                     zones,
                     nickname=(user.nickname if user else "") or str(user_id),
+                    current_title=current_title
                 )
                 image_path = safe_get_file_path(
                     self.plugin, f"fishing_zones_{user_id}.png"

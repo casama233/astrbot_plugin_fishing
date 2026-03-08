@@ -18,6 +18,9 @@ from .game_ui import (
 from .styles import load_font
 from .text_utils import normalize_display_text
 
+# Safety margin to prevent content truncation
+SAFETY_MARGIN = 50
+
 
 def format_rarity_display(rarity: int) -> str:
     """格式化稀有度顯示"""
@@ -46,18 +49,15 @@ def draw_state_image(
     header_h = 100
     section_gap = 15
     footer_h = 50
-    current_title = user_data.get("current_title")
 
     y = header_h + 15
-    y += 105
-    y += 35
-    y += 155
-    y += 35
-    y += 145
-    if current_title:
-        y += 35
-        y += 65
-    height = y + footer_h + 60
+    y += 105  # 基本資訊卡片
+    y += 35   # 當前裝備標題
+    y += 155  # 裝備卡片
+    y += 35   # 功能狀態標題
+    y += 145  # 狀態卡片
+    calculated_height = y + footer_h + 60
+    height = calculated_height + SAFETY_MARGIN
 
     # 創建遊戲風格背景
     image = create_game_gradient(width, height)
@@ -72,22 +72,15 @@ def draw_state_image(
 
     # 標題欄
     nickname = user_data.get("nickname", "未知用戶")
-    header_title = user_data.get("current_title")
+    current_title = user_data.get("current_title")
+    
+    # 格式化用戶顯示名稱（包含稱號）
+    from ..core.utils import format_user_display_name
+    display_name = format_user_display_name(nickname, current_title)
+    
     draw_game_title_bar(
-        draw, width, 0, header_h, f"{nickname} 的狀態", title_font, "👤"
+        draw, width, 0, header_h, f"{display_name} 的狀態", title_font, "👤"
     )
-    if header_title:
-        title_name = (
-            header_title.get("name")
-            if isinstance(header_title, dict)
-            else str(header_title)
-        )
-        draw.text(
-            (28, 74),
-            f"「{title_name[:24]}」",
-            font=small_font,
-            fill=GAME_COLORS["accent_gold"],
-        )
 
     y = header_h + 15
 
@@ -329,34 +322,6 @@ def draw_state_image(
 
     y += 145
 
-    # 4. 稱號
-    if current_title:
-        draw.text(
-            (25, y), "🏆 當前稱號", font=section_font, fill=GAME_COLORS["accent_gold"]
-        )
-        y += 35
-
-        draw_game_card(
-            draw,
-            (20, y, width - 20, y + 50),
-            radius=10,
-            fill=GAME_COLORS["bg_light"],
-            border_color=GAME_COLORS["border_highlight"],
-        )
-
-        if isinstance(current_title, dict):
-            title_name = current_title.get("name", "無稱號")
-        else:
-            title_name = str(current_title)
-
-        draw.text(
-            (35, y + 12),
-            f"✨ {title_name}",
-            font=content_font,
-            fill=GAME_COLORS["accent_gold"],
-        )
-        y += 65
-
     # 底部
     draw_game_divider(draw, 30, width - 30, y + 10)
     draw.text(
@@ -506,15 +471,15 @@ def get_user_state_data(
             if title_info:
                 current_title = {
                     "id": user.current_title_id,
-                    "name": title_info.name
-                    if hasattr(title_info, "name")
-                    else str(title_info),
+                    "name": title_info.name if hasattr(title_info, "name") else str(title_info),
+                    "display_format": title_info.display_format if hasattr(title_info, "display_format") else "{name}"
                 }
             else:
                 # 如果无法获取详细信息，至少显示称号ID
                 current_title = {
                     "id": user.current_title_id,
                     "name": f"称号#{user.current_title_id}",
+                    "display_format": "{name}"
                 }
         except:
             # 如果获取称号失败，忽略

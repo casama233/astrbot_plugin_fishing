@@ -192,14 +192,17 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
                 )
 
             # 生成背包图像
-    image = draw_backpack_image(backpack_data, plugin.data_dir)
-    # 保存图像到临时文件
-    image_path = os.path.join(plugin.tmp_dir, "user_backpack.png")
-    image.save(image_path)
-    yield event.image_result(image_path)
-    yield build_tip_result(
-        event, _build_dynamic_shortcuts(plugin, user_id, "backpack"), plugin, user_id
-    )
+            image = draw_backpack_image(backpack_data, plugin.data_dir)
+            # 保存图像到临时文件
+            image_path = os.path.join(plugin.tmp_dir, "user_backpack.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+            yield build_tip_result(
+                event,
+                _build_dynamic_shortcuts(plugin, user_id, "backpack"),
+                plugin,
+                user_id,
+            )
 
             # 如果内容被截断或过滤，额外发送提示
             if backpack_data.get("is_truncated", False):

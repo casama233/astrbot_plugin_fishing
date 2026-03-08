@@ -111,13 +111,18 @@ async def ranking(plugin: "FishingPlugin", event: AstrMessageEvent):
                 accessory_name = accessory_template.name
         user_dict["accessory"] = accessory_name
 
-        # 获取称号名称
-        title_name = "无称号"
+        # 获取称号信息（包括 display_format）
+        title_info_dict = None
         if current_title_id := user_dict.get("current_title_id"):
             title_info = plugin.item_template_repo.get_title_by_id(current_title_id)
             if title_info:
+                title_info_dict = {
+                    "name": title_info.name,
+                    "display_format": title_info.display_format if hasattr(title_info, "display_format") else "{name}"
+                }
                 title_name = title_info.name
         user_dict["title"] = title_name
+        user_dict["title_info"] = title_info_dict  # 添加完整的稱號信息
 
         # 确保重量字段存在，以防万一
         user_dict["total_weight_caught"] = user_dict.get("total_weight_caught", 0)

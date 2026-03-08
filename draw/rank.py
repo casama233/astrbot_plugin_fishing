@@ -95,11 +95,15 @@ def draw_fishing_ranking(user_data: List[Dict], output_path: str, ranking_type: 
         font_regular = ImageFont.load_default()
         font_small = ImageFont.load_default()
 
+    # Safety margin to prevent content truncation
+    SAFETY_MARGIN = 50
+    
     # 取前10名用户
     top_users = user_data[:10] if len(user_data) > 10 else user_data
 
-    # 计算图片高度
-    total_height = HEADER_HEIGHT + (USER_CARD_HEIGHT + USER_CARD_MARGIN) * len(top_users) + PADDING * 2
+    # 计算图片高度并添加安全边距
+    calculated_height = HEADER_HEIGHT + (USER_CARD_HEIGHT + USER_CARD_MARGIN) * len(top_users) + PADDING * 2
+    total_height = calculated_height + SAFETY_MARGIN
 
     # 创建图片和绘图对象
     img = Image.new("RGB", (IMG_WIDTH, total_height), COLOR_BACKGROUND)
@@ -140,7 +144,8 @@ def draw_fishing_ranking(user_data: List[Dict], output_path: str, ranking_type: 
     for idx, user in enumerate(top_users):
         # 获取用户数据
         nickname = user.get("nickname", "未知用户")
-        title = user.get("title", "无称号")
+        title_info = user.get("title_info")  # 完整的稱號信息（包含 display_format）
+        title_name = user.get("title", "无称号")  # 向後兼容
         coins = user.get("coins", 0)
         max_coins = user.get("max_coins", 0)
         fish_count = user.get("fish_count", 0)
@@ -174,22 +179,20 @@ def draw_fishing_ranking(user_data: List[Dict], output_path: str, ranking_type: 
             rank_y = card_y1 + (USER_CARD_HEIGHT - get_text_metrics(rank_text, font_rank, draw)[1][1]) // 2
             draw.text((rank_x, rank_y), rank_text, font=font_rank, fill=rank_color)
 
-        # 绘制用户名和称号
+        # 绘制用户名（包含格式化的稱號）
         name_x = PADDING + 70
         name_y = card_y1 + 15
         
-        if len(nickname) > 12:
-            nickname = nickname[:10] + "..."
-        draw.text((name_x, name_y), nickname, font=font_name, fill=COLOR_TEXT_DARK)
-
-        _, (name_width, _) = get_text_metrics(nickname, font_name, draw)
-        title_x = name_x + name_width + 10
-        title_y = name_y + 2
-        title_display = title if len(title) <= 8 else title[:6] + ".."
-        draw.text((title_x, title_y), f"【{title_display}】", font=font_small, fill=COLOR_ACCENT)
+        # 格式化用戶顯示名稱（包含稱號）
+        from ..core.utils import format_user_display_name
+        display_name = format_user_display_name(nickname, title_info)
+        
+        if len(display_name) > 20:
+            display_name = display_name[:18] + "..."
+        draw.text((name_x, name_y), display_name, font=font_name, fill=COLOR_TEXT_DARK)
 
         # --- 修改：重新布局底部信息行（根据排行榜类型显示）---
-        bottom_line_y = name_y + get_text_metrics(nickname, font_name, draw)[1][1] + 10
+        bottom_line_y = name_y + get_text_metrics(display_name, font_name, draw)[1][1] + 10
         
         # 卡片的可用宽度
         card_left = PADDING

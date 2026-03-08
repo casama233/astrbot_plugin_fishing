@@ -644,13 +644,25 @@ def draw_exchange_result_image(
     header_h = 100
     row_h = 36
     footer_h = 60
+    safety_margin = 50  # 添加安全邊距
+    
     title_font = load_font(32)
     body_font = load_font(18)
     measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
     row_h = max(row_h, body_h + 12)
     bottom_pad = 20
-    height = header_h + max(2, len(lines)) * row_h + footer_h + bottom_pad
+    
+    # 計算實際需要的行數（考慮換行符）
+    total_lines = 0
+    for line in lines:
+        # 計算每行文字因為換行符產生的實際行數
+        line_count = line.count('\n') + 1
+        total_lines += line_count
+    
+    # 使用實際行數計算高度，並添加安全邊距
+    calculated_height = header_h + max(2, total_lines) * row_h + footer_h + bottom_pad
+    height = calculated_height + safety_margin
 
     image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
@@ -666,9 +678,12 @@ def draw_exchange_result_image(
 
     y = 100
     for line in lines:
-        draw.text(
-            (45, y), f"• {line}", font=body_font, fill=GAME_COLORS["text_secondary"]
-        )
-        y += row_h
+        # 處理多行文字（按換行符分割）
+        sub_lines = line.split('\n')
+        for sub_line in sub_lines:
+            draw.text(
+                (45, y), f"• {sub_line}", font=body_font, fill=GAME_COLORS["text_secondary"]
+            )
+            y += row_h
 
     return image

@@ -238,21 +238,37 @@
       },
       "volatility": {
         "type": "object",
+        "description": "各商品的基础波动率配置",
         "items": {
           "dried_fish": {
             "type": "float",
             "default": 0.08,
-            "description": "鱼干基础波动率（±8%）"
+            "description": "鱼干基础波动率（±8%）- 低风险"
           },
           "fish_roe": {
             "type": "float",
             "default": 0.12,
-            "description": "鱼卵基础波动率（±12%）"
+            "description": "鱼卵基础波动率（±12%）- 高风险"
           },
           "fish_oil": {
             "type": "float",
             "default": 0.10,
-            "description": "鱼油基础波动率（±10%）"
+            "description": "鱼油基础波动率（±10%）- 中高风险"
+          },
+          "fish_bone": {
+            "type": "float",
+            "default": 0.05,
+            "description": "鱼骨基础波动率（±5%）- 超低风险"
+          },
+          "fish_scale": {
+            "type": "float",
+            "default": 0.09,
+            "description": "鱼鳞基础波动率（±9%）- 中等风险"
+          },
+          "fish_sauce": {
+            "type": "float",
+            "default": 0.18,
+            "description": "鱼露基础波动率（±18%）- 超高风险"
           }
         }
       },
@@ -286,17 +302,17 @@
           },
           "pessimistic": {
             "type": "float",
-            "default": 0.2,
+            "default": 0.3,
             "description": "悲观情绪概率"
           },
           "neutral": {
             "type": "float",
-            "default": 0.4,
+            "default": 0.6,
             "description": "中性情绪概率"
           },
           "optimistic": {
             "type": "float",
-            "default": 0.2,
+            "default": 0.5,
             "description": "乐观情绪概率"
           },
           "euphoric": {
@@ -317,17 +333,109 @@
           "dried_fish": {
             "type": "int",
             "default": 6000,
-            "description": "鱼干初始价格（低风险低收益）"
+            "description": "鱼干初始价格（低风险低收益，保质期3天）"
           },
           "fish_roe": {
             "type": "int",
             "default": 12000,
-            "description": "鱼卵初始价格（高风险高收益）"
+            "description": "鱼卵初始价格（高风险高收益，保质期2天）"
           },
           "fish_oil": {
             "type": "int",
             "default": 10000,
-            "description": "鱼油初始价格（投机品，事件驱动）"
+            "description": "鱼油初始价格（投机品，事件驱动，保质期1-3天）"
+          },
+          "fish_bone": {
+            "type": "int",
+            "default": 4000,
+            "description": "鱼骨初始价格（超低风险，保质期7天，价格稳定）"
+          },
+          "fish_scale": {
+            "type": "int",
+            "default": 8000,
+            "description": "鱼鳞初始价格（中等风险，保质期4天，适合中期持有）"
+          },
+          "fish_sauce": {
+            "type": "int",
+            "default": 15000,
+            "description": "鱼露初始价格（超高风险，保质期1天，短线投机）"
+          }
+        }
+      },
+      "shelf_life": {
+        "type": "object",
+        "description": "各商品的保质期配置（天数）",
+        "items": {
+          "dried_fish": {
+            "type": "int",
+            "default": 3,
+            "description": "鱼干保质期（天）"
+          },
+          "fish_roe": {
+            "type": "int",
+            "default": 2,
+            "description": "鱼卵保质期（天）"
+          },
+          "fish_oil_min": {
+            "type": "int",
+            "default": 1,
+            "description": "鱼油最短保质期（天）"
+          },
+          "fish_oil_max": {
+            "type": "int",
+            "default": 3,
+            "description": "鱼油最长保质期（天）"
+          },
+          "fish_bone": {
+            "type": "int",
+            "default": 7,
+            "description": "鱼骨保质期（天）"
+          },
+          "fish_scale": {
+            "type": "int",
+            "default": 4,
+            "description": "鱼鳞保质期（天）"
+          },
+          "fish_sauce": {
+            "type": "int",
+            "default": 1,
+            "description": "鱼露保质期（天）"
+          }
+        }
+      },
+      "commodity_descriptions": {
+        "type": "object",
+        "description": "商品描述信息",
+        "items": {
+          "dried_fish": {
+            "type": "string",
+            "default": "经过晾晒的鱼干，易于保存，价格稳定，适合新手投资",
+            "description": "鱼干描述"
+          },
+          "fish_roe": {
+            "type": "string",
+            "default": "珍贵的鱼卵，营养丰富，价格波动大，高风险高收益",
+            "description": "鱼卵描述"
+          },
+          "fish_oil": {
+            "type": "string",
+            "default": "提炼的鱼油，保质期不定，受市场事件影响大",
+            "description": "鱼油描述"
+          },
+          "fish_bone": {
+            "type": "string",
+            "default": "坚硬的鱼骨，保质期长，价格最稳定，适合长期持有",
+            "description": "鱼骨描述"
+          },
+          "fish_scale": {
+            "type": "string",
+            "default": "闪亮的鱼鳞，中等保质期，价格波动适中，平衡之选",
+            "description": "鱼鳞描述"
+          },
+          "fish_sauce": {
+            "type": "string",
+            "default": "发酵的鱼露，极短保质期，价格剧烈波动，仅供高手",
+            "description": "鱼露描述"
           }
         }
       }

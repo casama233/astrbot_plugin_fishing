@@ -20,6 +20,9 @@ from .game_ui import (
 from .styles import load_font
 from .text_utils import normalize_display_text
 
+# Safety margin to prevent content truncation
+SAFETY_MARGIN = 50
+
 
 def format_rarity_display(rarity: int) -> str:
     """格式化稀有度顯示"""
@@ -32,114 +35,120 @@ def format_rarity_display(rarity: int) -> str:
 def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image:
     """背包界面 - 遊戲風格"""
     width = 900
-    header_h = 100
-    section_gap = 12
-    footer_h = 50
+    header_h = 120
+    section_gap = 20
+    footer_h = 60
 
+    # 計算各區域高度
     rods = user_data.get("rods", [])
     accessories = user_data.get("accessories", [])
     baits = user_data.get("baits", [])
     items = user_data.get("items", [])
 
-    rod_rows = math.ceil(min(len(rods), 4) / 2) if rods else 0
-    acc_rows = math.ceil(min(len(accessories), 4) / 2) if accessories else 0
-    bait_rows = math.ceil(min(len(baits), 6) / 3) if baits else 0
-    item_rows = math.ceil(min(len(items), 6) / 3) if items else 0
+    rod_rows = math.ceil(len(rods) / 3) if rods else 0
+    acc_rows = math.ceil(len(accessories) / 3) if accessories else 0
+    bait_rows = math.ceil(len(baits) / 3) if baits else 0
+    item_rows = math.ceil(len(items) / 3) if items else 0
 
-    rod_h = rod_rows * 140 if rods else 50
-    acc_h = acc_rows * 140 if accessories else 50
-    bait_h = bait_rows * 100 if baits else 50
-    item_h = item_rows * 100 if items else 50
+    # Each section has a title (40px) + content
+    # For sections with content: title (40px) + rows * card_height
+    # For empty sections: title (40px) + empty message (20px)
+    # Reduced card height for more compact layout: 140px for rods/accessories
+    rod_h = (40 + rod_rows * 140) if rods else 60
+    acc_h = (40 + acc_rows * 140) if accessories else 60
+    bait_h = (40 + bait_rows * 110) if baits else 60
+    item_h = (40 + item_rows * 110) if items else 60
 
-    height = (
-        header_h + rod_h + acc_h + bait_h + item_h + section_gap * 4 + footer_h + 20
+    calculated_height = (
+        header_h + rod_h + acc_h + bait_h + item_h + section_gap * 5 + footer_h + 40
     )
+    height = calculated_height + SAFETY_MARGIN
 
     # 創建遊戲風格背景
     image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
     # 字體
-    title_font = load_font(30)
-    section_font = load_font(22)
-    content_font = load_font(17)
-    small_font = load_font(14)
-    tiny_font = load_font(12)
+    title_font = load_font(34)
+    section_font = load_font(26)
+    content_font = load_font(18)
+    small_font = load_font(15)
+    tiny_font = load_font(13)
 
+    # 標題欄
     nickname = user_data.get("nickname", "未知用戶")
     current_title = user_data.get("current_title")
+    
+    # 格式化用戶顯示名稱（包含稱號）
+    from ..core.utils import format_user_display_name
+    display_name = format_user_display_name(nickname, current_title)
+    
     draw_game_title_bar(
-        draw, width, 0, header_h, f"{nickname} 的背包", title_font, "🎒"
+        draw, width, 0, header_h, f"{display_name} 的背包", title_font, "🎒"
     )
-    if current_title:
-        draw.text(
-            (30, 65),
-            f"「{str(current_title)[:24]}」",
-            font=small_font,
-            fill=GAME_COLORS["accent_gold"],
-        )
 
-    y = header_h + 10
+    y = header_h + 15
 
     # 1. 魚竿區域
     draw.text((30, y), "🎣 魚竿", font=section_font, fill=GAME_COLORS["accent_blue"])
     y += 40
 
     if rods:
-        for i, rod in enumerate(rods[:4]):
-            col = i % 2
-            row = i // 2
-            x = 25 + col * 440
+        # 每行 3 個，更緊湊的排版
+        rod_rows = math.ceil(len(rods) / 3)
+        rod_section_height = rod_rows * 140
+
+        for i, rod in enumerate(rods):
+            col = i % 3
+            row = i // 3
+            x = 25 + col * 290
             card_y = y + row * 140
 
+            # 卡片
             draw_game_card(
                 draw,
-                (x, card_y, x + 430, card_y + 130),
+                (x, card_y, x + 280, card_y + 130),
                 radius=10,
                 fill=GAME_COLORS["bg_card"],
                 border_color=GAME_COLORS["border"],
             )
 
+            # ID 和名稱
+            rod_id = rod.get("id", "?")
             name = rod.get("name", "未知魚竿")
-            rod_code = (
-                rod.get("display_code") or f"R{int(rod.get('instance_id', 0) or 0)}"
-            )
             draw.text(
-                (x + 15, card_y + 8),
-                name[:12],
+                (x + 12, card_y + 8),
+                f"#{rod_id} {name[:9]}",
                 font=content_font,
                 fill=GAME_COLORS["text_primary"],
             )
-            draw.text(
-                (x + 260, card_y + 10),
-                f"ID:{rod_code}",
-                font=tiny_font,
-                fill=GAME_COLORS["text_secondary"],
-            )
 
+            # 稀有度
             rarity = rod.get("rarity", 1)
             stars = format_rarity_display(rarity)
             color = get_rarity_color(rarity)
-            draw.text((x + 15, card_y + 30), stars, font=small_font, fill=color)
+            draw.text((x + 12, card_y + 32), stars, font=tiny_font, fill=color)
 
+            # 屬性（簡化顯示）
             attr_y = card_y + 52
             if rod.get("bonus_fish_quality_modifier", 1.0) > 1:
                 draw.text(
-                    (x + 15, attr_y),
-                    f"✨ 品質 +{int((rod['bonus_fish_quality_modifier'] - 1) * 100)}%",
+                    (x + 12, attr_y),
+                    f"品質+{int((rod['bonus_fish_quality_modifier'] - 1) * 100)}%",
                     font=tiny_font,
                     fill=GAME_COLORS["success"],
                 )
                 attr_y += 16
             if rod.get("bonus_fish_quantity_modifier", 1.0) > 1:
                 draw.text(
-                    (x + 15, attr_y),
-                    f"📦 數量 +{int((rod['bonus_fish_quantity_modifier'] - 1) * 100)}%",
+                    (x + 12, attr_y),
+                    f"數量+{int((rod['bonus_fish_quantity_modifier'] - 1) * 100)}%",
                     font=tiny_font,
                     fill=GAME_COLORS["success"],
                 )
                 attr_y += 16
 
+            # 耐久
             max_dur = rod.get("max_durability")
             cur_dur = rod.get("current_durability")
             if max_dur:
@@ -149,22 +158,20 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                     else GAME_COLORS["warning"]
                 )
                 draw.text(
-                    (x + 15, card_y + 100),
-                    f"耐久：{cur_dur}/{max_dur}",
+                    (x + 12, card_y + 105),
+                    f"耐久 {cur_dur}/{max_dur}",
                     font=tiny_font,
                     fill=dur_color,
                 )
             else:
                 draw.text(
-                    (x + 15, card_y + 100),
-                    "♾️ 無限耐久",
+                    (x + 12, card_y + 105),
+                    "♾️ 無限",
                     font=tiny_font,
                     fill=GAME_COLORS["accent_blue"],
                 )
 
-        rod_display_count = min(len(rods), 4)
-        rod_rows = math.ceil(rod_display_count / 2)
-        rod_section_height = rod_rows * 140
+        # 在 for 循环结束后，增加 y 坐标
         y += rod_section_height + section_gap
     else:
         draw.text(
@@ -177,42 +184,40 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     y += 40
 
     if accessories:
-        for i, acc in enumerate(accessories[:4]):
-            col = i % 2
-            row = i // 2
-            x = 25 + col * 440
+        # 每行 3 個，更緊湊的排版
+        acc_rows = math.ceil(len(accessories) / 3)
+        acc_section_height = acc_rows * 140
+
+        for i, acc in enumerate(accessories):
+            col = i % 3
+            row = i // 3
+            x = 25 + col * 290
             card_y = y + row * 140
 
             draw_game_card(
                 draw,
-                (x, card_y, x + 430, card_y + 130),
+                (x, card_y, x + 280, card_y + 130),
                 radius=10,
                 fill=GAME_COLORS["bg_card"],
                 border_color=GAME_COLORS["border"],
             )
 
+            # ID 和名稱
+            acc_id = acc.get("id", "?")
             name = acc.get("name", "未知飾品")
-            acc_code = (
-                acc.get("display_code") or f"A{int(acc.get('instance_id', 0) or 0)}"
-            )
             draw.text(
-                (x + 15, card_y + 8),
-                name[:12],
+                (x + 12, card_y + 8),
+                f"#{acc_id} {name[:9]}",
                 font=content_font,
                 fill=GAME_COLORS["text_primary"],
-            )
-            draw.text(
-                (x + 260, card_y + 10),
-                f"ID:{acc_code}",
-                font=tiny_font,
-                fill=GAME_COLORS["text_secondary"],
             )
 
             rarity = acc.get("rarity", 1)
             stars = format_rarity_display(rarity)
             color = get_rarity_color(rarity)
-            draw.text((x + 15, card_y + 30), stars, font=small_font, fill=color)
+            draw.text((x + 12, card_y + 32), stars, font=tiny_font, fill=color)
 
+            # 屬性（簡化顯示）
             attr_y = card_y + 52
             modifiers = [
                 ("bonus_fish_quality_modifier", "品質"),
@@ -224,16 +229,16 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                 val = acc.get(key, 1.0)
                 if val > 1:
                     draw.text(
-                        (x + 15, attr_y),
-                        f"✨ {label} +{int((val - 1) * 100)}%",
+                        (x + 12, attr_y),
+                        f"{label}+{int((val - 1) * 100)}%",
                         font=tiny_font,
                         fill=GAME_COLORS["success"],
                     )
                     attr_y += 16
+                    if attr_y > card_y + 100:  # 避免超出卡片
+                        break
 
-        acc_display_count = min(len(accessories), 4)
-        acc_rows = math.ceil(acc_display_count / 2)
-        acc_section_height = acc_rows * 140
+        # 在 for 循环结束后，增加 y 坐标
         y += acc_section_height + section_gap
     else:
         draw.text(
@@ -246,37 +251,34 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     y += 40
 
     if baits:
-        for i, bait in enumerate(baits[:6]):
+        bait_rows = math.ceil(len(baits) / 3)
+        bait_section_height = bait_rows * 110
+
+        for i, bait in enumerate(baits):
             col = i % 3
             row = i // 3
             x = 25 + col * 290
-            card_y = y + row * 100
+            card_y = y + row * 110
 
             draw_game_card(
                 draw,
-                (x, card_y, x + 280, card_y + 90),
+                (x, card_y, x + 280, card_y + 100),
                 radius=8,
                 fill=GAME_COLORS["bg_card"],
                 border_color=GAME_COLORS["border"],
             )
 
+            # ID 和名稱
+            bait_id = bait.get("id", "?")
             name = bait.get("name", "未知魚餌")
-            bait_id = int(bait.get("bait_id", 0) or 0)
-            bait_code = f"B{bait_id}" if bait_id else "B0"
+            qty = bait.get("quantity", 0)
             draw.text(
                 (x + 12, card_y + 8),
-                name[:10],
+                f"#{bait_id} {name[:8]}",
                 font=content_font,
                 fill=GAME_COLORS["text_primary"],
             )
-            draw.text(
-                (x + 190, card_y + 10),
-                bait_code,
-                font=tiny_font,
-                fill=GAME_COLORS["text_secondary"],
-            )
 
-            qty = bait.get("quantity", 0)
             draw.text(
                 (x + 12, card_y + 32),
                 f"數量: {qty}",
@@ -293,7 +295,16 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                     fill=GAME_COLORS["accent_blue"],
                 )
 
-        y += bait_h + section_gap
+            effect = normalize_display_text(bait.get("effect_description"))
+            if effect:
+                draw.text(
+                    (x + 12, card_y + 72),
+                    effect[:18],
+                    font=tiny_font,
+                    fill=GAME_COLORS["text_muted"],
+                )
+
+        y += bait_section_height + section_gap
     else:
         draw.text(
             (50, y + 20), "暫無魚餌", font=content_font, fill=GAME_COLORS["text_muted"]
@@ -305,37 +316,34 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     y += 40
 
     if items:
-        for i, item in enumerate(items[:6]):
+        item_rows = math.ceil(len(items) / 3)
+        item_section_height = item_rows * 110
+
+        for i, item in enumerate(items):
             col = i % 3
             row = i // 3
             x = 25 + col * 290
-            card_y = y + row * 100
+            card_y = y + row * 110
 
             draw_game_card(
                 draw,
-                (x, card_y, x + 280, card_y + 90),
+                (x, card_y, x + 280, card_y + 100),
                 radius=8,
                 fill=GAME_COLORS["bg_card"],
                 border_color=GAME_COLORS["border"],
             )
 
+            # ID 和名稱
+            item_id = item.get("id", "?")
             name = item.get("name", "未知道具")
-            item_id = int(item.get("item_id", 0) or 0)
-            item_code = f"D{item_id}" if item_id else "D0"
+            qty = item.get("quantity", 0)
             draw.text(
                 (x + 12, card_y + 8),
-                name[:10],
+                f"#{item_id} {name[:8]}",
                 font=content_font,
                 fill=GAME_COLORS["text_primary"],
             )
-            draw.text(
-                (x + 190, card_y + 10),
-                item_code,
-                font=tiny_font,
-                fill=GAME_COLORS["text_secondary"],
-            )
 
-            qty = item.get("quantity", 0)
             draw.text(
                 (x + 12, card_y + 32),
                 f"數量: {qty}",
@@ -346,13 +354,13 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
             effect = normalize_display_text(item.get("effect_description"))
             if effect:
                 draw.text(
-                    (x + 12, card_y + 52),
-                    effect[:20],
+                    (x + 12, card_y + 55),
+                    effect[:18],
                     font=tiny_font,
                     fill=GAME_COLORS["text_muted"],
                 )
 
-        y += item_h + section_gap
+        y += item_section_height + section_gap
     else:
         draw.text(
             (50, y + 20), "暫無道具", font=content_font, fill=GAME_COLORS["text_muted"]
@@ -363,7 +371,7 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
     draw_game_divider(draw, 30, width - 30, y + 10)
     draw.text(
         (30, y + 25),
-        "💡 使用短碼：/使用 R短碼 / A短碼 / B短碼 / D短碼",
+        "💡 使用道具：/使用道具 道具ID [數量]",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
     )
