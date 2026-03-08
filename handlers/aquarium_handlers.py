@@ -27,6 +27,41 @@ async def aquarium(self: "FishingPlugin", event: AstrMessageEvent):
     fishes = result["fishes"]
     stats = result["stats"]
 
+    # 獲取用戶信息（包括稱號）
+    user = self.user_repo.get_by_id(user_id)
+    user_data = {
+        "nickname": user.nickname if user else user_id,
+        "current_title": None
+    }
+    
+    # 獲取稱號信息
+    if user and hasattr(user, "current_title_id") and user.current_title_id:
+        try:
+            title_info = self.item_template_repo.get_title_by_id(user.current_title_id)
+            if title_info:
+                user_data["current_title"] = {
+                    "name": title_info.name,
+                    "display_format": title_info.display_format if hasattr(title_info, "display_format") else "{name}"
+                }
+        except:
+            pass
+
+    # 嘗試使用圖片渲染
+    try:
+        from ..draw.aquarium import draw_aquarium_image
+        import os
+        
+        image = draw_aquarium_image(user_data, fishes, stats)
+        image_path = os.path.join(self.tmp_dir, f"aquarium_{user_id}.png")
+        image.save(image_path)
+        yield event.image_result(image_path)
+        return
+    except Exception as e:
+        # 如果圖片渲染失敗，回退到文字模式
+        from astrbot.api import logger
+        logger.warning(f"水族箱圖片渲染失敗: {e}")
+
+    # 文字模式回退
     if not fishes:
         yield event.plain_result("🐠 您的水族箱是空的，快去钓鱼吧！")
         return

@@ -12,8 +12,23 @@ def create_game_gradient(
     height: int,
     top_color: Tuple[int, int, int] = (25, 35, 55),
     bottom_color: Tuple[int, int, int] = (45, 55, 85),
+    color_scheme: str = "default",
 ) -> Image.Image:
-    """創建遊戲風格深色漸層背景"""
+    """創建遊戲風格深色漸層背景
+    
+    Args:
+        width: 寬度
+        height: 高度
+        top_color: 頂部顏色（當 color_scheme="default" 時使用）
+        bottom_color: 底部顏色（當 color_scheme="default" 時使用）
+        color_scheme: 配色方案 ("default", "aquarium")
+    """
+    # 根據配色方案選擇顏色
+    if color_scheme == "aquarium":
+        # 水族箱主題：深藍色調
+        top_color = (15, 35, 65)
+        bottom_color = (25, 55, 95)
+    
     image = Image.new("RGB", (width, height), bottom_color)
     draw = ImageDraw.Draw(image)
 
@@ -27,14 +42,28 @@ def create_game_gradient(
     # 疊加柔和光斑，提升層次感
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
-    glow_draw.ellipse(
-        (-width // 4, -height // 3, width // 2, height // 2),
-        fill=(90, 145, 220, 55),
-    )
-    glow_draw.ellipse(
-        (width // 2, -height // 5, width + width // 4, height // 2),
-        fill=(255, 195, 95, 35),
-    )
+    
+    if color_scheme == "aquarium":
+        # 水族箱主題：藍綠色光斑
+        glow_draw.ellipse(
+            (-width // 4, -height // 3, width // 2, height // 2),
+            fill=(70, 145, 220, 65),
+        )
+        glow_draw.ellipse(
+            (width // 2, -height // 5, width + width // 4, height // 2),
+            fill=(95, 195, 195, 45),
+        )
+    else:
+        # 默認主題
+        glow_draw.ellipse(
+            (-width // 4, -height // 3, width // 2, height // 2),
+            fill=(90, 145, 220, 55),
+        )
+        glow_draw.ellipse(
+            (width // 2, -height // 5, width + width // 4, height // 2),
+            fill=(255, 195, 95, 35),
+        )
+    
     glow = glow.filter(ImageFilter.GaussianBlur(46))
     image = Image.alpha_composite(image.convert("RGBA"), glow).convert("RGB")
 
