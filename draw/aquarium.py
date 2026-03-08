@@ -41,7 +41,7 @@ def draw_aquarium_image(
     width = 900
     header_h = 120
     section_gap = 20
-    footer_h = 80
+    footer_h = 110  # 調整為更合適的高度（標題35 + 卡片70 + 間距）
 
     # 按稀有度分組
     fishes_by_rarity = {}
@@ -69,8 +69,8 @@ def draw_aquarium_image(
     )
     height = calculated_height + SAFETY_MARGIN
 
-    # 創建遊戲風格背景（使用深藍色調，模擬水族箱）
-    image = create_game_gradient(width, height, color_scheme="aquarium")
+    # 創建遊戲風格背景
+    image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
     # 字體
@@ -245,28 +245,45 @@ def draw_aquarium_image(
     )
     y += 35
 
+    # 調整卡片高度以適應更緊湊的佈局
+    hint_card_height = 70
     draw_game_card(
         draw,
-        (20, y, width - 20, y + footer_h - 20),
+        (20, y, width - 20, y + hint_card_height),
         radius=10,
         fill=GAME_COLORS["bg_card"],
         border_color=GAME_COLORS["border"],
     )
 
-    hints = [
-        "• /放入水族箱 <魚ID> [數量] - 將魚從魚塘放入水族箱",
-        "• /移出水族箱 <魚ID> [數量] - 將魚從水族箱移回魚塘",
-        "• /升級水族箱 - 擴大水族箱容量",
+    # 使用更簡潔的提示文字，分兩列顯示
+    hints_left = [
+        "• /放入水族箱 <ID> [數量]",
+        "• /移出水族箱 <ID> [數量]",
+    ]
+    
+    hints_right = [
+        "• /升級水族箱",
+        "• /水族箱 幫助",
     ]
 
     hint_y = y + 10
-    for hint in hints:
+    for hint in hints_left:
         draw.text(
             (35, hint_y),
             hint,
             font=small_font,
             fill=GAME_COLORS["text_secondary"],
         )
-        hint_y += 20
+        hint_y += 25
+
+    hint_y = y + 10
+    for hint in hints_right:
+        draw.text(
+            (width // 2 + 20, hint_y),
+            hint,
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
+        )
+        hint_y += 25
 
     return image

@@ -214,19 +214,87 @@ def draw_game_divider(
 def draw_rarity_badge(
     draw: ImageDraw.ImageDraw, x: int, y: int, rarity: int, font
 ) -> None:
-    """繪製稀有度徽章"""
-    colors = {
-        1: (180, 180, 180),  # 普通 - 灰
-        2: (100, 200, 100),  # 優秀 - 綠
-        3: (100, 150, 255),  # 稀有 - 藍
-        4: (180, 100, 255),  # 史詩 - 紫
-        5: (255, 180, 50),  # 傳說 - 橙
-    }
-    color = colors.get(rarity, (180, 180, 180))
+    """
+    繪製稀有度徽章（支持1-10星及以上）
+    
+    使用 get_rarity_color 函數獲取對應的炫酷顏色
+    """
+    color = get_rarity_color(rarity)
 
     # 繪製星星
-    stars = "★" * rarity
+    if rarity <= 10:
+        stars = "★" * rarity
+    else:
+        # 10星以上顯示為 ★★★★★★★★★★+
+        stars = "★" * 10 + "+"
+    
     draw.text((x, y), stars, font=font, fill=color)
+
+
+def draw_glowing_rarity_text(
+    draw: ImageDraw.ImageDraw, 
+    x: int, 
+    y: int, 
+    rarity: int, 
+    font,
+    text: str = None
+) -> None:
+    """
+    繪製帶有發光效果的稀有度文字
+    
+    Args:
+        draw: ImageDraw 對象
+        x, y: 位置
+        rarity: 稀有度（1-10+）
+        font: 字體
+        text: 自定義文字（如果為 None，則顯示星星）
+    """
+    color = get_rarity_color(rarity)
+    
+    # 生成顯示文字
+    if text is None:
+        if rarity <= 10:
+            text = "★" * rarity
+        else:
+            text = "★" * 10 + "+"
+    
+    # 高稀有度（7星及以上）添加發光效果
+    if rarity >= 7:
+        # 繪製外發光（多層陰影）
+        glow_offsets = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+        glow_color = (color[0] // 2, color[1] // 2, color[2] // 2)
+        
+        for offset_x, offset_y in glow_offsets:
+            draw.text((x + offset_x, y + offset_y), text, font=font, fill=glow_color)
+    
+    # 繪製主文字
+    draw.text((x, y), text, font=font, fill=color)
+
+
+def get_rarity_name(rarity: int) -> str:
+    """
+    獲取稀有度名稱
+    
+    Returns:
+        稀有度的中文名稱
+    """
+    names = {
+        1: "普通",
+        2: "優秀",
+        3: "精良",
+        4: "稀有",
+        5: "稀有+",
+        6: "史詩",
+        7: "傳說",
+        8: "神話",
+        9: "不朽",
+        10: "至高",
+    }
+    
+    if rarity > 10:
+        return "超越"
+    
+    return names.get(rarity, "未知")
 
 
 # 遊戲風格配色方案
@@ -250,12 +318,35 @@ GAME_COLORS = {
 
 
 def get_rarity_color(rarity: int) -> Tuple[int, int, int]:
-    """根據稀有度獲取顏色"""
+    """
+    根據稀有度獲取顏色（1-10星及以上）
+    
+    設計理念：
+    - 1-2星：灰色系（普通）
+    - 3-4星：綠色系（優秀）
+    - 5星：藍色（稀有）
+    - 6星：紫色（史詩）
+    - 7星：粉紫色（傳說）
+    - 8星：金色（神話）
+    - 9星：橙紅色（不朽）
+    - 10星：青藍色（至高）
+    - 10星+：彩虹漸變效果
+    """
     colors = {
-        1: (180, 180, 180),
-        2: (100, 200, 100),
-        3: (100, 150, 255),
-        4: (180, 100, 255),
-        5: (255, 180, 50),
+        1: (160, 160, 160),   # 1星 - 淺灰色（普通）
+        2: (120, 200, 120),   # 2星 - 淺綠色（優秀）
+        3: (80, 220, 140),    # 3星 - 翠綠色（精良）
+        4: (100, 180, 255),   # 4星 - 天藍色（稀有）
+        5: (80, 140, 255),    # 5星 - 寶藍色（稀有+）
+        6: (160, 100, 255),   # 6星 - 紫色（史詩）
+        7: (220, 120, 255),   # 7星 - 粉紫色（傳說）
+        8: (255, 200, 60),    # 8星 - 金色（神話）
+        9: (255, 140, 80),    # 9星 - 橙紅色（不朽）
+        10: (100, 220, 255),  # 10星 - 青藍色（至高）
     }
-    return colors.get(rarity, (180, 180, 180))
+    
+    # 10星以上使用特殊的彩虹色（取青藍色作為代表）
+    if rarity > 10:
+        return (120, 200, 255)  # 明亮的青藍色
+    
+    return colors.get(rarity, (180, 180, 180))  # 默認灰色
