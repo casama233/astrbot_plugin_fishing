@@ -1860,9 +1860,15 @@ class InventoryService:
 
         return is_first_infinite
 
-    def use_item(self, user_id: str, item_id: int, quantity: int = 1) -> Dict[str, Any]:
+    def use_item(self, user_id: str, item_id: int, quantity: int = 1, target_user_id: str = None) -> Dict[str, Any]:
         """
-        使用一个或多个道具，并将效果处理委托给 EffectManager。
+        使用一個或多個道具，並將效果處理委託給 EffectManager。
+        
+        Args:
+            user_id: 使用道具的用戶ID
+            item_id: 道具ID
+            quantity: 使用數量
+            target_user_id: 目標用戶ID（某些道具如驅靈香需要）
         """
         if quantity <= 0:
             return {"success": False, "message": "数量必须大于0"}
@@ -1924,26 +1930,26 @@ class InventoryService:
                 else {}
             )
 
-            # 传递 quantity 参数给效果处理器
+            # 傳遞 quantity 和 target_user_id 參數給效果處理器
             result = effect_handler.apply(
-                user, item_template, payload, quantity=quantity
+                user, item_template, payload, quantity=quantity, target_user_id=target_user_id
             )
 
-            # 只有在效果处理成功时才消耗道具
+            # 只有在效果處理成功時才消耗道具
             if result.get("success", False):
                 self.inventory_repo.decrease_item_quantity(user_id, item_id, quantity)
-                # 确保返回的消息包含道具名称和数量
+                # 確保返回的消息包含道具名稱和數量
                 final_message = f"成功使用了 {quantity} 个【{item_template.name}】！{result.get('message', '')}"
                 result["message"] = final_message
             else:
-                # 效果处理失败，不消耗道具，但保持原始错误消息
-                result["message"] = f"❌ 使用道具失败：{result.get('message', '')}"
+                # 效果處理失敗，不消耗道具，但保持原始錯誤消息
+                result["message"] = f"{result.get('message', '')}"
 
             return result
 
         except Exception as e:
-            # 异常处理，防止某个效果的bug导致整个流程中断
-            # 在实际生产中，这里应该有更详细的日志记录
+            # 異常處理，防止某個效果的bug導致整個流程中斷
+            # 在實際生產中，這裡應該有更詳細的日誌記錄
             return {"success": False, "message": f"使用道具时发生未知错误: {e}"}
 
     def open_all_money_bags(self, user_id: str) -> Dict[str, Any]:

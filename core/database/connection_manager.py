@@ -10,9 +10,9 @@ from astrbot.api import logger
 class DatabaseConnectionManager:
     """数据库连接管理器，提供线程安全的连接管理和重试机制"""
     
-    def __init__(self, db_path: str, timeout: int = 30, max_retries: int = 3, retry_delay: float = 0.1):
+    def __init__(self, db_path: str, timeout: int = 60, max_retries: int = 3, retry_delay: float = 0.1):
         self.db_path = db_path
-        self.timeout = timeout
+        self.timeout = timeout  # 增加到60秒
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self._local = threading.local()
@@ -30,12 +30,17 @@ class DatabaseConnectionManager:
         conn = sqlite3.connect(
             self.db_path, 
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
-            timeout=self.timeout
+            timeout=self.timeout,
+            check_same_thread=False  # 允許多線程訪問
         )
         conn.row_factory = sqlite3.Row
+        # 優化設置
         conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("PRAGMA journal_mode = WAL;")  # 使用WAL模式提高并发性能
+        conn.execute("PRAGMA journal_mode = WAL;")  # 使用WAL模式提高並發性能
         conn.execute("PRAGMA synchronous = NORMAL;")  # 平衡性能和安全
+        conn.execute("PRAGMA busy_timeout = 60000;")  # 60秒超時
+        conn.execute("PRAGMA cache_size = -10000;")  # 10MB緩存
+        conn.execute("PRAGMA temp_store = MEMORY;")  # 臨時數據存儲在內存
         return conn
     
     @contextmanager

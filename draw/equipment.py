@@ -3,7 +3,14 @@ from typing import Any, Dict, List
 
 from PIL import Image, ImageDraw
 
-from .gradient_utils import create_vertical_gradient
+from .game_ui import (
+    GAME_COLORS,
+    create_game_gradient,
+    draw_game_card,
+    draw_game_title_bar,
+    draw_game_divider,
+    get_rarity_color,
+)
 from .styles import load_font
 from .text_utils import normalize_display_text
 
@@ -12,10 +19,14 @@ SAFETY_MARGIN = 50
 
 
 def _star(rarity: int) -> str:
+    """格式化星級顯示 - 支持1-10+星"""
     r = int(rarity or 1)
-    if r <= 10:
-        return "⭐" * max(1, r)
-    return "⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐+"
+    if r <= 0:
+        return "⭐"
+    elif r <= 10:
+        return "⭐" * r
+    else:
+        return "⭐" * 10 + "+"
 
 
 def _pct(mod: Any) -> str:
@@ -31,35 +42,40 @@ def _pct(mod: Any) -> str:
 def draw_equipment_image(
     title: str, entries: List[Dict[str, Any]], kind: str = "rod"
 ) -> Image.Image:
+    """裝備列表圖片 - 統一遊戲風格版"""
     width = 980
-    card_h = 116
-    header_h = 110
-    footer_h = 78
+    card_h = 120
+    title_bar_height = 60
+    footer_h = 70
+    padding = 24
 
     title_font = load_font(32)
     body_font = load_font(20)
     small_font = load_font(16)
-    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
-    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
-    small_h = measure.textbbox((0, 0), "測", font=small_font)[3]
-    # Increase padding to 60 to ensure all text lines fit
-    card_h = max(card_h, body_h + small_h * 2 + 60)
-    bottom_pad = 24
-    calculated_height = header_h + max(1, len(entries)) * card_h + footer_h + bottom_pad
+    tiny_font = load_font(14)
+    
+    # 計算高度並添加安全邊距
+    num_items = max(1, len(entries))
+    calculated_height = title_bar_height + padding + (card_h + 10) * num_items + footer_h + padding
     height = calculated_height + SAFETY_MARGIN
 
-    image = create_vertical_gradient(width, height, (238, 248, 255), (255, 255, 255))
+    # 使用統一遊戲風格背景
+    image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
+    # 繪製標題欄
     icon = "🎣" if kind == "rod" else "💍"
-    draw.text((28, 22), f"{icon} {title}", font=title_font, fill=(40, 66, 94))
-    draw.line((28, 78, width - 28, 78), fill=(176, 204, 229), width=2)
+    y = padding
+    draw_game_title_bar(draw, 0, y, width, title_bar_height, f"{icon} {title}", title_font)
+    y += title_bar_height + padding
 
-    y = 94
+    # 繪製裝備列表
     for i, e in enumerate(entries, start=1):
         code = e.get("display_code") or f"ID{e.get('instance_id', '?')}"
         name = str(e.get("name", "未知裝備"))
-        rarity = _star(e.get("rarity", 1))
+        rarity_val = int(e.get("rarity", 1) or 1)
+        rarity = _star(rarity_val)
+        rarity_color = get_rarity_color(rarity_val)
         refine = int(e.get("refine_level", 1) or 1)
         equipped = "✅已裝備" if e.get("is_equipped") else ""
         locked = "🔒已鎖定" if e.get("is_locked") else "🔓未鎖定"
@@ -68,53 +84,58 @@ def draw_equipment_image(
         bn = e.get("bonus_fish_quantity_modifier", 1)
         br = e.get("bonus_rare_fish_chance", 1)
 
-        draw.rounded_rectangle(
-            (24, y, width - 24, y + card_h - 12),
-            radius=10,
-            fill=(255, 255, 255),
-            outline=(214, 228, 240),
+        # 使用統一卡片樣式
+        draw_game_card(draw, padding, y, width - padding * 2, card_h)
+        
+        # 裝備名稱和星級
+        draw.text(
+            (padding + 16, y + 10), 
+            f"{i}. {name}", 
+            font=body_font, 
+            fill=GAME_COLORS["text_primary"]
         )
         draw.text(
-            (36, y + 8), f"{i}. {name}  {rarity}", font=body_font, fill=(34, 56, 82)
+            (padding + 16, y + 36), 
+            rarity, 
+            font=small_font, 
+            fill=rarity_color
         )
+        
+        # 短碼、精煉、狀態
         draw.text(
-            (36, y + 36),
-            f"ID：{code}   精煉：{refine}   {locked} {equipped}",
-            font=small_font,
-            fill=(66, 92, 116),
+            (padding + 16, y + 60),
+            f"ID：{code}   精煉：+{refine}   {locked} {equipped}",
+            font=tiny_font,
+            fill=GAME_COLORS["text_secondary"],
         )
+        
+        # 屬性加成
         draw.text(
-            (36, y + 62),
-            f"品質加成：{_pct(bq)}   數量加成：{_pct(bn)}   稀有加成：{_pct(br)}",
-            font=small_font,
-            fill=(66, 92, 116),
+            (padding + 16, y + 82),
+            f"品質+{_pct(bq)}   數量+{_pct(bn)}   稀有+{_pct(br)}",
+            font=tiny_font,
+            fill=GAME_COLORS["success"],
         )
 
-        desc = normalize_display_text(e.get("description"))
-        if desc:
-            draw.text(
-                (36, y + 84),
-                f"說明：{desc[:70]}",
-                font=small_font,
-                fill=(110, 129, 147),
-            )
-        y += card_h
+        y += card_h + 10
 
-    footer_y = height - footer_h - bottom_pad
-    draw.line((28, footer_y, width - 28, footer_y), fill=(176, 204, 229), width=2)
+    # 底部提示
+    y = height - footer_h - padding - SAFETY_MARGIN
+    draw_game_divider(draw, padding, y, width - padding * 2)
+    y += 20
     if kind == "rod":
         draw.text(
-            (30, footer_y + 24),
+            (padding + 8, y),
             "💡 快速操作：/使用 R短碼   /精煉 R短碼   /出售 R短碼",
             font=small_font,
-            fill=(63, 89, 112),
+            fill=GAME_COLORS["text_secondary"],
         )
     else:
         draw.text(
-            (30, footer_y + 24),
+            (padding + 8, y),
             "💡 快速操作：/使用 A短碼   /精煉 A短碼   /出售 A短碼",
             font=small_font,
-            fill=(63, 89, 112),
+            fill=GAME_COLORS["text_secondary"],
         )
 
     return image

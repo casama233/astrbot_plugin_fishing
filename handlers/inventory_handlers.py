@@ -920,29 +920,47 @@ async def use_equipment(
             yield event.plain_result("❌ 出错啦！请稍后再试。")
 
     elif target_type == "item":
-        # 道具类物品（简单数字ID）
+        # 道具類物品（簡單數字ID）
         try:
             item_id = int(token[1:])
         except Exception:
-            yield event.plain_result("❌ 无效的道具ID，请检查后重试。")
+            yield event.plain_result("❌ 無效的道具ID，請檢查後重試。")
             return
 
-        # 处理数量参数
+        # 處理數量參數和目標用戶參數
         quantity = 1
-        if len(args) > 2 and args[2].isdigit():
-            quantity = int(args[2])
-            if quantity <= 0:
-                yield event.plain_result("❌ 数量必须是正整数。")
-                return
+        target_user_id = None
+        
+        # 解析參數：可能是數量、@用戶、或用戶ID
+        if len(args) > 2:
+            # 檢查是否為@用戶
+            from ..utils import parse_target_user_id
+            target_id, error_msg = parse_target_user_id(event, args, 2)
+            
+            if target_id:
+                # 找到了目標用戶
+                target_user_id = target_id
+            elif args[2].isdigit():
+                # 是數量參數
+                quantity = int(args[2])
+                if quantity <= 0:
+                    yield event.plain_result("❌ 數量必須是正整數。")
+                    return
+                
+                # 檢查是否還有第三個參數（目標用戶）
+                if len(args) > 3:
+                    target_id, error_msg = parse_target_user_id(event, args, 3)
+                    if target_id:
+                        target_user_id = target_id
 
         # 使用道具
-        if result := plugin.inventory_service.use_item(user_id, int(item_id), quantity):
+        if result := plugin.inventory_service.use_item(user_id, int(item_id), quantity, target_user_id=target_user_id):
             if result["success"]:
                 yield event.plain_result(result["message"])
             else:
-                yield event.plain_result(f"❌ 使用道具失败：{result['message']}")
+                yield event.plain_result(f"{result['message']}")
         else:
-            yield event.plain_result("❌ 出错啦！请稍后再试。")
+            yield event.plain_result("❌ 出錯啦！請稍後再試。")
 
     elif target_type == "bait":
         # 鱼饵类物品（简单数字ID）

@@ -978,7 +978,13 @@ A: 交易一旦完成無法取消，請謹慎操作
             try:
                 from ..draw.exchange import draw_exchange_status_image
 
-                image = draw_exchange_status_image(result, previous_prices)
+                # 獲取最近的價格歷史用於走勢圖（最近7天）
+                recent_history_result = self.exchange_service.get_price_history(days=7)
+                recent_history = None
+                if recent_history_result.get("success"):
+                    recent_history = recent_history_result.get("history", {})
+
+                image = draw_exchange_status_image(result, previous_prices, recent_history)
                 image_path = os.path.join(self.plugin.tmp_dir, "exchange_status.png")
                 image.save(image_path)
                 yield event.image_result(image_path)

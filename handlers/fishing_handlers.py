@@ -222,6 +222,18 @@ class FishingHandlers:
 
         user_info = self.plugin.user_repo.get_by_id(user_id)
         user_nickname = user_info.nickname if user_info else str(user_id)
+        
+        # 獲取用戶當前稱號信息
+        current_title = None
+        if user_info and user_info.current_title_id:
+            from ..core.repositories.sqlite_achievement_repo import SQLiteAchievementRepository
+            achievement_repo = SQLiteAchievementRepository(self.plugin.db_conn)
+            title_info = achievement_repo.get_title_by_id(user_info.current_title_id)
+            if title_info:
+                current_title = {
+                    'name': title_info.name,
+                    'display_format': title_info.display_format
+                }
 
         # 绘制图片
         output_path = safe_get_file_path(
@@ -231,12 +243,34 @@ class FishingHandlers:
         try:
             await draw_pokedex(
                 pokedex_data,
-                {"nickname": user_nickname, "user_id": user_id},
+                {
+                    "nickname": user_nickname,
+                    "user_id": user_id,
+                    "current_title": current_title
+                },
                 output_path,
                 page=page,
                 data_dir=self.plugin.data_dir,
             )
             yield event.image_result(output_path)
+            
+            # 添加翻頁提示
+            total_pages = (len(pokedex_list) + 14) // 15  # FISH_PER_PAGE = 15
+            if total_pages > 1:
+                tip_lines = ["⌨️ 翻頁指令"]
+                if page > 1:
+                    tip_lines.append(f"/圖鑒 {page - 1}")
+                if page < total_pages:
+                    tip_lines.append(f"/圖鑒 {page + 1}")
+                
+                tip = build_tip_result(
+                    event,
+                    "\n```\n" + "\n```\n```\n".join(tip_lines) + "\n```",
+                    plugin=self.plugin,
+                    user_id=user_id
+                )
+                if tip:
+                    yield tip
         except Exception as e:
             logger.error(f"绘制图鉴图片失败: {e}", exc_info=e)
             yield event.plain_result("❌ 绘制图鉴时发生错误，请稍后再试或联系管理员。")

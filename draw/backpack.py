@@ -25,11 +25,15 @@ SAFETY_MARGIN = 50
 
 
 def format_rarity_display(rarity: int) -> str:
-    """格式化稀有度顯示"""
-    if rarity <= 10:
+    """格式化稀有度顯示 - 支持1-10+星"""
+    rarity = int(rarity) if rarity else 1
+    if rarity <= 0:
+        return "★"
+    elif rarity <= 10:
         return "★" * rarity
     else:
-        return "★★★★★★★★★★+"
+        # 超過10星顯示為 10★+
+        return "★" * 10 + "+"
 
 
 def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image:
@@ -113,15 +117,24 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                 border_color=GAME_COLORS["border"],
             )
 
-            # ID 和名稱
-            rod_id = rod.get("id", "?")
+            # 短碼和名稱
+            display_code = rod.get("display_code", "")
             name = rod.get("name", "未知魚竿")
-            draw.text(
-                (x + 12, card_y + 8),
-                f"#{rod_id} {name[:9]}",
-                font=content_font,
-                fill=GAME_COLORS["text_primary"],
-            )
+            if display_code:
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"{display_code} {name[:7]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
+            else:
+                rod_id = rod.get("id", "?")
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"#{rod_id} {name[:9]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
 
             # 稀有度
             rarity = rod.get("rarity", 1)
@@ -202,15 +215,24 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                 border_color=GAME_COLORS["border"],
             )
 
-            # ID 和名稱
-            acc_id = acc.get("id", "?")
+            # 短碼和名稱
+            display_code = acc.get("display_code", "")
             name = acc.get("name", "未知飾品")
-            draw.text(
-                (x + 12, card_y + 8),
-                f"#{acc_id} {name[:9]}",
-                font=content_font,
-                fill=GAME_COLORS["text_primary"],
-            )
+            if display_code:
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"{display_code} {name[:7]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
+            else:
+                acc_id = acc.get("id", "?")
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"#{acc_id} {name[:9]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
 
             rarity = acc.get("rarity", 1)
             stars = format_rarity_display(rarity)
@@ -268,16 +290,25 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                 border_color=GAME_COLORS["border"],
             )
 
-            # ID 和名稱
-            bait_id = bait.get("id", "?")
+            # 短碼和名稱
+            display_code = bait.get("display_code", "")
             name = bait.get("name", "未知魚餌")
             qty = bait.get("quantity", 0)
-            draw.text(
-                (x + 12, card_y + 8),
-                f"#{bait_id} {name[:8]}",
-                font=content_font,
-                fill=GAME_COLORS["text_primary"],
-            )
+            if display_code:
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"{display_code} {name[:6]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
+            else:
+                bait_id = bait.get("id", "?")
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"#{bait_id} {name[:8]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
 
             draw.text(
                 (x + 12, card_y + 32),
@@ -333,16 +364,25 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
                 border_color=GAME_COLORS["border"],
             )
 
-            # ID 和名稱
-            item_id = item.get("id", "?")
+            # 短碼和名稱
+            display_code = item.get("display_code", "")
             name = item.get("name", "未知道具")
             qty = item.get("quantity", 0)
-            draw.text(
-                (x + 12, card_y + 8),
-                f"#{item_id} {name[:8]}",
-                font=content_font,
-                fill=GAME_COLORS["text_primary"],
-            )
+            if display_code:
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"{display_code} {name[:6]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
+            else:
+                item_id = item.get("id", "?")
+                draw.text(
+                    (x + 12, card_y + 8),
+                    f"#{item_id} {name[:8]}",
+                    font=content_font,
+                    fill=GAME_COLORS["text_primary"],
+                )
 
             draw.text(
                 (x + 12, card_y + 32),
