@@ -30,7 +30,7 @@
                         <th>名称</th>
                         <th>稀有度</th>
                         <th>属性加成</th>
-                        <th>实际作用效果</th>
+                        <th>实际作用代码</th>
                         <th class="text-end">操作</th>
                     </tr>
                 </thead>
@@ -46,7 +46,7 @@
                             <span class="badge bg-secondary">稀有: {{ item.bonus_rare_fish_chance }}</span>
                             <span class="badge bg-warning text-dark">金币: {{ item.bonus_coin_modifier }}</span>
                         </td>
-                        <td>{{ item.effect_note or '未配置' }}</td>
+                        <td><code>{{ item.effect_note or '未配置' }}</code></td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-info edit-btn"
                                     data-bs-toggle="modal"
@@ -88,7 +88,7 @@
                         <div class="col-md-4"><label>装备槽类型</label><input type="text" name="slot_type" class="form-control" value="general"></div>
                         <div class="col-md-4"><label>图标URL(可选)</label><input type="text" name="icon_url" class="form-control"></div>
                         <div class="col-12"><label>其他效果描述</label><textarea name="other_bonus_description" class="form-control" rows="2"></textarea></div>
-                        <div class="col-12"><label>实际作用效果</label><textarea name="effect_note" class="form-control" rows="2" placeholder="例如：金币加成向收益流派倾斜；适合与自动钓鱼联动提高长期回报"></textarea></div>
+                        <div class="col-12"><label>实际作用代码</label><textarea name="effect_note" class="form-control font-monospace" rows="4" placeholder="例如：bonus_coin_modifier=1.15&#10;bonus_rare_fish_chance=0.03"></textarea><div class="form-text">这里用于记录实际生效的代码/公式，不是给玩家看的描述。</div></div>
                     </div>
                 </div>
                 <div class="modal-footer">

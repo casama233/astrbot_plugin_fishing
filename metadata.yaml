@@ -11,4 +11,4 @@ support_platforms:
   - discord
   - kook
   - satori
-astrbot_version: ">=4.16,<5"
+astrbot_version: ">=4.16.5"

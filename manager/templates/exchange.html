@@ -51,8 +51,9 @@
                         <button class="btn btn-success" type="submit">保存</button>
                     </div>
                     <div class="col-12">
-                        <label class="form-label">实际作用效果</label>
-                        <textarea class="form-control" name="effect" rows="2" placeholder="例如：低波动稳健型，可用于长期持有；保质期长，腐败风险低"></textarea>
+                        <label class="form-label">实际作用代码</label>
+                        <textarea class="form-control font-monospace" name="effect" rows="3" placeholder="例如：volatility=0.12&#10;shelf_life_days=7"></textarea>
+                        <div class="form-text">这里用于记录实际生效的代码/参数，不是商品描述。</div>
                     </div>
                 </form>
 
@@ -68,7 +69,7 @@
                                 <th>波动率</th>
                                 <th>保质期(天)</th>
                                 <th>描述</th>
-                                <th>作用效果</th>
+                                <th>作用代码</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -80,7 +81,7 @@
                                 <td>{{ row.volatility }}</td>
                                 <td>{{ row.shelf_life_days }}</td>
                                 <td>{{ row.description }}</td>
-                                <td>{{ row.effect or '-' }}</td>
+                                <td><code>{{ row.effect or '-' }}</code></td>
                             </tr>
                             {% endfor %}
                         </tbody>

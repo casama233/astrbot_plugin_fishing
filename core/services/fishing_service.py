@@ -24,6 +24,11 @@ from ..utils import (
     get_last_reset_time,
     calculate_after_refine,
 )
+from .special_accessory_effects import (
+    get_accessory_effects,
+    get_effect_multiplier,
+    get_effect_number,
+)
 
 
 class FishingService:
@@ -246,6 +251,22 @@ class FishingService:
                     rarity=acc_template.rarity,
                 )
                 coins_chance += max(0.0, refined_coin_modifier - 1.0)
+                special_effects = get_accessory_effects(acc_template.accessory_id)
+                quality_modifier *= get_effect_multiplier(
+                    special_effects, "fishing_quality_multiplier", 1.0
+                )
+                quantity_modifier *= get_effect_multiplier(
+                    special_effects, "fishing_quantity_multiplier", 1.0
+                )
+                base_success_rate += get_effect_number(
+                    special_effects, "fishing_success_bonus", 0.0
+                )
+                rare_chance += get_effect_number(
+                    special_effects, "fishing_rare_bonus", 0.0
+                )
+                coins_chance += get_effect_number(
+                    special_effects, "fishing_coin_bonus", 0.0
+                )
         logger.debug(
             f"装备饰品加成后： quality_modifier={quality_modifier}, quantity_modifier={quantity_modifier}, rare_chance={rare_chance}, coins_chance={coins_chance}"
         )
@@ -414,7 +435,9 @@ class FishingService:
                     fish_template = new_fish_template
 
         # 计算最终属性
-        weight = random.randint(fish_template.min_weight, int(fish_template.max_weight * weight_modifier))
+        weight = random.randint(
+            fish_template.min_weight, int(fish_template.max_weight * weight_modifier)
+        )
         value = fish_template.base_value
 
         # 4.2 按品质加成给予额外品质（重量/价值）奖励
@@ -1415,6 +1438,13 @@ class FishingService:
                         if accessory_template and accessory_template.name == "海洋之心":
                             # 海洋之心装备时，CD时间减半
                             _cooldown /= 2
+                        if accessory_template:
+                            special_effects = get_accessory_effects(
+                                accessory_template.accessory_id
+                            )
+                            _cooldown *= get_effect_multiplier(
+                                special_effects, "fishing_cooldown_multiplier", 1.0
+                            )
                     if now_ts - last_ts < _cooldown:
                         continue  # CD中，跳过
 

@@ -13,6 +13,7 @@ from ..draw.pokedex import draw_pokedex
 from ..draw.fishing_zone import draw_fishing_zones_image
 from astrbot.api.message_components import Image as AstrImage
 from typing import TYPE_CHECKING
+from ..core.services.special_accessory_effects import get_accessory_effects
 
 if TYPE_CHECKING:
     from ..main import FishingPlugin
@@ -32,6 +33,16 @@ def _compute_cooldown_seconds(base_seconds, equipped_accessory):
     """根据是否装备海洋之心动态计算冷却时间。"""
     if equipped_accessory and equipped_accessory.get("name") == "海洋之心":
         return base_seconds / 2
+    effect_code = (equipped_accessory or {}).get("effect_code", "")
+    effects = get_accessory_effects((equipped_accessory or {}).get("id"))
+    cooldown_multiplier = effects.get("fishing_cooldown_multiplier")
+    try:
+        if cooldown_multiplier is not None:
+            multiplier = float(cooldown_multiplier)
+            if multiplier > 0:
+                return base_seconds * multiplier
+    except Exception:
+        pass
     return base_seconds
 
 

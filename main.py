@@ -378,6 +378,154 @@ class FishingPlugin(Star):
         manager = MysqlConnectionManager(config.get("external_sql", {}))
         with manager.get_connection() as conn:
             with conn.cursor() as cursor:
+
+                def _repair_user_items_table() -> None:
+                    cursor.execute("SHOW TABLES LIKE 'user_items'")
+                    if not cursor.fetchone():
+                        cursor.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS user_items (
+                                user_id VARCHAR(255) NOT NULL,
+                                item_id BIGINT NOT NULL,
+                                quantity BIGINT NOT NULL DEFAULT 0,
+                                PRIMARY KEY (user_id, item_id),
+                                KEY idx_user_items_item_id (item_id)
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                            """
+                        )
+                        return
+
+                    cursor.execute("SHOW COLUMNS FROM user_items")
+                    columns = {row["Field"]: row for row in cursor.fetchall()}
+                    cursor.execute("SHOW INDEX FROM user_items")
+                    indexes = cursor.fetchall()
+
+                    has_composite_primary_key = False
+                    primary_key_columns = [
+                        row["Column_name"]
+                        for row in indexes
+                        if row.get("Key_name") == "PRIMARY"
+                    ]
+                    if primary_key_columns == ["user_id", "item_id"]:
+                        has_composite_primary_key = True
+
+                    has_unique_user_item = any(
+                        row.get("Key_name") != "PRIMARY"
+                        and row.get("Non_unique") == 0
+                        and row.get("Column_name") == "user_id"
+                        for row in indexes
+                    ) and any(
+                        row.get("Key_name") != "PRIMARY"
+                        and row.get("Non_unique") == 0
+                        and row.get("Column_name") == "item_id"
+                        for row in indexes
+                    )
+
+                    needs_rebuild = (
+                        "id" in columns
+                        or "user_id" not in columns
+                        or "item_id" not in columns
+                        or "quantity" not in columns
+                        or not (has_composite_primary_key or has_unique_user_item)
+                    )
+
+                    if not needs_rebuild:
+                        return
+
+                    logger.warning(
+                        "检测到 MySQL 表 user_items 结构异常，正在自动修复为复合主键结构。"
+                    )
+                    cursor.execute("DROP TABLE IF EXISTS user_items_repaired")
+                    cursor.execute(
+                        """
+                        CREATE TABLE user_items_repaired (
+                            user_id VARCHAR(255) NOT NULL,
+                            item_id BIGINT NOT NULL,
+                            quantity BIGINT NOT NULL DEFAULT 0,
+                            PRIMARY KEY (user_id, item_id),
+                            KEY idx_user_items_item_id (item_id)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                        """
+                    )
+                    cursor.execute(
+                        """
+                        INSERT INTO user_items_repaired (user_id, item_id, quantity)
+                        SELECT user_id, item_id, GREATEST(0, COALESCE(SUM(quantity), 0))
+                        FROM user_items
+                        GROUP BY user_id, item_id
+                        ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)
+                        """
+                    )
+                    cursor.execute("DROP TABLE user_items")
+                    cursor.execute("RENAME TABLE user_items_repaired TO user_items")
+
+                def _repair_user_buffs_table() -> None:
+                    cursor.execute("SHOW TABLES LIKE 'user_buffs'")
+                    if not cursor.fetchone():
+                        cursor.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS user_buffs (
+                                id BIGINT NOT NULL AUTO_INCREMENT,
+                                user_id VARCHAR(255) NOT NULL,
+                                buff_type VARCHAR(255) NOT NULL,
+                                payload LONGTEXT,
+                                started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                expires_at DATETIME NULL,
+                                PRIMARY KEY (id),
+                                KEY idx_user_buffs_user_id (user_id),
+                                KEY idx_user_buffs_expires_at (expires_at)
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                            """
+                        )
+                        return
+
+                    cursor.execute("SHOW COLUMNS FROM user_buffs")
+                    columns = {row["Field"]: row for row in cursor.fetchall()}
+                    id_column = columns.get("id")
+                    extra = str((id_column or {}).get("Extra", "")).lower()
+
+                    if id_column and "auto_increment" in extra:
+                        return
+
+                    logger.warning(
+                        "检测到 MySQL 表 user_buffs 的 id 不是 AUTO_INCREMENT，正在自动修复。"
+                    )
+                    cursor.execute("DROP TABLE IF EXISTS user_buffs_repaired")
+                    cursor.execute(
+                        """
+                        CREATE TABLE user_buffs_repaired (
+                            id BIGINT NOT NULL AUTO_INCREMENT,
+                            user_id VARCHAR(255) NOT NULL,
+                            buff_type VARCHAR(255) NOT NULL,
+                            payload LONGTEXT,
+                            started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            expires_at DATETIME NULL,
+                            PRIMARY KEY (id),
+                            KEY idx_user_buffs_user_id (user_id),
+                            KEY idx_user_buffs_expires_at (expires_at)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                        """
+                    )
+                    if id_column:
+                        cursor.execute(
+                            """
+                            INSERT INTO user_buffs_repaired (id, user_id, buff_type, payload, started_at, expires_at)
+                            SELECT id, user_id, buff_type, payload, started_at, expires_at
+                            FROM user_buffs
+                            ORDER BY id
+                            """
+                        )
+                    else:
+                        cursor.execute(
+                            """
+                            INSERT INTO user_buffs_repaired (user_id, buff_type, payload, started_at, expires_at)
+                            SELECT user_id, buff_type, payload, started_at, expires_at
+                            FROM user_buffs
+                            """
+                        )
+                    cursor.execute("DROP TABLE user_buffs")
+                    cursor.execute("RENAME TABLE user_buffs_repaired TO user_buffs")
+
                 # 1) 交易所核心表兜底
                 cursor.execute(
                     """
@@ -447,6 +595,12 @@ class FishingPlugin(Star):
                       description = VALUES(description)
                     """
                 )
+
+                # 4) 背包道具表兜底（修复旧版错误的自增 id 结构）
+                _repair_user_items_table()
+
+                # 5) Buff 表兜底（修复旧版缺失 AUTO_INCREMENT 的 id）
+                _repair_user_buffs_table()
             conn.commit()
 
     def _build_user_repo(self, config: AstrBotConfig):
@@ -903,6 +1057,15 @@ class FishingPlugin(Star):
     )
     async def cmd_fishing_help_cn(self, event: AstrMessageEvent):
         """查看钓鱼帮助菜单"""
+        async for r in common_handlers.fishing_help(self, event):
+            yield r
+
+    @filter.command(
+        "钓鱼帮助文字版",
+        alias=["釣魚幫助文字版", "钓鱼帮助 文字版", "釣魚幫助 文字版"],
+    )
+    async def cmd_fishing_help_text_cn(self, event: AstrMessageEvent):
+        """查看钓鱼帮助文字版"""
         async for r in common_handlers.fishing_help(self, event):
             yield r
 

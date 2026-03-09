@@ -15,6 +15,7 @@ from ..repositories.abstract_repository import (
 )
 from ..domain.models import WipeBombLog, User
 from ...core.utils import get_now, get_today
+from .special_accessory_effects import get_accessory_effects, get_effect_multiplier
 
 if TYPE_CHECKING:
     from ..repositories.sqlite_user_repo import SqliteUserRepository
@@ -826,6 +827,19 @@ class GameMechanicsService:
             thief_id, "SHADOW_CLOAK_BUFF"
         )
 
+        thief_equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
+            thief_id
+        )
+        if thief_equipped_accessory:
+            accessory_template = self.item_template_repo.get_accessory_by_id(
+                thief_equipped_accessory.accessory_id
+            )
+            if accessory_template:
+                special_effects = get_accessory_effects(accessory_template.accessory_id)
+                cooldown_seconds *= get_effect_multiplier(
+                    special_effects, "steal_cooldown_multiplier", 1.0
+                )
+
         if protection_buff:
             if not penetration_buff and not shadow_cloak_buff:
                 return {
@@ -957,6 +971,19 @@ class GameMechanicsService:
         shadow_cloak_buff = self.buff_repo.get_active_by_user_and_type(
             thief_id, "SHADOW_CLOAK_BUFF"
         )
+
+        thief_equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
+            thief_id
+        )
+        if thief_equipped_accessory:
+            accessory_template = self.item_template_repo.get_accessory_by_id(
+                thief_equipped_accessory.accessory_id
+            )
+            if accessory_template:
+                special_effects = get_accessory_effects(accessory_template.accessory_id)
+                cooldown_seconds *= get_effect_multiplier(
+                    special_effects, "electric_cooldown_multiplier", 1.0
+                )
 
         if protection_buff:
             if not penetration_buff and not shadow_cloak_buff:

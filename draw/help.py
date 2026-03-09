@@ -340,7 +340,7 @@ def draw_help_image():
             anchor="mm",
         )
 
-    title_text = "釣魚遊戲幫助"
+    title_text = "釣魚指令導航"
     title_w, _ = get_text_size_cached(title_text, title_font)
     draw_text_smart(
         draw,
@@ -357,18 +357,18 @@ def draw_help_image():
 
     # 10+. 按顺序绘制各个部分
     y0 = logo_y + logo_size + 30
-    y0 = draw_section("🎣 基礎與核心玩法", basic, y0, cols=3)
-    y0 = draw_section("🎒 背包與資產管理", inventory, y0, cols=3)
-    y0 = draw_section("🛒 商店與市場", market, y0, cols=3)
-    y0 = draw_section("🎰 抽卡與概率玩法", gacha, y0, cols=3)
-    y0 = draw_section("🎲 骰寶遊戲", sicbo, y0, cols=3)
-    y0 = draw_section("👥 社交功能", social, y0, cols=2)
-    y0 = draw_section("📈 大宗商品交易所", exchange, y0, cols=2)
-    y0 = draw_section("⚙️ 管理後台（管理員）", admin, y0, cols=2)
+    y0 = draw_section("🎣 核心起步：先註冊再釣魚", basic, y0, cols=3)
+    y0 = draw_section("🎒 背包養成：裝備、魚塘、水族箱", inventory, y0, cols=3)
+    y0 = draw_section("🛒 商店與市場：推薦用 /商店 /市場", market, y0, cols=3)
+    y0 = draw_section("🎰 抽卡玩法：保留獨立指令", gacha, y0, cols=3)
+    y0 = draw_section("🎲 骰寶：/骰宝 + /骰宝下注", sicbo, y0, cols=3)
+    y0 = draw_section("👥 社交互動：/红包 也在這裡", social, y0, cols=2)
+    y0 = draw_section("📈 交易所：統一走 /交易所", exchange, y0, cols=2)
+    y0 = draw_section("⚙️ 管理命令：統一走 /钓鱼管理", admin, y0, cols=2)
 
     # 添加底部信息
     footer_y = y0 + 20
-    footer_text = "💡 提示：命令中的 [ID] 表示必填參數，<> 表示可選參數"
+    footer_text = "💡 提示：抽卡保留獨立指令；交易所/管理/紅包/骰寶已改為統一入口"
     footer_w, _ = get_text_size_cached(footer_text, desc_font)
     draw_text_smart(
         draw,
