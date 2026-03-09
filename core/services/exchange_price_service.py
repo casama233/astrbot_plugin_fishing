@@ -12,22 +12,38 @@ from ..repositories.abstract_repository import AbstractExchangeRepository
 
 class ExchangePriceService:
     """交易所价格管理服务"""
-    
-    def __init__(self, exchange_repo: AbstractExchangeRepository, config: Dict[str, Any]):
+
+    def __init__(
+        self, exchange_repo: AbstractExchangeRepository, config: Dict[str, Any]
+    ):
         self.exchange_repo = exchange_repo
         self.config = config.get("exchange", {})
-        self._update_schedule = self._parse_update_schedule(self.config.get("update_timing"))
-        
+        self._update_schedule = self._parse_update_schedule(
+            self.config.get("update_timing")
+        )
+
         # 商品定义
         self.commodities = {
-            "dried_fish": {"name": "鱼干", "description": "经过晾晒处理的鱼类，保质期较长"},
+            "dried_fish": {
+                "name": "鱼干",
+                "description": "经过晾晒处理的鱼类，保质期较长",
+            },
             "fish_roe": {"name": "鱼卵", "description": "珍贵的鱼类卵子，营养价值极高"},
             "fish_oil": {"name": "鱼油", "description": "从鱼类中提取的油脂，用途广泛"},
-            "fish_bone": {"name": "鱼骨", "description": "坚硬的鱼骨，保质期长，价格最稳定"},
-            "fish_scale": {"name": "鱼鳞", "description": "闪亮的鱼鳞，中等保质期，价格波动适中"},
-            "fish_sauce": {"name": "鱼露", "description": "发酵的鱼露，极短保质期，价格剧烈波动"}
+            "fish_bone": {
+                "name": "鱼骨",
+                "description": "坚硬的鱼骨，保质期长，价格最稳定",
+            },
+            "fish_scale": {
+                "name": "鱼鳞",
+                "description": "闪亮的鱼鳞，中等保质期，价格波动适中",
+            },
+            "fish_sauce": {
+                "name": "鱼露",
+                "description": "发酵的鱼露，极短保质期，价格剧烈波动",
+            },
         }
-        
+
         # 价格更新任务
         self._price_update_thread: Optional[threading.Thread] = None
         self._price_update_running = False
@@ -37,10 +53,12 @@ class ExchangePriceService:
         try:
             today_str = datetime.now().strftime("%Y-%m-%d")
             prices = self.exchange_repo.get_prices_for_date(today_str)
-            
+
             if not prices:
                 # 如果没有今日价格，尝试获取昨日价格
-                yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+                yesterday_str = (datetime.now() - timedelta(days=1)).strftime(
+                    "%Y-%m-%d"
+                )
                 y_prices = self.exchange_repo.get_prices_for_date(yesterday_str)
                 if y_prices:
                     price_data = {p.commodity_id: p.price for p in y_prices}
@@ -51,17 +69,20 @@ class ExchangePriceService:
                         "market_sentiment": "neutral",
                         "price_trend": "stable",
                         "supply_demand": "平衡",
-                        "date": today_str
+                        "date": today_str,
                     }
                 # 昨日也没有则返回初始价格
-                initial_prices = self.config.get("initial_prices", {
-                    "dried_fish": 6000,
-                    "fish_roe": 12000,
-                    "fish_oil": 10000,
-                    "fish_bone": 4000,
-                    "fish_scale": 8000,
-                    "fish_sauce": 15000
-                })
+                initial_prices = self.config.get(
+                    "initial_prices",
+                    {
+                        "dried_fish": 6000,
+                        "fish_roe": 12000,
+                        "fish_oil": 10000,
+                        "fish_bone": 4000,
+                        "fish_scale": 8000,
+                        "fish_sauce": 15000,
+                    },
+                )
                 return {
                     "success": True,
                     "prices": initial_prices,
@@ -69,7 +90,7 @@ class ExchangePriceService:
                     "market_sentiment": "neutral",
                     "price_trend": "stable",
                     "supply_demand": "平衡",
-                    "date": today_str
+                    "date": today_str,
                 }
 
             price_data = {p.commodity_id: p.price for p in prices}
@@ -80,7 +101,7 @@ class ExchangePriceService:
                 "market_sentiment": "neutral",
                 "price_trend": "stable",
                 "supply_demand": "平衡",
-                "date": today_str
+                "date": today_str,
             }
         except Exception as e:
             logger.error(f"获取市场状态失败: {e}")
@@ -90,47 +111,51 @@ class ExchangePriceService:
         """获取价格历史"""
         try:
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=days-1)  # 包含今天
-            
+            start_date = end_date - timedelta(days=days - 1)  # 包含今天
+
             history = {}
             labels = []
             all_updates = []  # 存储所有价格更新点
-            
+
             # 获取所有价格更新记录
             current_date = start_date
             while current_date <= end_date:
                 date_str = current_date.strftime("%Y-%m-%d")
                 prices = self.exchange_repo.get_prices_for_date(date_str)
-                
+
                 for price_obj in prices:
-                    all_updates.append({
-                        'date': price_obj.date,
-                        'time': price_obj.time,
-                        'commodity_id': price_obj.commodity_id,
-                        'price': price_obj.price,
-                        'update_type': price_obj.update_type,
-                        'datetime': f"{price_obj.date} {price_obj.time}"
-                    })
-                
+                    all_updates.append(
+                        {
+                            "date": price_obj.date,
+                            "time": price_obj.time,
+                            "commodity_id": price_obj.commodity_id,
+                            "price": price_obj.price,
+                            "update_type": price_obj.update_type,
+                            "datetime": f"{price_obj.date} {price_obj.time}",
+                        }
+                    )
+
                 current_date += timedelta(days=1)
-            
+
             # 按时间排序
-            all_updates.sort(key=lambda x: x['datetime'])
-            
+            all_updates.sort(key=lambda x: x["datetime"])
+
             # 生成标签（显示日期和时间）
             for update in all_updates:
-                date_obj = datetime.strptime(update['date'], "%Y-%m-%d")
-                time_obj = datetime.strptime(update['time'], "%H:%M:%S")
+                date_obj = datetime.strptime(update["date"], "%Y-%m-%d")
+                time_obj = datetime.strptime(update["time"], "%H:%M:%S")
                 # 统一到秒，避免 "HH:MM:SS" 与 "HH:MM" 的字符串比较问题
                 label = f"{date_obj.strftime('%m-%d')} {time_obj.strftime('%H:%M:%S')}"
                 if label not in labels:
                     labels.append(label)
-            
+
             # 为每种商品生成价格序列
             for commodity_id in self.commodities.keys():
                 history[commodity_id] = []
-                commodity_updates = [u for u in all_updates if u['commodity_id'] == commodity_id]
-                
+                commodity_updates = [
+                    u for u in all_updates if u["commodity_id"] == commodity_id
+                ]
+
                 # 为安全起见确保按时间升序（all_updates 已排序，这里等同于稳定过滤）
                 # commodity_updates 已按 all_updates 的顺序排列
 
@@ -139,15 +164,17 @@ class ExchangePriceService:
                 # 为每个标签点找到对应的价格
                 for label in labels:
                     # 找到该时间点之前的最新价格
-                    label_time = label.split(' ')[1]  # 提取时间部分
-                    label_date = label.split(' ')[0]  # 提取日期部分
-                    
+                    label_time = label.split(" ")[1]  # 提取时间部分
+                    label_date = label.split(" ")[0]  # 提取日期部分
+
                     # 找到该时间点之前（含该时刻）的最新价格（同一天）
                     latest_price = None
                     for update in commodity_updates:
-                        update_date = datetime.strptime(update['date'], "%Y-%m-%d").strftime('%m-%d')
-                        if update_date == label_date and update['time'] <= label_time:
-                            latest_price = update['price']
+                        update_date = datetime.strptime(
+                            update["date"], "%Y-%m-%d"
+                        ).strftime("%m-%d")
+                        if update_date == label_date and update["time"] <= label_time:
+                            latest_price = update["price"]
                         # 这里不 break，确保拿到“该时刻之前”的最后一条
 
                     if latest_price is not None:
@@ -159,16 +186,18 @@ class ExchangePriceService:
                             history[commodity_id].append(last_known_price)
                         else:
                             # 序列开头仍未知时，才使用初始价格
-                            initial_price = self.config.get("initial_prices", {}).get(commodity_id, 1000)
+                            initial_price = self.config.get("initial_prices", {}).get(
+                                commodity_id, 1000
+                            )
                             last_known_price = initial_price
                             history[commodity_id].append(initial_price)
-            
+
             return {
                 "success": True,
                 "history": history,
                 "labels": labels,
                 "days": days,
-                "updates": all_updates  # 包含所有更新信息
+                "updates": all_updates,  # 包含所有更新信息
             }
         except Exception as e:
             logger.error(f"获取价格历史失败: {e}")
@@ -183,7 +212,7 @@ class ExchangePriceService:
             batch_now = datetime.now()
             batch_time_str = batch_now.strftime("%H:%M:%S")
             batch_created_at = batch_now.isoformat()
-            
+
             # 先获取“上一次价格”作为基准（优先今日最新，其次昨日，最后初始）
             base_prices: Dict[str, int] = {}
             today_prices = self.exchange_repo.get_prices_for_date(today_str)
@@ -194,7 +223,9 @@ class ExchangePriceService:
 
             # 对缺失的商品，回退到昨日
             if len(base_prices) < len(self.commodities):
-                yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+                yesterday_str = (datetime.now() - timedelta(days=1)).strftime(
+                    "%Y-%m-%d"
+                )
                 y_prices = self.exchange_repo.get_prices_for_date(yesterday_str)
                 for p in sorted(y_prices, key=lambda x: x.time):
                     if p.commodity_id not in base_prices:
@@ -204,37 +235,39 @@ class ExchangePriceService:
             if len(base_prices) < len(self.commodities):
                 for commodity_id in self.commodities.keys():
                     if commodity_id not in base_prices:
-                        base_prices[commodity_id] = self.config.get("initial_prices", {}).get(commodity_id, 1000)
-            
+                        base_prices[commodity_id] = self.config.get(
+                            "initial_prices", {}
+                        ).get(commodity_id, 1000)
+
             logger.info(f"基于当前价格更新：{base_prices}")
-            
+
             # 计算新价格
             new_prices = {}
             for commodity_id in self.commodities.keys():
                 last_price = base_prices.get(commodity_id, 100)
                 new_price = self._calculate_new_price(commodity_id, last_price)
                 new_prices[commodity_id] = new_price
-                
+
                 # 记录价格变化
                 change_percent = ((new_price - last_price) / last_price) * 100
-                logger.info(f"价格变化 {commodity_id}: {last_price} -> {new_price} ({change_percent:+.2f}%)")
+                logger.info(
+                    f"价格变化 {commodity_id}: {last_price} -> {new_price} ({change_percent:+.2f}%)"
+                )
                 # 使用统一的批次时间写入，避免同一批次内不同商品 time 不一致
-                self.exchange_repo.add_exchange_price(Exchange(
-                    date=today_str,
-                    time=batch_time_str,
-                    commodity_id=commodity_id,
-                    price=new_price,
-                    update_type="manual",
-                    created_at=batch_created_at
-                ))
-            
+                self.exchange_repo.add_exchange_price(
+                    Exchange(
+                        date=today_str,
+                        time=batch_time_str,
+                        commodity_id=commodity_id,
+                        price=new_price,
+                        update_type="manual",
+                        created_at=batch_created_at,
+                    )
+                )
+
             logger.info(f"强制价格更新完成，新价格：{new_prices}")
-            
-            return {
-                "success": True,
-                "message": "价格更新成功",
-                "prices": new_prices
-            }
+
+            return {"success": True, "message": "价格更新成功", "prices": new_prices}
         except Exception as e:
             logger.error(f"手动更新价格失败: {e}")
             return {"success": False, "message": f"更新失败: {str(e)}"}
@@ -247,34 +280,39 @@ class ExchangePriceService:
             batch_now = datetime.now()
             batch_time_str = batch_now.strftime("%H:%M:%S")
             batch_created_at = batch_now.isoformat()
-            
+
             # 删除今日现有价格
             self.exchange_repo.delete_prices_for_date(today_str)
-            
+
             # 设置初始价格
-            initial_prices = self.config.get("initial_prices", {
-                "dried_fish": 6000,
-                "fish_roe": 12000,
-                "fish_oil": 10000,
-                "fish_bone": 4000,
-                "fish_scale": 8000,
-                "fish_sauce": 15000
-            })
-            
+            initial_prices = self.config.get(
+                "initial_prices",
+                {
+                    "dried_fish": 6000,
+                    "fish_roe": 12000,
+                    "fish_oil": 10000,
+                    "fish_bone": 4000,
+                    "fish_scale": 8000,
+                    "fish_sauce": 15000,
+                },
+            )
+
             for commodity_id, price in initial_prices.items():
-                self.exchange_repo.add_exchange_price(Exchange(
-                    date=today_str,
-                    time=batch_time_str,
-                    commodity_id=commodity_id,
-                    price=price,
-                    update_type="manual",
-                    created_at=batch_created_at
-                ))
-            
+                self.exchange_repo.add_exchange_price(
+                    Exchange(
+                        date=today_str,
+                        time=batch_time_str,
+                        commodity_id=commodity_id,
+                        price=price,
+                        update_type="manual",
+                        created_at=batch_created_at,
+                    )
+                )
+
             return {
                 "success": True,
                 "message": "价格已重置到初始值",
-                "prices": initial_prices
+                "prices": initial_prices,
             }
         except Exception as e:
             logger.error(f"重置价格失败: {e}")
@@ -282,25 +320,23 @@ class ExchangePriceService:
 
     def _calculate_new_price(self, commodity_id: str, current_price: int) -> int:
         """计算新价格"""
-        # 获取商品配置
-        commodity_config = self.config.get("commodities", {}).get(commodity_id, {})
-        volatility = commodity_config.get("volatility", 0.1)
+        volatility = self.config.get("volatility", {}).get(commodity_id, 0.1)
         max_change_rate = self.config.get("max_change_rate", 0.2)
-        
+
         # 随机调整
         random_factor = random.uniform(-1, 1)
         change_rate = random_factor * volatility
-        
+
         # 应用变化率限制
         change_rate = max(-max_change_rate, min(max_change_rate, change_rate))
-        
+
         # 计算新价格
         new_price = int(current_price * (1 + change_rate))
-        
+
         # 确保价格不会过低
         min_price = max(1, int(current_price * 0.1))
         new_price = max(min_price, new_price)
-        
+
         return new_price
 
     def start_daily_price_update_task(self):
@@ -310,7 +346,9 @@ class ExchangePriceService:
             return
 
         self._price_update_running = True
-        self._price_update_thread = threading.Thread(target=self._daily_price_update_loop, daemon=True)
+        self._price_update_thread = threading.Thread(
+            target=self._daily_price_update_loop, daemon=True
+        )
         self._price_update_thread.start()
         logger.info("价格更新线程已启动")
 
@@ -329,30 +367,32 @@ class ExchangePriceService:
             self.update_daily_prices()
         except Exception as e:
             logger.error(f"启动时价格检查失败: {e}")
-        
+
         while self._price_update_running:
             try:
                 # 等待到下一个更新时间
                 now = datetime.now()
                 next_update = self._get_next_update_time(now)
                 wait_seconds = (next_update - now).total_seconds()
-                
+
                 if wait_seconds > 0:
-                    logger.info(f"等待 {wait_seconds/3600:.1f} 小时后进行下次价格更新")
+                    logger.info(
+                        f"等待 {wait_seconds / 3600:.1f} 小时后进行下次价格更新"
+                    )
                     # 分段等待，以便能够及时响应停止信号
                     while wait_seconds > 0 and self._price_update_running:
                         sleep_time = min(60, wait_seconds)  # 最多等待60秒
                         time.sleep(sleep_time)
                         wait_seconds -= sleep_time
-                
+
                 if not self._price_update_running:
                     break
-                
+
                 # 更新价格（内部已有重复检查机制）
                 logger.info("开始执行价格更新...")
                 self.update_daily_prices()
                 logger.info("价格更新完成")
-                
+
             except Exception as e:
                 # 记录错误但继续运行
                 logger.error(f"交易所价格更新任务出错: {e}")
@@ -365,7 +405,9 @@ class ExchangePriceService:
         if isinstance(value, str):
             normalized = value.replace("、", ",")
             normalized = normalized.replace("，", ",")
-            candidates = [part.strip() for part in normalized.split(",") if part.strip()]
+            candidates = [
+                part.strip() for part in normalized.split(",") if part.strip()
+            ]
         elif isinstance(value, (list, tuple)):
             for item in value:
                 if item is None:
@@ -399,7 +441,11 @@ class ExchangePriceService:
 
     def _get_update_times(self) -> List[dt_time]:
         if not self._update_schedule:
-            self._update_schedule = [dt_time(hour=9), dt_time(hour=15), dt_time(hour=21)]
+            self._update_schedule = [
+                dt_time(hour=9),
+                dt_time(hour=15),
+                dt_time(hour=21),
+            ]
         return self._update_schedule
 
     def _get_next_update_time(self, now: datetime) -> datetime:
@@ -415,7 +461,7 @@ class ExchangePriceService:
             )
             if next_update > now:
                 return next_update
-        
+
         # 如果今天的所有更新时间都过了，返回明天的第一个更新时间
         tomorrow = now + timedelta(days=1)
         first_time = update_times[0]
@@ -426,7 +472,9 @@ class ExchangePriceService:
             microsecond=0,
         )
 
-    def _get_current_update_window(self, now: datetime) -> Optional[tuple[str, Optional[str]]]:
+    def _get_current_update_window(
+        self, now: datetime
+    ) -> Optional[tuple[str, Optional[str]]]:
         """
         返回当前更新时间窗口 (start_time_str, end_time_str)
         - 区间为左闭右开 [start, end)
@@ -475,15 +523,18 @@ class ExchangePriceService:
             existing_prices = self.exchange_repo.get_prices_for_date(today_str)
             if existing_prices:
                 auto_updates_in_window = [
-                    p for p in existing_prices
+                    p
+                    for p in existing_prices
                     if p.update_type == "auto"
                     and p.time >= window_start
                     and (window_end is None or p.time < window_end)
                 ]
                 if auto_updates_in_window:
-                    logger.info(f"今日在窗口 {window_start} - {window_end or '24:00:00'} 已更新，跳过自动更新")
+                    logger.info(
+                        f"今日在窗口 {window_start} - {window_end or '24:00:00'} 已更新，跳过自动更新"
+                    )
                     return
-            
+
             # 以“上一次价格”为基准：优先取今日最新记录；若无则回退到昨日；再无则初始
             last_prices: Dict[str, int] = {}
             # 今日最新
@@ -493,7 +544,9 @@ class ExchangePriceService:
 
             # 回退到昨日（仅填补缺失的商品）
             if len(last_prices) < len(self.commodities):
-                yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+                yesterday_str = (datetime.now() - timedelta(days=1)).strftime(
+                    "%Y-%m-%d"
+                )
                 y_prices = self.exchange_repo.get_prices_for_date(yesterday_str)
                 for p in sorted(y_prices, key=lambda x: x.time):
                     if p.commodity_id not in last_prices:
@@ -501,14 +554,17 @@ class ExchangePriceService:
 
             # 最后使用初始价格补齐
             if len(last_prices) < len(self.commodities):
-                init_prices = self.config.get("initial_prices", {
-                    "dried_fish": 6000,
-                    "fish_roe": 12000,
-                    "fish_oil": 10000,
-                    "fish_bone": 4000,
-                    "fish_scale": 8000,
-                    "fish_sauce": 15000
-                })
+                init_prices = self.config.get(
+                    "initial_prices",
+                    {
+                        "dried_fish": 6000,
+                        "fish_roe": 12000,
+                        "fish_oil": 10000,
+                        "fish_bone": 4000,
+                        "fish_scale": 8000,
+                        "fish_sauce": 15000,
+                    },
+                )
                 for commodity_id in self.commodities.keys():
                     if commodity_id not in last_prices:
                         last_prices[commodity_id] = init_prices.get(commodity_id, 1000)
@@ -522,19 +578,24 @@ class ExchangePriceService:
             # 计算新价格
             new_prices = {}
             for commodity_id in self.commodities.keys():
-                last_price = last_prices.get(commodity_id, self.config.get("initial_prices", {}).get(commodity_id, 100))
+                last_price = last_prices.get(
+                    commodity_id,
+                    self.config.get("initial_prices", {}).get(commodity_id, 100),
+                )
                 new_price = self._calculate_new_price(commodity_id, last_price)
                 new_prices[commodity_id] = new_price
-                
-                self.exchange_repo.add_exchange_price(Exchange(
-                    date=today_str,
-                    time=batch_time_str,
-                    commodity_id=commodity_id,
-                    price=new_price,
-                    update_type="auto",
-                    created_at=batch_created_at
-                ))
-            
+
+                self.exchange_repo.add_exchange_price(
+                    Exchange(
+                        date=today_str,
+                        time=batch_time_str,
+                        commodity_id=commodity_id,
+                        price=new_price,
+                        update_type="auto",
+                        created_at=batch_created_at,
+                    )
+                )
+
             logger.info(f"价格更新完成，新价格：{new_prices}")
 
         except Exception as e:

@@ -121,20 +121,50 @@ async def gacha(self: "FishingPlugin", event: AstrMessageEvent):
     if result := self.gacha_service.perform_draw(user_id, pool_id, num_draws=1):
         if result["success"]:
             items = result.get("results", [])
-            message = f"🎉 抽卡成功！共獲得 {len(items)} 件物品\n"
-            message += "════════════════════════════\n"
+
+            # 優先圖片渲染，失敗則回退文字
+            try:
+                from ..draw.gacha import draw_gacha_result_image
+
+                pool_info = self.gacha_service.gacha_repo.get_pool_by_id(pool_id)
+                pool_name = pool_info.name if pool_info else f"卡池{pool_id}"
+
+                image = draw_gacha_result_image(
+                    pool_id=pool_id,
+                    pool_name=pool_name,
+                    items=items,
+                    is_ten_draw=False,
+                )
+                image_path = os.path.join(self.tmp_dir, f"gacha_result_{pool_id}.png")
+                image.save(image_path)
+                yield event.image_result(image_path)
+                tip = build_tip_result(
+                    event,
+                    f"⌨️ 建議下一步\\n```\\n/抽卡 {pool_id}\\n```\\n```\\n/十連 {pool_id}\\n```",
+                    plugin=self,
+                    user_id=user_id,
+                )
+                if tip is not None:
+                    yield tip
+                return
+            except Exception as e:
+                from astrbot.api import logger
+
+                logger.error(f"繪製抽卡結果圖片失敗: {e}", exc_info=True)
+
+            # 文字回退
+            message = f"🎉 抽卡成功！共獲得 {len(items)} 件物品\\n"
+            message += "════════════════════════════\\n"
             for item in items:
-                # 构造输出信息
                 if item.get("type") == "coins":
-                    # 金币类型的物品
-                    message += f"• 💰 金幣 x{item['quantity']}\n"
+                    message += f"• 💰 金幣 x{item['quantity']}\\n"
                 else:
-                    message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\n"
-            message += "════════════════════════════\n"
+                    message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\\n"
+            message += "════════════════════════════\\n"
             yield event.plain_result(message)
             tip = build_tip_result(
                 event,
-                f"⌨️ 建議下一步\n```\n/抽卡 {pool_id}\n```\n```\n/十連 {pool_id}\n```",
+                f"⌨️ 建議下一步\\n```\\n/抽卡 {pool_id}\\n```\\n```\\n/十連 {pool_id}\\n```",
                 plugin=self,
                 user_id=user_id,
             )
@@ -191,15 +221,45 @@ async def ten_gacha(self: "FishingPlugin", event: AstrMessageEvent):
     if result := self.gacha_service.perform_draw(user_id, pool_id, num_draws=10):
         if result["success"]:
             items = result.get("results", [])
-            message = f"🎉 十連抽卡成功！共獲得 {len(items)} 件物品\n"
-            message += "════════════════════════════\n"
+
+            # 優先圖片渲染，失敗則回退文字
+            try:
+                from ..draw.gacha import draw_gacha_result_image
+
+                pool_info = self.gacha_service.gacha_repo.get_pool_by_id(pool_id)
+                pool_name = pool_info.name if pool_info else f"卡池{pool_id}"
+
+                image = draw_gacha_result_image(
+                    pool_id=pool_id,
+                    pool_name=pool_name,
+                    items=items,
+                    is_ten_draw=True,
+                )
+                image_path = os.path.join(self.tmp_dir, f"gacha_result_{pool_id}.png")
+                image.save(image_path)
+                yield event.image_result(image_path)
+                tip = build_tip_result(
+                    event,
+                    f"⌨️ 建議下一步\\n```\\n/十連 {pool_id}\\n```\\n```\\n/抽卡記錄\\n```",
+                    plugin=self,
+                    user_id=user_id,
+                )
+                if tip is not None:
+                    yield tip
+                return
+            except Exception as e:
+                from astrbot.api import logger
+
+                logger.error(f"繪製十連抽卡結果圖片失敗: {e}", exc_info=True)
+
+            # 文字回退
+            message = f"🎉 十連抽卡成功！共獲得 {len(items)} 件物品\\n"
+            message += "════════════════════════════\\n"
             for item in items:
-                # 构造输出信息
                 if item.get("type") == "coins":
-                    # 金币类型的物品
-                    message += f"• 💰 金幣 x{item['quantity']}\n"
+                    message += f"• 💰 金幣 x{item['quantity']}\\n"
                 else:
-                    message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\n"
+                    message += f"• {'⭐' * item.get('rarity', 1)} {item['name']}\\n"
             yield event.plain_result(message)
             tip = build_tip_result(
                 event,
@@ -280,32 +340,66 @@ async def multi_ten_gacha(
             yield event.plain_result(f"❌ 第{i + 1}次十连抽卡出错！")
             return
 
-    # 生成合并统计报告
-    message = f"🎉 {times}次十连抽卡完成！共获得 {total_items} 件物品：\n\n"
+    # 優先圖片渲染，失敗則回退文字
+    try:
+        from ..draw.gacha import draw_multi_ten_gacha_summary_image
+
+        pool_name = pool.name if pool else f"卡池{pool_id}"
+
+        image = draw_multi_ten_gacha_summary_image(
+            pool_id=pool_id,
+            pool_name=pool_name,
+            times=times,
+            total_items=total_items,
+            total_cost=total_cost,
+            cost_type=cost_type,
+            rarity_counts=rarity_counts,
+            item_counts=item_counts,
+            coin_total=coin_total,
+        )
+        image_path = os.path.join(self.tmp_dir, f"multi_gacha_{pool_id}.png")
+        image.save(image_path)
+        yield event.image_result(image_path)
+        tip = build_tip_result(
+            event,
+            f"⌨️ 建議下一步\\n```\\n/十連 {pool_id}\\n```\\n```\\n/抽卡記錄\\n```",
+            plugin=self,
+            user_id=user_id,
+        )
+        if tip is not None:
+            yield tip
+        return
+    except Exception as e:
+        from astrbot.api import logger
+
+        logger.error(f"繪製多次十連抽卡統計圖片失敗: {e}", exc_info=True)
+
+    # 文字回退 - 生成合并统计报告
+    message = f"🎉 {times}次十连抽卡完成！共获得 {total_items} 件物品：\\n\\n"
 
     # 消耗统计
-    message += f"【💰 消耗统计】\n"
-    message += f"消耗{cost_type}：{total_cost:,}{cost_unit}\n\n"
+    message += f"【💰 消耗统计】\\n"
+    message += f"消耗{cost_type}：{total_cost:,}{cost_unit}\\n\\n"
 
     # 稀有度统计
-    message += "【📊 稀有度统计】\n"
+    message += "【📊 稀有度统计】\\n"
     for rarity in [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]:  # 从高到低显示
         count = rarity_counts[rarity]
         if count > 0:
             stars = "⭐" * rarity
-            message += f"{stars} {count} 件\n"
+            message += f"{stars} {count} 件\\n"
 
     # 金币统计
     if coin_total > 0:
-        message += f"\n💰 金币总计：{coin_total}\n"
+        message += f"\\n💰 金币总计：{coin_total}\\n"
 
     # 物品统计（按稀有度排序）
     if item_counts:
-        message += "\n【🎁 物品详情】\n"
+        message += "\\n【🎁 物品详情】\\n"
         # 按物品名称排序
         sorted_items = sorted(item_counts.items())
         for item_name, count in sorted_items:
-            message += f"{item_name} × {count}\n"
+            message += f"{item_name} × {count}\\n"
 
     yield event.plain_result(message)
 
