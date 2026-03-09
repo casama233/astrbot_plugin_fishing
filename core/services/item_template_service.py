@@ -1,5 +1,8 @@
 from typing import Dict, Any, List, Optional
-from ..repositories.abstract_repository import AbstractItemTemplateRepository, AbstractGachaRepository
+from ..repositories.abstract_repository import (
+    AbstractItemTemplateRepository,
+    AbstractGachaRepository,
+)
 from ..domain.models import Fish, Rod, Bait, Accessory, GachaPool, Item, Title
 
 
@@ -7,9 +10,9 @@ class ItemTemplateService:
     """封装所有游戏模板数据的后台管理业务逻辑"""
 
     def __init__(
-            self,
-            item_template_repo: AbstractItemTemplateRepository,
-            gacha_repo: AbstractGachaRepository
+        self,
+        item_template_repo: AbstractItemTemplateRepository,
+        gacha_repo: AbstractGachaRepository,
     ):
         self.item_template_repo = item_template_repo
         self.gacha_repo = gacha_repo
@@ -39,7 +42,7 @@ class ItemTemplateService:
         return self.item_template_repo.get_all_rods()
 
     def add_rod_template(self, data: Dict[str, Any]):
-        self.item_template_repo.add_rod_template(data)
+        return self.item_template_repo.add_rod_template(data)
 
     def update_rod_template(self, rod_id: int, data: Dict[str, Any]):
         self.item_template_repo.update_rod_template(rod_id, data)
@@ -55,7 +58,7 @@ class ItemTemplateService:
         return self.item_template_repo.get_all_baits()
 
     def add_bait_template(self, data: Dict[str, Any]):
-        self.item_template_repo.add_bait_template(data)
+        return self.item_template_repo.add_bait_template(data)
 
     def update_bait_template(self, bait_id: int, data: Dict[str, Any]):
         self.item_template_repo.update_bait_template(bait_id, data)
@@ -71,7 +74,7 @@ class ItemTemplateService:
         return self.item_template_repo.get_all_accessories()
 
     def add_accessory_template(self, data: Dict[str, Any]):
-        self.item_template_repo.add_accessory_template(data)
+        return self.item_template_repo.add_accessory_template(data)
 
     def update_accessory_template(self, accessory_id: int, data: Dict[str, Any]):
         self.item_template_repo.update_accessory_template(accessory_id, data)
@@ -136,7 +139,7 @@ class ItemTemplateService:
             "pool": pool,
             "all_rods": all_rods,
             "all_baits": all_baits,
-            "all_accessories": all_accessories
+            "all_accessories": all_accessories,
         }
 
     # --- Gacha Pool Item Methods ---

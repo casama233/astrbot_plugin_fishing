@@ -39,6 +39,8 @@ class MysqlConnectionManager:
                 "database": unquote(parsed.path.lstrip("/")),
                 "charset": self.config.get("charset", "utf8mb4"),
                 "connect_timeout": int(self.config.get("connect_timeout", 10)),
+                "read_timeout": int(self.config.get("read_timeout", 30)),
+                "write_timeout": int(self.config.get("write_timeout", 30)),
             }
 
         host = str(self.config.get("host", "")).strip()
@@ -55,11 +57,25 @@ class MysqlConnectionManager:
             "database": database,
             "charset": self.config.get("charset", "utf8mb4"),
             "connect_timeout": int(self.config.get("connect_timeout", 10)),
+            "read_timeout": int(self.config.get("read_timeout", 30)),
+            "write_timeout": int(self.config.get("write_timeout", 30)),
         }
 
     def _get_connection(self):
         conn = getattr(self._local, "connection", None)
-        if conn is None:
+        if conn is not None:
+            try:
+                conn.ping(reconnect=True)
+                return conn
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                if hasattr(self._local, "connection"):
+                    delattr(self._local, "connection")
+
+        if conn is None or not hasattr(self._local, "connection"):
             pymysql = self._require_pymysql()
             conn = pymysql.connect(
                 **self._connect_kwargs(),
@@ -73,6 +89,12 @@ class MysqlConnectionManager:
     def get_connection(self):
         conn = self._get_connection()
         try:
+            try:
+                conn.ping(reconnect=True)
+            except Exception:
+                if hasattr(self._local, "connection"):
+                    delattr(self._local, "connection")
+                conn = self._get_connection()
             yield conn
         except Exception as exc:
             try:

@@ -48,154 +48,52 @@ class ExternalSqlSyncManager:
                 "password": unquote(parsed.password or ""),
                 "database": unquote(parsed.path.lstrip("/")),
                 "charset": self.config.get("charset", "utf8mb4"),
-                "connect_timeout": int(self.config.get("connect_timeout", 10)),
-                "autocommit": False,
             }
-
-        host = str(self.config.get("host", "")).strip()
-        user = str(self.config.get("user", "")).strip()
-        database = str(self.config.get("database", "")).strip()
-        if not host or not user or not database:
-            raise ValueError(
-                "external_sql enabled but host/user/database or mysql_url is missing"
-            )
-
         return {
-            "host": host,
-            "port": int(self.config.get("port", 3306)),
-            "user": user,
+            "host": self.config.get("host", "localhost"),
+            "port": self.config.get("port", 3306),
+            "user": self.config.get("user", "root"),
             "password": self.config.get("password", ""),
-            "database": database,
+            "database": self.config.get("database", "astrbot"),
             "charset": self.config.get("charset", "utf8mb4"),
-            "connect_timeout": int(self.config.get("connect_timeout", 10)),
-            "autocommit": False,
         }
 
-    @staticmethod
-    def _q_ident(name: str) -> str:
-        return "`" + name.replace("`", "``") + "`"
+    def _get_tables(self, cursor) -> List[str]:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        return [
+            r[0]
+            for r in cursor.fetchall()
+            if not r[0].startswith("sqlite_") and r[0] != "schema_version"
+        ]
 
-    @staticmethod
-    def _to_sqlite_value(v: Any) -> Any:
-        if isinstance(v, datetime.timedelta):
-            total = int(v.total_seconds())
-            sign = "-" if total < 0 else ""
-            total = abs(total)
-            h = total // 3600
-            m = (total % 3600) // 60
-            s = total % 60
-            return f"{sign}{h:02d}:{m:02d}:{s:02d}"
-        if isinstance(v, (datetime.datetime, datetime.date, datetime.time)):
-            return (
-                v.isoformat(sep=" ")
-                if isinstance(v, datetime.datetime)
-                else v.isoformat()
-            )
-        return v
+    def _q_ident(self, ident: str) -> str:
+        return f"`{ident}`"
 
-    def _sqlite_tables(self, conn: sqlite3.Connection) -> List[str]:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT name
-            FROM sqlite_master
-            WHERE type='table' AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-            """
-        )
-        return [row[0] for row in cur.fetchall()]
-
-    def _mysql_has_table(self, mysql_conn, table: str) -> bool:
-        with mysql_conn.cursor() as cur:
-            cur.execute("SHOW TABLES LIKE %s", (table,))
-            return cur.fetchone() is not None
-
-    def _copy_mysql_to_sqlite(self) -> None:
+    def _copy_sqlite_to_mysql(self):
         pymysql = self._require_pymysql()
-        mysql_conn = pymysql.connect(**self._mysql_connect_kwargs())
-        sqlite_conn = sqlite3.connect(self.sqlite_path)
-
-        try:
-            sqlite_conn.execute("PRAGMA foreign_keys = OFF")
-            tables = self._sqlite_tables(sqlite_conn)
-
-            for table in tables:
-                if not self._mysql_has_table(mysql_conn, table):
-                    logger.warning(
-                        f"[external_sql] MySQL table missing, skip pull: {table}"
-                    )
-                    continue
-
-                sqlite_cols = [
-                    row[1]
-                    for row in sqlite_conn.execute(
-                        f"PRAGMA table_info({self._q_ident(table)})"
-                    ).fetchall()
-                ]
-                if not sqlite_cols:
-                    continue
-
-                cols_sql = ", ".join(self._q_ident(c) for c in sqlite_cols)
-                placeholders = ", ".join(["?"] * len(sqlite_cols))
-                sqlite_conn.execute(f"DELETE FROM {self._q_ident(table)}")
-
-                total = 0
-                with mysql_conn.cursor() as cur:
-                    cur.execute(f"SELECT {cols_sql} FROM {self._q_ident(table)}")
-                    while True:
-                        rows = cur.fetchmany(2000)
-                        if not rows:
-                            break
-                        sqlite_conn.executemany(
-                            f"INSERT INTO {self._q_ident(table)} ({cols_sql}) VALUES ({placeholders})",
-                            [
-                                tuple(self._to_sqlite_value(x) for x in row)
-                                for row in rows
-                            ],
-                        )
-                        total += len(rows)
-                logger.info(f"[external_sql] pulled {table}: {total} rows")
-
-            sqlite_conn.commit()
-            logger.info("[external_sql] mysql -> sqlite startup sync completed")
-        finally:
-            try:
-                sqlite_conn.execute("PRAGMA foreign_keys = ON")
-            except Exception:
-                pass
-            sqlite_conn.close()
-            mysql_conn.close()
-
-    def _copy_sqlite_to_mysql(self) -> None:
-        pymysql = self._require_pymysql()
-        mysql_conn = pymysql.connect(**self._mysql_connect_kwargs())
         sqlite_conn = sqlite3.connect(self.sqlite_path)
         sqlite_conn.row_factory = sqlite3.Row
-
+        mysql_conn = pymysql.connect(**self._mysql_connect_kwargs())
         try:
+            src_cur = sqlite_conn.cursor()
+            tables = self._get_tables(src_cur)
+
             with mysql_conn.cursor() as cur:
                 cur.execute("SET FOREIGN_KEY_CHECKS=0")
 
-            tables = self._sqlite_tables(sqlite_conn)
             for table in tables:
-                if not self._mysql_has_table(mysql_conn, table):
-                    logger.warning(
-                        f"[external_sql] MySQL table missing, skip push: {table}"
-                    )
-                    continue
-
-                src_cur = sqlite_conn.cursor()
-                src_cur.execute(f"SELECT * FROM {self._q_ident(table)}")
+                src_cur.execute(f"SELECT * FROM {table} LIMIT 1")
                 col_names = [d[0] for d in src_cur.description]
-                if not col_names:
-                    continue
-
-                cols_sql = ", ".join(self._q_ident(c) for c in col_names)
                 placeholders = ", ".join(["%s"] * len(col_names))
-                insert_sql = f"INSERT INTO {self._q_ident(table)} ({cols_sql}) VALUES ({placeholders})"
+                cols_str = ", ".join([self._q_ident(c) for c in col_names])
+                insert_sql = (
+                    f"INSERT INTO {self._q_ident(table)} ({cols_str}) "
+                    f"VALUES ({placeholders})"
+                )
 
+                src_cur.execute(f"SELECT * FROM {table}")
                 with mysql_conn.cursor() as cur:
-                    cur.execute(f"DELETE FROM {self._q_ident(table)}")
+                    cur.execute(f"TRUNCATE TABLE {self._q_ident(table)}")
 
                 total = 0
                 while True:
@@ -205,8 +103,8 @@ class ExternalSqlSyncManager:
                     payload = [tuple(row[c] for c in col_names) for row in rows]
                     with mysql_conn.cursor() as cur:
                         cur.executemany(insert_sql, payload)
-                    total += len(payload)
-                logger.info(f"[external_sql] pushed {table}: {total} rows")
+                        total += len(payload)
+                        logger.info(f"[external_sql] pushed {table}: {total} rows")
 
             with mysql_conn.cursor() as cur:
                 cur.execute("SET FOREIGN_KEY_CHECKS=1")
@@ -214,6 +112,41 @@ class ExternalSqlSyncManager:
             logger.info("[external_sql] sqlite -> mysql sync completed")
         except Exception:
             mysql_conn.rollback()
+            raise
+        finally:
+            mysql_conn.close()
+            sqlite_conn.close()
+
+    def _copy_mysql_to_sqlite(self):
+        pymysql = self._require_pymysql()
+        sqlite_conn = sqlite3.connect(self.sqlite_path)
+        mysql_conn = pymysql.connect(**self._mysql_connect_kwargs())
+        try:
+            with mysql_conn.cursor() as cur:
+                cur.execute("SHOW TABLES")
+                tables = [r[0] for r in cur.fetchall()]
+
+            for table in tables:
+                if table.startswith("sqlite_") or table == "schema_version":
+                    continue
+                with mysql_conn.cursor() as cur:
+                    cur.execute(f"SELECT * FROM {self._q_ident(table)}")
+                    col_names = [d[0] for d in cur.description]
+                    placeholders = ", ".join(["?"] * len(col_names))
+                    cols_str = ", ".join([f'"{c}"' for c in col_names])
+                    insert_sql = (
+                        f"INSERT INTO {table} ({cols_str}) VALUES ({placeholders})"
+                    )
+
+                    rows = cur.fetchall()
+                    sqlite_conn.execute(f"DELETE FROM {table}")
+                    sqlite_conn.executemany(insert_sql, rows)
+                    logger.info(f"[external_sql] pulled {table}: {len(rows)} rows")
+
+            sqlite_conn.commit()
+            logger.info("[external_sql] mysql -> sqlite sync completed")
+        except Exception:
+            sqlite_conn.rollback()
             raise
         finally:
             mysql_conn.close()

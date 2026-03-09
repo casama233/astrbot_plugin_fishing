@@ -1,69 +1,118 @@
 # 贡献指南
 
-感谢您对 AstrBot 钓鱼插件的关注和贡献！
+感谢你参与 `astrbot_plugin_fishing` 的维护与扩展。
 
-## 如何贡献
+本项目是一个 **基于停止维护旧插件持续演进的 AstrBot 二开维护版本**，因此贡献时请优先遵循“可维护、可兼容、可验证”的原则。
 
-### 提交 Pull Request
+## 提交前请先了解
 
-1. **Fork** 本仓库
-2. 创建您的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交您的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 **Pull Request**
+- 当前主运行路径：**MySQL**
+- 当前主要入口：`main.py`
+- 当前核心层次：`handlers -> services -> repositories -> database`
+- 当前管理方向：尽量将新增玩法参数接入 **Web 管理** 与 **配置结构**
 
-### ⚠️ 重要：Pull Request 目标分支
+## 基本要求
 
-**请将您的 Pull Request 提交到 `develop` 分支，而不是 `main` 分支。**
+- 功能改动请尽量附带最小验证步骤
+- 修复数据库逻辑时请优先验证 MySQL 路径
+- 不要只修 SQLite 而忽略 MySQL
+- 新增模板/物品/交易品时，请同步补齐说明文案与实际作用效果
+- 不要把运行数据写进插件代码目录
+- 请保持良好的错误处理，避免让单条命令导致插件整体崩溃
 
-- ✅ **正确**：PR 目标分支 → `develop`
-- ❌ **错误**：PR 目标分支 → `main`
+## Pull Request 流程
 
-`main` 分支用于稳定版本发布，所有新功能和改进都应该先合并到 `develop` 分支进行测试。
+1. Fork 本仓库
+2. 新建分支
 
-### 代码规范
+```bash
+git checkout -b feature/your-feature-name
+```
 
-- 遵循 Python PEP 8 代码规范
-- 添加适当的注释和文档字符串
-- 确保代码通过所有测试
-- 提交信息使用清晰的中文描述
+3. 完成修改并自测
+4. 提交代码
+5. 发起 Pull Request
 
-### 提交信息格式
+## PR 目标分支
+
+请将 Pull Request 提交到：
+
+- `develop`
+
+不要直接提交到：
+
+- `main`
+
+## 建议提交格式
 
 建议使用以下格式：
 
+```text
+feat: 新增交易所商品 Web 配置
+fix: 修复 MySQL 签到仓储缺失实现
+docs: 更新 README 中的 MySQL 架构说明
 ```
-类型: 简短描述
 
-详细描述（可选）
-```
+常用类型：
 
-类型包括：
-- `feat`: 新功能
-- `fix`: Bug修复
-- `docs`: 文档更新
-- `style`: 代码格式调整
-- `refactor`: 代码重构
-- `test`: 测试相关
-- `chore`: 构建/工具相关
+- `feat`
+- `fix`
+- `docs`
+- `refactor`
+- `test`
+- `chore`
 
-### 报告问题
+## 开发建议
 
-在提交 Issue 之前，请先搜索是否已有类似问题。提交 Issue 时请包含：
-- 问题描述
+### 1. 命令改动
+
+如果修改命令：
+
+- 同步检查 `main.py` 路由
+- 同步检查 `draw/help.py` 帮助文案
+- 如涉及繁简体，请一起补齐 alias 或解析兼容
+
+### 2. 数据库改动
+
+如果修改数据库：
+
+- 先确认 MySQL 仓储是否已实现
+- 如涉及旧逻辑兼容，再考虑 SQLite
+- 避免写出只能在 SQLite 跑通的迁移修复
+
+### 3. Web 管理改动
+
+如果新增配置型玩法：
+
+- 优先补 Web 管理入口
+- 同步补配置默认值
+- 尽量支持热更新或最小重启生效
+
+### 4. 图片渲染改动
+
+如果修改图片：
+
+- 尽量保证桌面端与移动端都可读
+- 关注平台压缩后的可用性
+- 对长图考虑拆分或降密度布局
+
+## Issue / Bug 反馈建议
+
+提交问题时请尽量包含：
+
+- 使用平台（QQ / Discord / Telegram 等）
+- AstrBot 版本
+- 插件版本
+- 存储后端（MySQL / SQLite）
 - 复现步骤
-- 预期行为
-- 实际行为
-- 环境信息（Python版本、AstrBot版本等）
+- 错误日志
 
-### 功能建议
+## 当前最欢迎的贡献方向
 
-欢迎在 [Issues](https://github.com/cary-server/astrbot_plugin_fishing/issues) 中提出新功能想法和改进建议。请详细描述：
-- 功能需求
-- 使用场景
-- 预期效果
+- MySQL 路径补全与稳定性修复
+- Web 管理可配置化
+- 交易所 / 商店 / 市场的一致性优化
+- 帮助文档与命令路由同步
+- 图片渲染质量与兼容性改进
 
----
-
-再次感谢您的贡献！🎣
-
+感谢你的贡献。这个项目的维护价值，很大程度上来自持续的小修复和高质量的整理。🎣

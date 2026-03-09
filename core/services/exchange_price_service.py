@@ -22,31 +22,40 @@ class ExchangePriceService:
             self.config.get("update_timing")
         )
 
-        # 商品定义
-        self.commodities = {
-            "dried_fish": {
-                "name": "鱼干",
-                "description": "经过晾晒处理的鱼类，保质期较长",
-            },
-            "fish_roe": {"name": "鱼卵", "description": "珍贵的鱼类卵子，营养价值极高"},
-            "fish_oil": {"name": "鱼油", "description": "从鱼类中提取的油脂，用途广泛"},
-            "fish_bone": {
-                "name": "鱼骨",
-                "description": "坚硬的鱼骨，保质期长，价格最稳定",
-            },
-            "fish_scale": {
-                "name": "鱼鳞",
-                "description": "闪亮的鱼鳞，中等保质期，价格波动适中",
-            },
-            "fish_sauce": {
-                "name": "鱼露",
-                "description": "发酵的鱼露，极短保质期，价格剧烈波动",
-            },
-        }
+        # 从数据库加载商品定义
+        self.commodities = self._load_commodities()
 
         # 价格更新任务
         self._price_update_thread: Optional[threading.Thread] = None
         self._price_update_running = False
+
+    def _load_commodities(self) -> Dict[str, Dict[str, Any]]:
+        """从数据库加载商品信息"""
+        try:
+            all_commodities = self.exchange_repo.get_all_commodities()
+            return {
+                c.commodity_id: {"name": c.name, "description": c.description}
+                for c in all_commodities
+            }
+        except Exception as e:
+            logger.error(f"加载交易所商品失败: {e}")
+            return {}
+
+    def _get_initial_price_map(self) -> Dict[str, int]:
+        defaults = {
+            "dried_fish": 6000,
+            "fish_roe": 12000,
+            "fish_oil": 10000,
+            "fish_bone": 4000,
+            "fish_scale": 8000,
+            "fish_sauce": 15000,
+        }
+        configured = self.config.get("initial_prices", {}) or {}
+        commodity_ids = list(self.commodities.keys()) or list(defaults.keys())
+        return {
+            cid: int(configured.get(cid, defaults.get(cid, 1000)))
+            for cid in commodity_ids
+        }
 
     def get_market_status(self) -> Dict[str, Any]:
         """获取市场状态"""
@@ -72,17 +81,7 @@ class ExchangePriceService:
                         "date": today_str,
                     }
                 # 昨日也没有则返回初始价格
-                initial_prices = self.config.get(
-                    "initial_prices",
-                    {
-                        "dried_fish": 6000,
-                        "fish_roe": 12000,
-                        "fish_oil": 10000,
-                        "fish_bone": 4000,
-                        "fish_scale": 8000,
-                        "fish_sauce": 15000,
-                    },
-                )
+                initial_prices = self._get_initial_price_map()
                 return {
                     "success": True,
                     "prices": initial_prices,
@@ -233,11 +232,12 @@ class ExchangePriceService:
 
             # 仍缺失则使用初始价格
             if len(base_prices) < len(self.commodities):
+                initial_prices = self._get_initial_price_map()
                 for commodity_id in self.commodities.keys():
                     if commodity_id not in base_prices:
-                        base_prices[commodity_id] = self.config.get(
-                            "initial_prices", {}
-                        ).get(commodity_id, 1000)
+                        base_prices[commodity_id] = initial_prices.get(
+                            commodity_id, 1000
+                        )
 
             logger.info(f"基于当前价格更新：{base_prices}")
 
@@ -285,17 +285,7 @@ class ExchangePriceService:
             self.exchange_repo.delete_prices_for_date(today_str)
 
             # 设置初始价格
-            initial_prices = self.config.get(
-                "initial_prices",
-                {
-                    "dried_fish": 6000,
-                    "fish_roe": 12000,
-                    "fish_oil": 10000,
-                    "fish_bone": 4000,
-                    "fish_scale": 8000,
-                    "fish_sauce": 15000,
-                },
-            )
+            initial_prices = self._get_initial_price_map()
 
             for commodity_id, price in initial_prices.items():
                 self.exchange_repo.add_exchange_price(
@@ -554,17 +544,7 @@ class ExchangePriceService:
 
             # 最后使用初始价格补齐
             if len(last_prices) < len(self.commodities):
-                init_prices = self.config.get(
-                    "initial_prices",
-                    {
-                        "dried_fish": 6000,
-                        "fish_roe": 12000,
-                        "fish_oil": 10000,
-                        "fish_bone": 4000,
-                        "fish_scale": 8000,
-                        "fish_sauce": 15000,
-                    },
-                )
+                init_prices = self._get_initial_price_map()
                 for commodity_id in self.commodities.keys():
                     if commodity_id not in last_prices:
                         last_prices[commodity_id] = init_prices.get(commodity_id, 1000)
@@ -578,10 +558,13 @@ class ExchangePriceService:
             # 计算新价格
             new_prices = {}
             for commodity_id in self.commodities.keys():
-                last_price = last_prices.get(
-                    commodity_id,
-                    self.config.get("initial_prices", {}).get(commodity_id, 100),
-                )
+                last_price = last_prices.get(commodity_id)
+                if last_price is None:
+                    # 如果没有历史价格，从配置中获取初始价格，否则使用默认值
+                    last_price = self.config.get("initial_prices", {}).get(
+                        commodity_id, 1000
+                    )
+
                 new_price = self._calculate_new_price(commodity_id, last_price)
                 new_prices[commodity_id] = new_price
 

@@ -373,13 +373,16 @@ class MysqlShopRepository(AbstractShopRepository):
             conn.commit()
 
     def add_purchase_record(self, user_id: str, item_id: int, quantity: int) -> None:
+        from datetime import datetime
+
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 cursor.execute(
-                    "INSERT INTO shop_purchase_records (user_id, item_id, quantity) VALUES (%s, %s, %s)",
-                    (user_id, item_id, quantity),
+                    "INSERT INTO shop_purchase_records (user_id, item_id, quantity, timestamp) VALUES (%s, %s, %s, %s)",
+                    (user_id, item_id, quantity, now),
                 )
-            conn.commit()
+                conn.commit()
 
     def get_user_purchased_count(
         self, user_id: str, item_id: int, since: Optional[datetime] = None

@@ -657,8 +657,13 @@ class AbstractExchangeRepository(ABC):
         pass
 
     @abstractmethod
+    def get_all_user_commodities(self) -> List[UserCommodity]:
+        """获取所有用户的持仓（用于系统级统计）"""
+        pass
+
+    @abstractmethod
     def get_user_commodities(self, user_id: str) -> List[UserCommodity]:
-        """获取用户持有的所有大宗商品"""
+        """获取单个用户的持仓"""
         pass
 
     @abstractmethod

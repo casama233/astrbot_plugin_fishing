@@ -50,8 +50,7 @@ async def sign_in(self: "FishingPlugin", event: AstrMessageEvent):
     """签到"""
     user_id = self._get_effective_user_id(event)
     result = self.user_service.daily_sign_in(user_id)
-    if result["success"]:
-        yield event.plain_result(result["message"])
+    yield event.plain_result(result.get("message", "❌ 签到失败，请稍后重试"))
 
 
 async def state(self: "FishingPlugin", event: AstrMessageEvent):
@@ -261,7 +260,7 @@ async def fishing_log(self: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result("❌ 系統忙碌中，請稍後再試。")
 
 
-from ..draw.help import draw_help_image
+from ..draw.help import draw_help_image, draw_help_images_split
 
 
 async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
@@ -430,17 +429,12 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
                 "出售所有鱼竿",
                 "出售所有饰品",
                 "商店",
-                "商店购买",
                 "市场",
-                "上架",
-                "购买",
-                "我的上架",
-                "下架",
             },
         },
         "exchange": {
             "title": "📈 交易所",
-            "cmds": {"交易所", "持仓", "清仓"},
+            "cmds": {"交易所"},
         },
         "gacha": {
             "title": "🎰 抽卡與概率玩法",
@@ -458,38 +452,7 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
         },
         "sicbo": {
             "title": "🎲 骰寶",
-            "cmds": {
-                "开庄",
-                "骰宝状态",
-                "我的下注",
-                "骰宝帮助",
-                "骰宝赔率",
-                "大",
-                "小",
-                "单",
-                "双",
-                "豹子",
-                "一点",
-                "二点",
-                "三点",
-                "四点",
-                "五点",
-                "六点",
-                "4点",
-                "5点",
-                "6点",
-                "7点",
-                "8点",
-                "9点",
-                "10点",
-                "11点",
-                "12点",
-                "13点",
-                "14点",
-                "15点",
-                "16点",
-                "17点",
-            },
+            "cmds": {"骰宝", "骰宝下注"},
         },
         "social": {
             "title": "👥 社交與互動",
@@ -503,41 +466,12 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
                 "查看成就",
                 "税收记录",
                 "鱼类图鉴",
-                "发红包",
-                "领红包",
-                "红包列表",
-                "红包详情",
-                "撤回红包",
+                "红包",
             },
         },
         "admin": {
             "title": "🛠 管理員",
-            "cmds": {
-                "修改金币",
-                "奖励金币",
-                "扣除金币",
-                "修改高级货币",
-                "奖励高级货币",
-                "扣除高级货币",
-                "全体奖励金币",
-                "全体奖励高级货币",
-                "全体扣除金币",
-                "全体扣除高级货币",
-                "全体发放道具",
-                "开启钓鱼后台管理",
-                "关闭钓鱼后台管理",
-                "代理上线",
-                "代理下线",
-                "同步初始设定",
-                "授予称号",
-                "移除称号",
-                "创建称号",
-                "补充鱼池",
-                "骰宝结算",
-                "骰宝倒计时",
-                "骰宝模式",
-                "清理红包",
-            },
+            "cmds": {"钓鱼管理"},
         },
     }
 
@@ -656,12 +590,12 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             "【功能導航】\n"
             "- 1 核心：註冊、簽到、釣魚（打工人的日常）\n"
             "- 2 背包：魚塘/水族箱/裝備（你的全部家當）\n"
-            "- 3 經濟：商店/市場（剁手與回血的地方）\n"
-            "- 4 交易所：大宗商品（天台還是別墅？）\n"
-            "- 5 機率：抽卡、擦彈（單車變摩托）\n"
-            "- 6 骰寶：多人對局（贏了會所嫩模）\n"
-            "- 7 社交：互偷互電（相愛相殺）\n"
-            "- 8 管理：GM的權杖\n\n"
+            "- 3 經濟：/商店、/市場（剁手與回血的地方）\n"
+            "- 4 交易所：統一走 /交易所 子命令\n"
+            "- 5 機率：抽卡/擦彈/命運之輪獨立指令\n"
+            "- 6 骰寶：/骰宝 + /骰宝下注\n"
+            "- 7 社交：互偷互電、/红包 互動\n"
+            "- 8 管理：統一走 /钓鱼管理 子命令\n\n"
             "【當前伺服器情報】\n"
             f"- 已發現魚種：{fish_count} 種；稀有度覆蓋：{(f'{min(rarity_set)}~{max(rarity_set)} 星' if rarity_set else '暫無')}\n"
             f"- 魚獲重量：{min_weight}g ~ {max_weight}g（吃太飽了？）\n"
@@ -671,10 +605,10 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             f"- 極品爆率上限：{_fmt_pct(quality_cap)}（玄不救非，氪能改命）\n\n"
             "【90秒光速入門】\n"
             "- /註冊 → /簽到 → /釣魚（重複N次）→ /全部賣出\n"
-            "- 有錢了？買魚餌！再有錢？買股票！\n\n"
+            "- 有錢了？先 /商店 購買補給，再 /交易所 開戶 試水溫\n\n"
             "👇 查詢具體指令：\n"
             "用法：/釣魚幫助 <分類> 或 /釣魚幫助 <頁碼>\n"
-            "範例：/釣魚幫助 社交 或 /釣魚幫助 7"
+            "範例：/釣魚幫助 交易所 或 /釣魚幫助 骰寶"
         ),
         "core": (
             "【1/10 🌊 核心玩法：打工人的自我修養】\n"
@@ -715,11 +649,15 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             "- 市場：玩家自由交易，撿漏的好地方\n"
             "- 匿名：穿上馬甲，沒人知道你是誰\n\n"
             "【常用指令】\n"
-            f"{_commands_block('economy')}\n\n"
+            f"{_commands_block('economy')}\n"
+            "- /商店 购买 D1 3\n"
+            "- /市场 上架 F3 100 5 匿名\n"
+            "- /市场 购买 C5\n"
+            "- /市场 我的上架\n\n"
             "【老船長建議】\n"
-            "- /商店（進貨）\n"
-            "- /上架 F3 100 5 匿名（蒙面擺攤）\n"
-            "- /購買 C5（買別人的傳家寶）"
+            "- /商店（先看有什麼能買）\n"
+            "- /商店 购买 D1 3（直接補貨）\n"
+            "- /市场 上架 F3 100 5 匿名（蒙面擺攤）"
         ),
         "exchange": (
             "【4/10 📈 交易所：釣魚界的華爾街】\n"
@@ -730,14 +668,17 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             "- 這是強者的遊戲，心臟不好的慎入\n\n"
             "【常用指令】\n"
             f"{_commands_block('exchange')}\n"
-            "- /交易所 幫助\n"
-            "- /交易所 歷史 [商品] [天數]\n"
-            "- /交易所 分析 [商品] [天數]\n"
-            "- /交易所 統計\n\n"
+            "- /交易所 开户\n"
+            "- /交易所 持仓\n"
+            "- /交易所 买入 鱼油 10\n"
+            "- /交易所 卖出 鱼油 5\n"
+            "- /交易所 历史 鱼油 3\n"
+            "- /交易所 分析 鱼油 7\n"
+            "- /交易所 清仓\n\n"
             "【老船長建議】\n"
             "- /交易所 開戶（先領個證）\n"
             "- /交易所 買入 魚油 10（試試水）\n"
-            "- /持倉（看看虧了沒）"
+            "- /交易所 持倉（看看虧了沒）"
         ),
         "gacha": (
             "【5/10 🎰 機率玩法：搏一搏，單車變摩托】\n"
@@ -750,17 +691,23 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             f"{_commands_block('gacha')}\n\n"
             "【老船長建議】\n"
             "- /十連 1 3（大力出奇蹟）\n"
-            "- /擦彈 1000（小賭怡情）"
+            "- /擦彈 1000（小賭怡情）\n"
+            "- /命運之輪 5000（搏大的）"
         ),
         "sicbo": (
             "【6/10 🎲 骰寶：贏了會所嫩模，輸了下海幹活】\n"
             "規則：莊家開盤，閒家下注。買定離手，願賭服輸！\n\n"
             "【常用指令】\n"
-            f"{_commands_block('sicbo')}\n\n"
+            f"{_commands_block('sicbo')}\n"
+            "- /骰宝 开庄\n"
+            "- /骰宝 状态\n"
+            "- /骰宝 我的下注\n"
+            "- /骰宝下注 大 1000\n"
+            "- /骰宝下注 豹子 100\n\n"
             "【老船長建議】\n"
-            "- /開莊（坐莊收錢）\n"
-            "- /大 1000（無腦壓大）\n"
-            "- /豹子 100（夢想還是要有的）"
+            "- /骰寶 開莊（坐莊收錢）\n"
+            "- /骰寶下注 大 1000（無腦壓大）\n"
+            "- /骰寶下注 豹子 100（夢想還是要有的）"
         ),
         "social": (
             "【7/10 👥 社交互害：友誼的小船說翻就翻】\n"
@@ -770,21 +717,28 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             "- 偷魚/電魚：讀書人的事，能算偷嗎？\n"
             "- 發紅包：老闆大氣！老闆身體健康！\n\n"
             "【常用指令】\n"
-            f"{_commands_block('social')}\n\n"
+            f"{_commands_block('social')}\n"
+            "- /红包 发红包 10000 5\n"
+            "- /红包 领红包\n"
+            "- /红包 红包详情 123\n\n"
             "【老船長建議】\n"
             "- /排行榜 重量（看看誰釣到了巨物）\n"
             "- /偷魚 @倒霉蛋\n"
-            "- /發紅包 10000 5 普通（散財童子）"
+            "- /紅包 發紅包 10000 5（散財童子）"
         ),
         "admin": (
             "【8/10 🛠 管理員：GM的權杖】\n"
             "這裡是你無法觸及的領域（除非你是管理員）。\n\n"
             "【常用指令】\n"
-            f"{_commands_block('admin')}\n\n"
+            f"{_commands_block('admin')}\n"
+            "- /钓鱼管理 同步\n"
+            "- /钓鱼管理 修改金币 用户ID 1000\n"
+            "- /钓鱼管理 开启钓鱼后台管理\n"
+            "- /钓鱼管理 清理红包 所有\n\n"
             "【老船長建議】\n"
-            "- /重置 @玩家（重置玩家數據）\n"
-            "- /凍結 @玩家（禁止玩家操作）\n"
-            "- /解凍 @玩家（恢復玩家操作）"
+            "- /釣魚管理 同步（先同步配置）\n"
+            "- /釣魚管理 修改金幣 用戶ID 1000\n"
+            "- /釣魚管理 補充魚池"
         ),
         "science": (
             "【9/10 🧪 數值解密：一般人我不告訴他】\n"
@@ -807,7 +761,7 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             "3) /釣魚（開始搬磚）\n"
             "4) /背包（數數收穫）\n"
             "5) /全部賣出（換成小錢錢）\n"
-            "6) /商店（消費升級）\n\n"
+            "6) /商店 購買 D1 3（消費升級）\n\n"
             "【進階路線】\n"
             "- 原始積累：簽到 + 釣魚 + 賣魚\n"
             "- 裝備競賽：精煉飾品 + 升級魚竿\n"
@@ -864,12 +818,13 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
 
     args = event.message_str.strip().split(maxsplit=1)
     if len(args) == 1:
-        # 預設返回精美圖片幫助
+        # 預設返回兩張圖片幫助，降低平台壓縮導致的可讀性問題
         try:
-            img = draw_help_image()
-            image_path = os.path.join(self.tmp_dir, "fishing_help.png")
-            img.save(image_path)
-            yield event.image_result(image_path)
+            imgs = draw_help_images_split()
+            for idx, img in enumerate(imgs, start=1):
+                image_path = os.path.join(self.tmp_dir, f"fishing_help_{idx}.png")
+                img.save(image_path)
+                yield event.image_result(image_path)
             return
         except Exception as e:
             logger.error(f"生成釣魚幫助圖片失敗: {e}", exc_info=True)
@@ -907,7 +862,7 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
     yield event.plain_result(
         "❌ 找不到該分類或關鍵字\n\n"
         "可用：/釣魚幫助 核心/背包/經濟/交易所/機率/骰寶/社交/管理/科普/全部\n"
-        "也可直接搜尋：/釣魚幫助 轉賬 或 /釣魚幫助 水族箱"
+        "也可直接搜尋：/釣魚幫助 交易所 或 /釣魚幫助 紅包"
     )
 
 

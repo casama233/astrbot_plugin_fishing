@@ -51,6 +51,7 @@ from .core.services.red_packet_service import RedPacketService
 
 from .core.database.migration import run_migrations
 from .core.database.external_sql_sync import ExternalSqlSyncManager
+from .core.database.mysql_connection_manager import MysqlConnectionManager
 
 # ==========================================================
 # 导入所有指令函数
@@ -191,16 +192,23 @@ class FishingPlugin(Star):
             ),  # 是否显示建议操作/下一步提示
         }
 
-        run_migrations(
-            db_path,
-            os.path.join(os.path.dirname(__file__), "core", "database", "migrations"),
-        )
-
-        self.external_sql_sync_manager = ExternalSqlSyncManager(
-            db_path, config.get("external_sql", {})
-        )
-        self.external_sql_sync_manager.startup_sync()
         self.storage_backend = self._get_storage_backend(config)
+
+        # 数据库初始化：MySQL 模式不再依赖 SQLite migration/sync
+        self.external_sql_sync_manager = None
+        if self.storage_backend == "sqlite":
+            run_migrations(
+                db_path,
+                os.path.join(
+                    os.path.dirname(__file__), "core", "database", "migrations"
+                ),
+            )
+            self.external_sql_sync_manager = ExternalSqlSyncManager(
+                db_path, config.get("external_sql", {})
+            )
+            self.external_sql_sync_manager.startup_sync()
+        else:
+            self._ensure_mysql_runtime_schema(config)
 
         self.user_repo = self._build_user_repo(config)
         self.item_template_repo = self._build_item_template_repo(config)
@@ -331,7 +339,8 @@ class FishingPlugin(Star):
         self._red_packet_cleanup_task = asyncio.create_task(
             self._red_packet_cleanup_scheduler()
         )
-        self.external_sql_sync_manager.start_periodic_sync()
+        if self.external_sql_sync_manager:
+            self.external_sql_sync_manager.start_periodic_sync()
 
         data_setup_service = DataSetupService(
             self.item_template_repo, self.gacha_repo, self.shop_repo
@@ -350,9 +359,95 @@ class FishingPlugin(Star):
     def _get_storage_backend(self, config: AstrBotConfig) -> str:
         external_sql = config.get("external_sql", {}) or {}
         backend = str(external_sql.get("backend", "sqlite")).strip().lower()
-        if backend not in {"sqlite", "mysql"}:
-            backend = "sqlite"
+        if backend in {"sqlite", "mysql"}:
+            return backend
+
+        # 未显式配置 backend 时，自动推断：配置了 MySQL 连接信息则走 MySQL
+        mysql_url = str(external_sql.get("mysql_url", "")).strip()
+        host = str(external_sql.get("host", "")).strip()
+        user = str(external_sql.get("user", "")).strip()
+        database = str(external_sql.get("database", "")).strip()
+        if mysql_url or (host and user and database):
+            return "mysql"
+
+        backend = "sqlite"
         return backend
+
+    def _ensure_mysql_runtime_schema(self, config: AstrBotConfig):
+        """MySQL 模式下的轻量运行时自修复，避免 SQLite 迁移链影响。"""
+        manager = MysqlConnectionManager(config.get("external_sql", {}))
+        with manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                # 1) 交易所核心表兜底
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS commodities (
+                        commodity_id VARCHAR(255) PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        description TEXT
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    """
+                )
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS exchange_prices (
+                        price_id BIGINT NOT NULL AUTO_INCREMENT,
+                        date VARCHAR(255) NOT NULL,
+                        time LONGTEXT NOT NULL,
+                        commodity_id VARCHAR(255) NOT NULL,
+                        price BIGINT NOT NULL,
+                        update_type LONGTEXT,
+                        created_at VARCHAR(255) NOT NULL,
+                        PRIMARY KEY (price_id),
+                        KEY idx_exchange_prices_created_at (created_at),
+                        KEY idx_exchange_prices_date_commodity (date(100), commodity_id(100)),
+                        CONSTRAINT fk_exchange_prices_0 FOREIGN KEY (commodity_id) REFERENCES commodities(commodity_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    """
+                )
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS check_ins (
+                        user_id VARCHAR(255) NOT NULL,
+                        check_in_date DATE NOT NULL,
+                        PRIMARY KEY (user_id, check_in_date)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    """
+                )
+
+                # 2) 合并遗留临时表（若存在）
+                cursor.execute("SHOW TABLES LIKE 'exchange_prices_new'")
+                if cursor.fetchone():
+                    cursor.execute(
+                        """
+                        INSERT INTO exchange_prices (date, time, commodity_id, price, update_type, created_at)
+                        SELECT n.date, n.time, n.commodity_id, n.price, n.update_type, n.created_at
+                        FROM exchange_prices_new n
+                        LEFT JOIN exchange_prices e
+                          ON e.date = n.date
+                         AND e.time = n.time
+                         AND e.commodity_id = n.commodity_id
+                        WHERE e.price_id IS NULL
+                        """
+                    )
+                    cursor.execute("DROP TABLE exchange_prices_new")
+
+                # 3) 交易所默认商品兜底（补齐缺失项）
+                cursor.execute(
+                    """
+                    INSERT INTO commodities (commodity_id, name, description) VALUES
+                    ('dried_fish', '鱼干', '稳健型标的，价格波动低'),
+                    ('fish_roe', '鱼卵', '高风险标的，价格波动极大'),
+                    ('fish_oil', '鱼油', '投机品，有概率触发事件导致价格大幅涨跌'),
+                    ('fish_bone', '鱼骨', '坚硬的鱼骨，保质期长，价格最稳定，适合长期持有'),
+                    ('fish_scale', '鱼鳞', '闪亮的鱼鳞，中等保质期，价格波动适中，平衡之选'),
+                    ('fish_sauce', '鱼露', '发酵的鱼露，极短保质期，价格剧烈波动，仅供高手')
+                    ON DUPLICATE KEY UPDATE
+                      name = VALUES(name),
+                      description = VALUES(description)
+                    """
+                )
+            conn.commit()
 
     def _build_user_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
@@ -803,7 +898,8 @@ class FishingPlugin(Star):
             yield r
 
     @filter.command(
-        "钓鱼帮助", alias=["釣魚幫助", "钓鱼菜单", "釣魚菜單", "菜单", "菜單"]
+        "钓鱼帮助",
+        alias=["釣魚幫助", "钓鱼菜单", "釣魚菜單", "菜单", "菜單", "帮助", "幫助"],
     )
     async def cmd_fishing_help_cn(self, event: AstrMessageEvent):
         """查看钓鱼帮助菜单"""
@@ -910,10 +1006,14 @@ class FishingPlugin(Star):
         "开启全部钱袋",
         alias=[
             "開啟全部錢袋",
+            "开啓全部钱袋",
+            "開啓全部錢袋",
             "打开全部钱袋",
             "打開全部錢袋",
             "打开所有钱袋",
             "打開所有錢袋",
+            "开啓所有钱袋",
+            "開啓所有錢袋",
         ],
     )
     async def cmd_open_all_money_bags_cn(self, event: AstrMessageEvent):
@@ -1063,15 +1163,13 @@ class FishingPlugin(Star):
         async for r in market_handlers.sell_all_accessories(self, event):
             yield r
 
-    @filter.command("商店", alias=["商店", "商店列表", "店鋪", "店铺"])
-    async def cmd_shop_cn(self, event: AstrMessageEvent):
-        """查看商店列表或详情"""
-        async for r in market_handlers.shop(self, event):
-            yield r
-
     @filter.command(
-        "商店购买",
+        "商店",
         alias=[
+            "商店列表",
+            "店鋪",
+            "店铺",
+            "商店购买",
             "商店購買",
             "购买商店商品",
             "購買商店商品",
@@ -1081,57 +1179,164 @@ class FishingPlugin(Star):
             "商店買",
         ],
     )
-    async def cmd_buy_in_shop_cn(self, event: AstrMessageEvent):
-        """从商店购买商品"""
-        async for r in market_handlers.buy_in_shop(self, event):
+    async def cmd_shop_dispatch_cn(self, event: AstrMessageEvent):
+        """商店命令入口"""
+        parts = self._extract_message_tokens(event.message_str or "")
+        cmd = parts[0].lstrip("/").strip() if parts else ""
+        if cmd == "商店":
+            if len(parts) > 1 and parts[1] in ["购买", "購買", "买", "買"]:
+                tail = " ".join(parts[2:]).strip()
+                event.message_str = f"/商店购买{(' ' + tail) if tail else ''}"
+                async for r in market_handlers.buy_in_shop(self, event):
+                    yield r
+                return
+            async for r in market_handlers.shop(self, event):
+                yield r
+            return
+        if cmd in [
+            "商店购买",
+            "商店購買",
+            "购买商店商品",
+            "購買商店商品",
+            "购买商店",
+            "購買商店",
+            "商店买",
+            "商店買",
+        ]:
+            async for r in market_handlers.buy_in_shop(self, event):
+                yield r
+            return
+        async for r in market_handlers.shop(self, event):
             yield r
 
-    @filter.command("市场", alias=["市場", "市场列表", "市場列表"])
-    async def cmd_market_cn(self, event: AstrMessageEvent):
-        """查看玩家交易市场"""
+    @filter.command(
+        "市场",
+        alias=[
+            "市場",
+            "市场列表",
+            "市場列表",
+            "上架",
+            "购买",
+            "購買",
+            "我的上架",
+            "上架列表",
+            "我的商品",
+            "我的挂单",
+            "我的掛單",
+            "下架",
+        ],
+    )
+    async def cmd_market_dispatch_cn(self, event: AstrMessageEvent):
+        """市场命令入口"""
+        parts = self._extract_message_tokens(event.message_str or "")
+        cmd = parts[0].lstrip("/").strip() if parts else ""
+        dispatch = {
+            "上架": market_handlers.list_any,
+            "购买": market_handlers.buy_item,
+            "購買": market_handlers.buy_item,
+            "我的上架": market_handlers.my_listings,
+            "上架列表": market_handlers.my_listings,
+            "我的商品": market_handlers.my_listings,
+            "我的挂单": market_handlers.my_listings,
+            "我的掛單": market_handlers.my_listings,
+            "下架": market_handlers.delist_item,
+        }
+        if cmd in ["市场", "市場"]:
+            if len(parts) > 1:
+                sub = parts[1].strip()
+                handler = dispatch.get(sub)
+                if handler:
+                    tail = " ".join(parts[2:]).strip()
+                    event.message_str = f"/{sub}{(' ' + tail) if tail else ''}"
+                    async for r in handler(self, event):
+                        yield r
+                    return
+            async for r in market_handlers.market(self, event):
+                yield r
+            return
+        handler = dispatch.get(cmd)
+        if handler:
+            async for r in handler(self, event):
+                yield r
+            return
         async for r in market_handlers.market(self, event):
             yield r
 
-    @filter.command("上架")
-    async def cmd_list_any_cn(self, event: AstrMessageEvent):
-        """将物品上架到市场"""
-        async for r in market_handlers.list_any(self, event):
-            yield r
-
-    @filter.command("购买", alias=["購買"])
-    async def cmd_buy_item_cn(self, event: AstrMessageEvent):
-        """从市场购买商品"""
-        async for r in market_handlers.buy_item(self, event):
-            yield r
-
-    @filter.command("我的上架", alias=["上架列表", "我的商品", "我的挂单", "我的掛單"])
-    async def cmd_my_listings_cn(self, event: AstrMessageEvent):
-        """查看我上架的商品"""
-        async for r in market_handlers.my_listings(self, event):
-            yield r
-
-    @filter.command("下架")
-    async def cmd_delist_item_cn(self, event: AstrMessageEvent):
-        """下架我的商品"""
-        async for r in market_handlers.delist_item(self, event):
-            yield r
-
-    @filter.command("交易所", alias=["交易所", "交易市場", "交易市场", "exchange"])
-    async def cmd_exchange_cn(self, event: AstrMessageEvent):
-        """交易所主命令"""
+    @filter.command(
+        "交易所",
+        alias=[
+            "交易市場",
+            "交易市场",
+            "exchange",
+            "持仓",
+            "持倉",
+            "库存",
+            "庫存",
+            "开户",
+            "開戶",
+            "开戶",
+            "开通",
+            "開通",
+            "买入",
+            "買入",
+            "購入",
+            "卖出",
+            "賣出",
+            "交易所帮助",
+            "交易所幫助",
+            "交易所说明",
+            "交易所說明",
+            "交易所历史",
+            "交易所歷史",
+            "交易所分析",
+            "交易所統計",
+            "交易所统计",
+            "清仓",
+            "清倉",
+            "清倉庫存",
+            "清仓库存",
+            "clear",
+        ],
+    )
+    async def cmd_exchange_dispatch_cn(self, event: AstrMessageEvent):
+        """交易所命令入口"""
+        parts = self._extract_message_tokens(event.message_str or "")
+        cmd = parts[0].lstrip("/").strip() if parts else ""
+        dispatch = {
+            "持仓": self.exchange_handlers.view_inventory,
+            "持倉": self.exchange_handlers.view_inventory,
+            "库存": self.exchange_handlers.view_inventory,
+            "庫存": self.exchange_handlers.view_inventory,
+            "买入": self.exchange_handlers.buy_commodity,
+            "買入": self.exchange_handlers.buy_commodity,
+            "購入": self.exchange_handlers.buy_commodity,
+            "卖出": self.exchange_handlers.sell_commodity,
+            "賣出": self.exchange_handlers.sell_commodity,
+            "清仓": self.exchange_handlers.clear_inventory,
+            "清倉": self.exchange_handlers.clear_inventory,
+            "清倉庫存": self.exchange_handlers.clear_inventory,
+            "清仓库存": self.exchange_handlers.clear_inventory,
+            "clear": self.exchange_handlers.clear_inventory,
+        }
+        if cmd in ["交易所", "交易市場", "交易市场", "exchange"]:
+            if len(parts) > 1:
+                sub = parts[1].strip()
+                handler = dispatch.get(sub)
+                if handler:
+                    tail = " ".join(parts[2:]).strip()
+                    event.message_str = f"/{sub}{(' ' + tail) if tail else ''}"
+                    async for r in handler(event):
+                        yield r
+                    return
+            async for r in self.exchange_handlers.exchange_main(event):
+                yield r
+            return
+        handler = dispatch.get(cmd)
+        if handler:
+            async for r in handler(event):
+                yield r
+            return
         async for r in self.exchange_handlers.exchange_main(event):
-            yield r
-
-    @filter.command("持仓", alias=["持倉", "库存", "庫存"])
-    async def cmd_exchange_inventory_cn(self, event: AstrMessageEvent):
-        """查看交易所持仓"""
-        async for r in self.exchange_handlers.view_inventory(event):
-            yield r
-
-    @filter.command("清仓", alias=["清倉", "清倉庫存", "清仓库存", "clear"])
-    async def cmd_exchange_clear_cn(self, event: AstrMessageEvent):
-        """清空交易所持仓"""
-        async for r in self.exchange_handlers.clear_inventory(event):
             yield r
 
     @filter.command("抽卡", alias=["抽奖", "抽獎", "抽卡池", "抽獎池", "抽奖池"])
@@ -1191,186 +1396,162 @@ class FishingPlugin(Star):
         async for r in gacha_handlers.stop_wheel_of_fate(self, event):
             yield r
 
-    @filter.command("开庄", alias=["開莊"])
-    async def cmd_sicbo_start_cn(self, event: AstrMessageEvent):
-        """开启骰宝游戏"""
-        async for r in sicbo_handlers.start_sicbo_game(self, event):
-            yield r
-
-    @filter.command("骰宝状态", alias=["骰寶狀態", "游戏状态", "遊戲狀態"])
-    async def cmd_sicbo_status_cn(self, event: AstrMessageEvent):
-        """查看骰宝游戏状态"""
-        async for r in sicbo_handlers.sicbo_status(self, event):
-            yield r
-
-    @filter.command("我的下注", alias=["下注情况", "下注情況"])
-    async def cmd_sicbo_my_bets_cn(self, event: AstrMessageEvent):
-        """查看我的下注"""
-        async for r in sicbo_handlers.my_bets(self, event):
-            yield r
-
-    @filter.command("骰宝帮助", alias=["骰寶幫助", "骰宝说明", "骰寶說明"])
-    async def cmd_sicbo_help_cn(self, event: AstrMessageEvent):
-        """查看骰宝帮助"""
-        async for r in sicbo_handlers.sicbo_help(self, event):
+    @filter.command(
+        "骰宝",
+        alias=[
+            "骰寶",
+            "开庄",
+            "開莊",
+            "骰宝状态",
+            "骰寶狀態",
+            "游戏状态",
+            "遊戲狀態",
+            "我的下注",
+            "下注情况",
+            "下注情況",
+            "骰宝帮助",
+            "骰寶幫助",
+            "骰宝说明",
+            "骰寶說明",
+            "骰宝赔率",
+            "骰寶賠率",
+            "骰宝赔率表",
+            "骰寶賠率表",
+            "赔率",
+            "賠率",
+        ],
+    )
+    async def cmd_sicbo_dispatch_cn(self, event: AstrMessageEvent):
+        """骰宝入口"""
+        parts = self._extract_message_tokens(event.message_str or "")
+        cmd = parts[0].lstrip("/").strip() if parts else ""
+        dispatch = {
+            "开庄": sicbo_handlers.start_sicbo_game,
+            "開莊": sicbo_handlers.start_sicbo_game,
+            "骰宝状态": sicbo_handlers.sicbo_status,
+            "骰寶狀態": sicbo_handlers.sicbo_status,
+            "游戏状态": sicbo_handlers.sicbo_status,
+            "遊戲狀態": sicbo_handlers.sicbo_status,
+            "我的下注": sicbo_handlers.my_bets,
+            "下注情况": sicbo_handlers.my_bets,
+            "下注情況": sicbo_handlers.my_bets,
+            "骰宝帮助": sicbo_handlers.sicbo_help,
+            "骰寶幫助": sicbo_handlers.sicbo_help,
+            "骰宝说明": sicbo_handlers.sicbo_help,
+            "骰寶說明": sicbo_handlers.sicbo_help,
+            "骰宝赔率": sicbo_handlers.sicbo_odds,
+            "骰寶賠率": sicbo_handlers.sicbo_odds,
+            "骰宝赔率表": sicbo_handlers.sicbo_odds,
+            "骰寶賠率表": sicbo_handlers.sicbo_odds,
+            "赔率": sicbo_handlers.sicbo_odds,
+            "賠率": sicbo_handlers.sicbo_odds,
+        }
+        if cmd in ["骰宝", "骰寶"]:
+            if len(parts) < 2:
+                async for r in sicbo_handlers.sicbo_help(self, event):
+                    yield r
+                return
+            sub = parts[1].strip()
+            tail = " ".join(parts[2:]).strip()
+            event.message_str = f"/{sub}{(' ' + tail) if tail else ''}"
+            cmd = sub
+        handler = dispatch.get(cmd)
+        if not handler:
+            yield event.plain_result(
+                "❌ 未知骰宝子命令。可用：开庄/状态/帮助/赔率/我的下注/骰宝下注"
+            )
+            return
+        async for r in handler(self, event):
             yield r
 
     @filter.command(
-        "骰宝赔率", alias=["骰寶賠率", "骰宝赔率表", "骰寶賠率表", "赔率", "賠率"]
+        "骰宝下注",
+        alias=[
+            "骰寶下注",
+            "大",
+            "小",
+            "单",
+            "單",
+            "双",
+            "雙",
+            "豹子",
+            "一点",
+            "二点",
+            "三点",
+            "四点",
+            "五点",
+            "六点",
+            "4点",
+            "5点",
+            "6点",
+            "7点",
+            "8点",
+            "9点",
+            "10点",
+            "11点",
+            "12点",
+            "13点",
+            "14点",
+            "15点",
+            "16点",
+            "17点",
+        ],
     )
-    async def cmd_sicbo_odds_cn(self, event: AstrMessageEvent):
-        """查看骰宝赔率"""
-        async for r in sicbo_handlers.sicbo_odds(self, event):
-            yield r
+    async def cmd_sicbo_bet_cn(self, event: AstrMessageEvent):
+        """骰宝下注入口（兼容旧指令）"""
+        cmd = ""
+        parts = []
+        if event.message_str:
+            parts = self._extract_message_tokens(event.message_str)
+            if parts:
+                cmd = parts[0].lstrip("/").strip()
 
-    @filter.command("大")
-    async def cmd_sicbo_big_cn(self, event: AstrMessageEvent):
-        """骰宝押大"""
-        async for r in sicbo_handlers.bet_big(self, event):
-            yield r
+        dispatch = {
+            "大": sicbo_handlers.bet_big,
+            "小": sicbo_handlers.bet_small,
+            "单": sicbo_handlers.bet_odd,
+            "單": sicbo_handlers.bet_odd,
+            "双": sicbo_handlers.bet_even,
+            "雙": sicbo_handlers.bet_even,
+            "豹子": sicbo_handlers.bet_triple,
+            "一点": sicbo_handlers.bet_one_point,
+            "二点": sicbo_handlers.bet_two_point,
+            "三点": sicbo_handlers.bet_three_point,
+            "四点": sicbo_handlers.bet_four_point,
+            "五点": sicbo_handlers.bet_five_point,
+            "六点": sicbo_handlers.bet_six_point,
+            "4点": sicbo_handlers.bet_4_points,
+            "5点": sicbo_handlers.bet_5_points,
+            "6点": sicbo_handlers.bet_6_points,
+            "7点": sicbo_handlers.bet_7_points,
+            "8点": sicbo_handlers.bet_8_points,
+            "9点": sicbo_handlers.bet_9_points,
+            "10点": sicbo_handlers.bet_10_points,
+            "11点": sicbo_handlers.bet_11_points,
+            "12点": sicbo_handlers.bet_12_points,
+            "13点": sicbo_handlers.bet_13_points,
+            "14点": sicbo_handlers.bet_14_points,
+            "15点": sicbo_handlers.bet_15_points,
+            "16点": sicbo_handlers.bet_16_points,
+            "17点": sicbo_handlers.bet_17_points,
+        }
 
-    @filter.command("小")
-    async def cmd_sicbo_small_cn(self, event: AstrMessageEvent):
-        """骰宝押小"""
-        async for r in sicbo_handlers.bet_small(self, event):
-            yield r
+        if cmd == "骰宝下注" or cmd == "骰寶下注":
+            if len(parts) < 2:
+                yield event.plain_result(
+                    "❌ 用法：/骰宝下注 玩法 金额，例如 /骰宝下注 大 100"
+                )
+                return
+            cmd = parts[1].strip()
 
-    @filter.command("单", alias=["單"])
-    async def cmd_sicbo_odd_cn(self, event: AstrMessageEvent):
-        """骰宝押单"""
-        async for r in sicbo_handlers.bet_odd(self, event):
-            yield r
+        handler = dispatch.get(cmd)
+        if not handler:
+            yield event.plain_result(
+                "❌ 無效下注玩法。可用：大/小/单/双/豹子/一点..六点/4点..17点"
+            )
+            return
 
-    @filter.command("双", alias=["雙"])
-    async def cmd_sicbo_even_cn(self, event: AstrMessageEvent):
-        """骰宝押双"""
-        async for r in sicbo_handlers.bet_even(self, event):
-            yield r
-
-    @filter.command("豹子")
-    async def cmd_sicbo_triple_cn(self, event: AstrMessageEvent):
-        """骰宝押豹子"""
-        async for r in sicbo_handlers.bet_triple(self, event):
-            yield r
-
-    @filter.command("一点")
-    async def cmd_sicbo_1_cn(self, event: AstrMessageEvent):
-        """骰宝押一点"""
-        async for r in sicbo_handlers.bet_one_point(self, event):
-            yield r
-
-    @filter.command("二点")
-    async def cmd_sicbo_2_cn(self, event: AstrMessageEvent):
-        """骰宝押二点"""
-        async for r in sicbo_handlers.bet_two_point(self, event):
-            yield r
-
-    @filter.command("三点")
-    async def cmd_sicbo_3_cn(self, event: AstrMessageEvent):
-        """骰宝押三点"""
-        async for r in sicbo_handlers.bet_three_point(self, event):
-            yield r
-
-    @filter.command("四点")
-    async def cmd_sicbo_4_cn(self, event: AstrMessageEvent):
-        """骰宝押四点"""
-        async for r in sicbo_handlers.bet_four_point(self, event):
-            yield r
-
-    @filter.command("五点")
-    async def cmd_sicbo_5_cn(self, event: AstrMessageEvent):
-        """骰宝押五点"""
-        async for r in sicbo_handlers.bet_five_point(self, event):
-            yield r
-
-    @filter.command("六点")
-    async def cmd_sicbo_6_cn(self, event: AstrMessageEvent):
-        """骰宝押六点"""
-        async for r in sicbo_handlers.bet_six_point(self, event):
-            yield r
-
-    @filter.command("4点")
-    async def cmd_sicbo_t4_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数4"""
-        async for r in sicbo_handlers.bet_4_points(self, event):
-            yield r
-
-    @filter.command("5点")
-    async def cmd_sicbo_t5_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数5"""
-        async for r in sicbo_handlers.bet_5_points(self, event):
-            yield r
-
-    @filter.command("6点")
-    async def cmd_sicbo_t6_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数6"""
-        async for r in sicbo_handlers.bet_6_points(self, event):
-            yield r
-
-    @filter.command("7点")
-    async def cmd_sicbo_t7_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数7"""
-        async for r in sicbo_handlers.bet_7_points(self, event):
-            yield r
-
-    @filter.command("8点")
-    async def cmd_sicbo_t8_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数8"""
-        async for r in sicbo_handlers.bet_8_points(self, event):
-            yield r
-
-    @filter.command("9点")
-    async def cmd_sicbo_t9_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数9"""
-        async for r in sicbo_handlers.bet_9_points(self, event):
-            yield r
-
-    @filter.command("10点")
-    async def cmd_sicbo_t10_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数10"""
-        async for r in sicbo_handlers.bet_10_points(self, event):
-            yield r
-
-    @filter.command("11点")
-    async def cmd_sicbo_t11_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数11"""
-        async for r in sicbo_handlers.bet_11_points(self, event):
-            yield r
-
-    @filter.command("12点")
-    async def cmd_sicbo_t12_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数12"""
-        async for r in sicbo_handlers.bet_12_points(self, event):
-            yield r
-
-    @filter.command("13点")
-    async def cmd_sicbo_t13_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数13"""
-        async for r in sicbo_handlers.bet_13_points(self, event):
-            yield r
-
-    @filter.command("14点")
-    async def cmd_sicbo_t14_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数14"""
-        async for r in sicbo_handlers.bet_14_points(self, event):
-            yield r
-
-    @filter.command("15点")
-    async def cmd_sicbo_t15_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数15"""
-        async for r in sicbo_handlers.bet_15_points(self, event):
-            yield r
-
-    @filter.command("16点")
-    async def cmd_sicbo_t16_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数16"""
-        async for r in sicbo_handlers.bet_16_points(self, event):
-            yield r
-
-    @filter.command("17点")
-    async def cmd_sicbo_t17_cn(self, event: AstrMessageEvent):
-        """骰宝押总点数17"""
-        async for r in sicbo_handlers.bet_17_points(self, event):
+        async for r in handler(self, event):
             yield r
 
     @filter.command("排行榜", alias=["phb"])
@@ -1430,15 +1611,15 @@ class FishingPlugin(Star):
         async for r in self.fishing_handlers.fish_pokedex(event):
             yield r
 
-    @filter.command("发红包", alias=["發紅包", "发放红包", "發放紅包"])
-    async def cmd_send_red_packet_cn(self, event: AstrMessageEvent):
-        """发送红包"""
-        async for r in red_packet_handlers.send_red_packet(self, event):
-            yield r
-
     @filter.command(
-        "领红包",
+        "红包",
         alias=[
+            "紅包",
+            "发红包",
+            "發紅包",
+            "发放红包",
+            "發放紅包",
+            "领红包",
             "領紅包",
             "抢红包",
             "搶紅包",
@@ -1448,116 +1629,102 @@ class FishingPlugin(Star):
             "取紅包",
             "领取红包",
             "領取紅包",
+            "红包列表",
+            "紅包列表",
+            "查看红包列表",
+            "查看紅包列表",
+            "红包详情",
+            "紅包詳情",
+            "查看红包",
+            "查看紅包",
+            "撤回红包",
+            "撤回紅包",
+            "撤销红包",
+            "撤銷紅包",
+            "取消红包",
+            "取消紅包",
         ],
     )
-    async def cmd_claim_red_packet_cn(self, event: AstrMessageEvent):
-        """领取红包"""
-        async for r in red_packet_handlers.claim_red_packet(self, event):
-            yield r
-
-    @filter.command(
-        "红包列表", alias=["紅包列表", "红包", "紅包", "查看红包列表", "查看紅包列表"]
-    )
-    async def cmd_red_packet_list_cn(self, event: AstrMessageEvent):
-        """查看活跃红包列表"""
-        async for r in red_packet_handlers.list_red_packets(self, event):
-            yield r
-
-    @filter.command("红包详情", alias=["紅包詳情", "查看红包", "查看紅包"])
-    async def cmd_red_packet_detail_cn(self, event: AstrMessageEvent):
-        """查看红包详情"""
-        async for r in red_packet_handlers.red_packet_details(self, event):
-            yield r
-
-    @filter.command(
-        "撤回红包", alias=["撤回紅包", "撤销红包", "撤銷紅包", "取消红包", "取消紅包"]
-    )
-    async def cmd_revoke_red_packet_cn(self, event: AstrMessageEvent):
-        """撤回未领完红包"""
-        async for r in red_packet_handlers.revoke_red_packet(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("修改金币", alias=["修改金幣"])
-    async def cmd_admin_modify_coins_cn(self, event: AstrMessageEvent):
-        """修改用户金币（管理员）"""
-        async for r in admin_handlers.modify_coins(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("奖励金币", alias=["獎勵金幣"])
-    async def cmd_admin_reward_coins_cn(self, event: AstrMessageEvent):
-        """奖励用户金币（管理员）"""
-        async for r in admin_handlers.reward_coins(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("扣除金币", alias=["扣除金幣"])
-    async def cmd_admin_deduct_coins_cn(self, event: AstrMessageEvent):
-        """扣除用户金币（管理员）"""
-        async for r in admin_handlers.deduct_coins(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("修改高级货币", alias=["修改高級貨幣"])
-    async def cmd_admin_modify_premium_cn(self, event: AstrMessageEvent):
-        """修改高级货币（管理员）"""
-        async for r in admin_handlers.modify_premium(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("奖励高级货币", alias=["獎勵高級貨幣"])
-    async def cmd_admin_reward_premium_cn(self, event: AstrMessageEvent):
-        """奖励高级货币（管理员）"""
-        async for r in admin_handlers.reward_premium(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("扣除高级货币", alias=["扣除高級貨幣"])
-    async def cmd_admin_deduct_premium_cn(self, event: AstrMessageEvent):
-        """扣除高级货币（管理员）"""
-        async for r in admin_handlers.deduct_premium(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("全体奖励金币", alias=["全體獎勵金幣"])
-    async def cmd_admin_reward_all_coins_cn(self, event: AstrMessageEvent):
-        """全体奖励金币（管理员）"""
-        async for r in admin_handlers.reward_all_coins(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("全体奖励高级货币", alias=["全體獎勵高級貨幣"])
-    async def cmd_admin_reward_all_premium_cn(self, event: AstrMessageEvent):
-        """全体奖励高级货币（管理员）"""
-        async for r in admin_handlers.reward_all_premium(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("全体扣除金币", alias=["全體扣除金幣"])
-    async def cmd_admin_deduct_all_coins_cn(self, event: AstrMessageEvent):
-        """全体扣除金币（管理员）"""
-        async for r in admin_handlers.deduct_all_coins(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("全体扣除高级货币", alias=["全體扣除高級貨幣"])
-    async def cmd_admin_deduct_all_premium_cn(self, event: AstrMessageEvent):
-        """全体扣除高级货币（管理员）"""
-        async for r in admin_handlers.deduct_all_premium(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("全体发放道具", alias=["全體發放道具"])
-    async def cmd_admin_reward_all_items_cn(self, event: AstrMessageEvent):
-        """全体发放道具（管理员）"""
-        async for r in admin_handlers.reward_all_items(self, event):
+    async def cmd_red_packet_dispatch_cn(self, event: AstrMessageEvent):
+        """红包命令入口"""
+        parts = self._extract_message_tokens(event.message_str or "")
+        cmd = parts[0].lstrip("/").strip() if parts else ""
+        dispatch = {
+            "发红包": red_packet_handlers.send_red_packet,
+            "發紅包": red_packet_handlers.send_red_packet,
+            "发放红包": red_packet_handlers.send_red_packet,
+            "發放紅包": red_packet_handlers.send_red_packet,
+            "领红包": red_packet_handlers.claim_red_packet,
+            "領紅包": red_packet_handlers.claim_red_packet,
+            "抢红包": red_packet_handlers.claim_red_packet,
+            "搶紅包": red_packet_handlers.claim_red_packet,
+            "拿红包": red_packet_handlers.claim_red_packet,
+            "拿紅包": red_packet_handlers.claim_red_packet,
+            "取红包": red_packet_handlers.claim_red_packet,
+            "取紅包": red_packet_handlers.claim_red_packet,
+            "领取红包": red_packet_handlers.claim_red_packet,
+            "領取紅包": red_packet_handlers.claim_red_packet,
+            "红包列表": red_packet_handlers.list_red_packets,
+            "紅包列表": red_packet_handlers.list_red_packets,
+            "查看红包列表": red_packet_handlers.list_red_packets,
+            "查看紅包列表": red_packet_handlers.list_red_packets,
+            "红包详情": red_packet_handlers.red_packet_details,
+            "紅包詳情": red_packet_handlers.red_packet_details,
+            "查看红包": red_packet_handlers.red_packet_details,
+            "查看紅包": red_packet_handlers.red_packet_details,
+            "撤回红包": red_packet_handlers.revoke_red_packet,
+            "撤回紅包": red_packet_handlers.revoke_red_packet,
+            "撤销红包": red_packet_handlers.revoke_red_packet,
+            "撤銷紅包": red_packet_handlers.revoke_red_packet,
+            "取消红包": red_packet_handlers.revoke_red_packet,
+            "取消紅包": red_packet_handlers.revoke_red_packet,
+        }
+        if cmd in ["红包", "紅包"]:
+            if len(parts) < 2:
+                async for r in red_packet_handlers.list_red_packets(self, event):
+                    yield r
+                return
+            sub = parts[1].strip()
+            tail = " ".join(parts[2:]).strip()
+            event.message_str = f"/{sub}{(' ' + tail) if tail else ''}"
+            cmd = sub
+        handler = dispatch.get(cmd)
+        if not handler:
+            yield event.plain_result(
+                "❌ 未知红包子命令。可用：发红包/领红包/红包列表/红包详情/撤回红包"
+            )
+            return
+        async for r in handler(self, event):
             yield r
 
     @filter.permission_type(PermissionType.ADMIN)
     @filter.command(
-        "开启钓鱼后台管理",
+        "钓鱼管理",
         alias=[
+            "釣魚管理",
+            "修改金币",
+            "修改金幣",
+            "奖励金币",
+            "獎勵金幣",
+            "扣除金币",
+            "扣除金幣",
+            "修改高级货币",
+            "修改高級貨幣",
+            "奖励高级货币",
+            "獎勵高級貨幣",
+            "扣除高级货币",
+            "扣除高級貨幣",
+            "全体奖励金币",
+            "全體獎勵金幣",
+            "全体奖励高级货币",
+            "全體獎勵高級貨幣",
+            "全体扣除金币",
+            "全體扣除金幣",
+            "全体扣除高级货币",
+            "全體扣除高級貨幣",
+            "全体发放道具",
+            "全體發放道具",
+            "开启钓鱼后台管理",
             "開啟釣魚後台管理",
             "开啓钓鱼后台管理",
             "开启钓鱼管理后台",
@@ -1566,117 +1733,148 @@ class FishingPlugin(Star):
             "開啓釣魚管理後臺",
             "開啟釣魚後臺管理",
             "開啓釣魚後臺管理",
-        ],
-    )
-    async def cmd_admin_start_web_cn(self, event: AstrMessageEvent):
-        """开启钓鱼后台管理（管理员）"""
-        async for r in admin_handlers.start_admin(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command(
-        "关闭钓鱼后台管理",
-        alias=[
+            "关闭钓鱼后台管理",
             "關閉釣魚後台管理",
             "关閉钓鱼后台管理",
             "关闭钓鱼管理后台",
             "關閉釣魚管理後台",
             "關閉釣魚管理後臺",
             "關閉釣魚後臺管理",
+            "代理上线",
+            "代理上線",
+            "login",
+            "代理下线",
+            "代理下線",
+            "logout",
+            "同步初始设定",
+            "同步初始設定",
+            "同步设定",
+            "同步設定",
+            "同步数据",
+            "同步數據",
+            "同步",
+            "授予称号",
+            "授予稱號",
+            "移除称号",
+            "移除稱號",
+            "创建称号",
+            "創建稱號",
+            "补充鱼池",
+            "補充魚池",
+            "骰宝结算",
+            "骰寶結算",
+            "骰宝倒计时",
+            "骰寶倒計時",
+            "骰宝模式",
+            "骰寶模式",
+            "清理红包",
+            "清理紅包",
+            "切换建议",
+            "切換建議",
+            "建议开关",
+            "建議開關",
+            "切换提示",
+            "切換提示",
         ],
     )
-    async def cmd_admin_stop_web_cn(self, event: AstrMessageEvent):
-        """关闭钓鱼后台管理（管理员）"""
-        async for r in admin_handlers.stop_admin(self, event):
-            yield r
+    async def cmd_admin_dispatch_cn(self, event: AstrMessageEvent):
+        """钓鱼管理命令入口（管理员）"""
+        parts = self._extract_message_tokens(event.message_str or "")
+        cmd = parts[0].lstrip("/").strip() if parts else ""
 
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("代理上线", alias=["代理上線", "login"])
-    async def cmd_admin_impersonate_start_cn(self, event: AstrMessageEvent):
-        """代理上线（管理员）"""
-        async for r in admin_handlers.impersonate_start(self, event):
-            yield r
+        if cmd in ["钓鱼管理", "釣魚管理"]:
+            if len(parts) < 2:
+                yield event.plain_result(
+                    "❌ 用法：/钓鱼管理 子命令 參數，例如 /钓鱼管理 修改金币 用户ID 数量"
+                )
+                return
+            sub_cmd = parts[1].strip()
+            tail = " ".join(parts[2:]).strip()
+            event.message_str = f"/{sub_cmd}{(' ' + tail) if tail else ''}"
+            cmd = sub_cmd
 
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("代理下线", alias=["代理下線", "logout"])
-    async def cmd_admin_impersonate_stop_cn(self, event: AstrMessageEvent):
-        """代理下线（管理员）"""
-        async for r in admin_handlers.impersonate_stop(self, event):
-            yield r
+        dispatch = {
+            "修改金币": admin_handlers.modify_coins,
+            "修改金幣": admin_handlers.modify_coins,
+            "奖励金币": admin_handlers.reward_coins,
+            "獎勵金幣": admin_handlers.reward_coins,
+            "扣除金币": admin_handlers.deduct_coins,
+            "扣除金幣": admin_handlers.deduct_coins,
+            "修改高级货币": admin_handlers.modify_premium,
+            "修改高級貨幣": admin_handlers.modify_premium,
+            "奖励高级货币": admin_handlers.reward_premium,
+            "獎勵高級貨幣": admin_handlers.reward_premium,
+            "扣除高级货币": admin_handlers.deduct_premium,
+            "扣除高級貨幣": admin_handlers.deduct_premium,
+            "全体奖励金币": admin_handlers.reward_all_coins,
+            "全體獎勵金幣": admin_handlers.reward_all_coins,
+            "全体奖励高级货币": admin_handlers.reward_all_premium,
+            "全體獎勵高級貨幣": admin_handlers.reward_all_premium,
+            "全体扣除金币": admin_handlers.deduct_all_coins,
+            "全體扣除金幣": admin_handlers.deduct_all_coins,
+            "全体扣除高级货币": admin_handlers.deduct_all_premium,
+            "全體扣除高級貨幣": admin_handlers.deduct_all_premium,
+            "全体发放道具": admin_handlers.reward_all_items,
+            "全體發放道具": admin_handlers.reward_all_items,
+            "开启钓鱼后台管理": admin_handlers.start_admin,
+            "開啟釣魚後台管理": admin_handlers.start_admin,
+            "开啓钓鱼后台管理": admin_handlers.start_admin,
+            "开启钓鱼管理后台": admin_handlers.start_admin,
+            "開啟釣魚管理後台": admin_handlers.start_admin,
+            "開啟釣魚管理後臺": admin_handlers.start_admin,
+            "開啓釣魚管理後臺": admin_handlers.start_admin,
+            "開啟釣魚後臺管理": admin_handlers.start_admin,
+            "開啓釣魚後臺管理": admin_handlers.start_admin,
+            "关闭钓鱼后台管理": admin_handlers.stop_admin,
+            "關閉釣魚後台管理": admin_handlers.stop_admin,
+            "关閉钓鱼后台管理": admin_handlers.stop_admin,
+            "关闭钓鱼管理后台": admin_handlers.stop_admin,
+            "關閉釣魚管理後台": admin_handlers.stop_admin,
+            "關閉釣魚管理後臺": admin_handlers.stop_admin,
+            "關閉釣魚後臺管理": admin_handlers.stop_admin,
+            "代理上线": admin_handlers.impersonate_start,
+            "代理上線": admin_handlers.impersonate_start,
+            "login": admin_handlers.impersonate_start,
+            "代理下线": admin_handlers.impersonate_stop,
+            "代理下線": admin_handlers.impersonate_stop,
+            "logout": admin_handlers.impersonate_stop,
+            "同步初始设定": admin_handlers.sync_initial_data,
+            "同步初始設定": admin_handlers.sync_initial_data,
+            "同步设定": admin_handlers.sync_initial_data,
+            "同步設定": admin_handlers.sync_initial_data,
+            "同步数据": admin_handlers.sync_initial_data,
+            "同步數據": admin_handlers.sync_initial_data,
+            "同步": admin_handlers.sync_initial_data,
+            "授予称号": admin_handlers.grant_title,
+            "授予稱號": admin_handlers.grant_title,
+            "移除称号": admin_handlers.revoke_title,
+            "移除稱號": admin_handlers.revoke_title,
+            "创建称号": admin_handlers.create_title,
+            "創建稱號": admin_handlers.create_title,
+            "补充鱼池": admin_handlers.replenish_fish_pools,
+            "補充魚池": admin_handlers.replenish_fish_pools,
+            "骰宝结算": sicbo_handlers.force_settle_sicbo,
+            "骰寶結算": sicbo_handlers.force_settle_sicbo,
+            "骰宝倒计时": sicbo_handlers.set_sicbo_countdown,
+            "骰寶倒計時": sicbo_handlers.set_sicbo_countdown,
+            "骰宝模式": sicbo_handlers.set_sicbo_mode,
+            "骰寶模式": sicbo_handlers.set_sicbo_mode,
+            "清理红包": red_packet_handlers.cleanup_red_packets,
+            "清理紅包": red_packet_handlers.cleanup_red_packets,
+            "切换建议": admin_handlers.toggle_suggestions,
+            "切換建議": admin_handlers.toggle_suggestions,
+            "建议开关": admin_handlers.toggle_suggestions,
+            "建議開關": admin_handlers.toggle_suggestions,
+            "切换提示": admin_handlers.toggle_suggestions,
+            "切換提示": admin_handlers.toggle_suggestions,
+        }
 
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command(
-        "同步初始设定",
-        alias=["同步初始設定", "同步设定", "同步設定", "同步数据", "同步數據", "同步"],
-    )
-    async def cmd_admin_sync_data_cn(self, event: AstrMessageEvent):
-        """同步初始数据（管理员）"""
-        async for r in admin_handlers.sync_initial_data(self, event):
-            yield r
+        handler = dispatch.get(cmd)
+        if not handler:
+            yield event.plain_result("❌ 未知管理子命令。可用：/钓鱼管理 同步")
+            return
 
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("授予称号", alias=["授予稱號"])
-    async def cmd_admin_grant_title_cn(self, event: AstrMessageEvent):
-        """授予称号（管理员）"""
-        async for r in admin_handlers.grant_title(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("移除称号", alias=["移除稱號"])
-    async def cmd_admin_revoke_title_cn(self, event: AstrMessageEvent):
-        """移除称号（管理员）"""
-        async for r in admin_handlers.revoke_title(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("创建称号", alias=["創建稱號"])
-    async def cmd_admin_create_title_cn(self, event: AstrMessageEvent):
-        """创建称号（管理员）"""
-        async for r in admin_handlers.create_title(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("补充鱼池", alias=["補充魚池"])
-    async def cmd_admin_replenish_pool_cn(self, event: AstrMessageEvent):
-        """补充鱼池（管理员）"""
-        async for r in admin_handlers.replenish_fish_pools(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("骰宝结算", alias=["骰寶結算"])
-    async def cmd_admin_sicbo_settle_cn(self, event: AstrMessageEvent):
-        """强制结算骰宝（管理员）"""
-        async for r in sicbo_handlers.force_settle_sicbo(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("骰宝倒计时", alias=["骰寶倒計時"])
-    async def cmd_admin_sicbo_countdown_cn(self, event: AstrMessageEvent):
-        """设置骰宝倒计时（管理员）"""
-        async for r in sicbo_handlers.set_sicbo_countdown(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("骰宝模式", alias=["骰寶模式"])
-    async def cmd_admin_sicbo_mode_cn(self, event: AstrMessageEvent):
-        """设置骰宝消息模式（管理员）"""
-        async for r in sicbo_handlers.set_sicbo_mode(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("清理红包", alias=["清理紅包"])
-    async def cmd_admin_cleanup_red_packet_cn(self, event: AstrMessageEvent):
-        """清理红包（管理员）"""
-        async for r in red_packet_handlers.cleanup_red_packets(self, event):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command(
-        "切换建议", alias=["切換建議", "建议开关", "建議開關", "切换提示", "切換提示"]
-    )
-    async def cmd_admin_toggle_suggestions_cn(self, event: AstrMessageEvent):
-        """切换建议操作显示（管理员）"""
-        async for r in admin_handlers.toggle_suggestions(self, event):
+        async for r in handler(self, event):
             yield r
 
     async def terminate(self):
@@ -1689,6 +1887,6 @@ class FishingPlugin(Star):
             self._red_packet_cleanup_task.cancel()
         if self.web_admin_task:
             self.web_admin_task.cancel()
-        if hasattr(self, "external_sql_sync_manager"):
+        if getattr(self, "external_sql_sync_manager", None):
             await self.external_sql_sync_manager.stop()
         logger.info("釣魚插件已終止。")

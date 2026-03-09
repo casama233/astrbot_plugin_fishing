@@ -2,5 +2,13 @@
 display_name: Fishing Another!
 version: 2.4.7
 author: "cary-server"
-description: "全新架构钓鱼插件！更多交互，多商店系统、交易所、品质系统、水族箱和Web管理（支持原版fishing存档继续游玩）"
-repo: ""
+description: "持续维护中的 AstrBot 钓鱼插件二开版本，支持 MySQL、交易所、多商店、水族箱、品质系统与 Web 管理。"
+repo: "https://github.com/cary-server/astrbot_plugin_fishing"
+support_platforms:
+  - aiocqhttp
+  - qq_official
+  - telegram
+  - discord
+  - kook
+  - satori
+astrbot_version: ">=4.16,<5"

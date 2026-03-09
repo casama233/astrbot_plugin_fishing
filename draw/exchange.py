@@ -4,6 +4,8 @@
 
 from typing import Any, Dict, List, Tuple
 
+from datetime import datetime
+
 from PIL import Image, ImageDraw
 
 from .game_ui import (
@@ -14,6 +16,17 @@ from .game_ui import (
     GAME_COLORS,
 )
 from .styles import load_font
+
+
+def _parse_dt(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
 
 
 def _line_chart(
@@ -41,7 +54,7 @@ def _line_chart(
 
     mn = min(values)
     mx = max(values)
-    n = max(1, len(values) - 1)
+    n = len(values)
     pad_x = 12
     pad_y = 10
     px0 = x0 + pad_x
@@ -51,16 +64,31 @@ def _line_chart(
 
     points = []
     for i, v in enumerate(values):
-        x = px0 + int((px1 - px0) * (i / n if n else 0))
+        # 正確計算 X 坐標：將區間分為 (n-1) 等分
+        if n == 1:
+            x = (px0 + px1) // 2  # 只有一個點時放在中間
+        else:
+            x = px0 + int((px1 - px0) * i / (n - 1))
+
+        # 計算 Y 坐標
         if mx == mn:
             y = (py0 + py1) // 2
         else:
-            y = py1 - int((v - mn) / (mx - mn) * (py1 - py0))
+            y = py1 - int((v - mn) * (py1 - py0) / (mx - mn))
         points.append((x, y))
 
     # 繪製線條
     if len(points) >= 2:
         draw.line(points, fill=color, width=3)
+    elif len(points) == 1:
+        # 只有一個點時，畫一個點
+        p = points[0]
+        draw.ellipse(
+            (p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3),
+            fill=color,
+            outline=GAME_COLORS["text_primary"],
+        )
+        return
 
     # 繪製端點
     for p in points[-2:]:
@@ -91,8 +119,8 @@ def draw_exchange_status_image(
 
     for cid, price in prices.items():
         info = commodities.get(cid, {})
-        name = info.get("name", cid)
-        desc = info.get("description", "")
+        name = info.get("name") or f"商品{cid}"
+        desc = info.get("description") or ""
         prev = previous_prices.get(cid)
 
         if prev and prev > 0:
@@ -213,16 +241,51 @@ def draw_exchange_inventory_image(
     capacity: int,
     current_total_quantity: int,
 ) -> Image.Image:
-    """我的庫存 - 遊戲風格"""
+    """我的庫存 - 遊戲風格（包含保質期狀態）"""
+
     rows = []
     for commodity_id, data in inventory.items():
         name = data.get("name", commodity_id)
         qty = int(data.get("total_quantity", 0) or 0)
         cost = int(data.get("total_cost", 0) or 0)
         price = int(current_prices.get(commodity_id, 0) or 0)
-        value = qty * price
+
+        # 檢查是否有過期商品
+        items = data.get("items", [])
+        expired_qty = 0
+        valid_qty = 0
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            expires_at = _parse_dt(item.get("expires_at"))
+            quantity = item.get("quantity", 0)
+            if expires_at:
+                if expires_at <= datetime.now():
+                    expired_qty += quantity
+                else:
+                    valid_qty += quantity
+            else:
+                valid_qty += quantity
+
+        # 計算價值（過期商品價值為 0）
+        value = valid_qty * price
         pnl = value - cost
-        rows.append((name, qty, cost, value, pnl))
+        is_all_expired = (expired_qty + valid_qty > 0) and (valid_qty == 0)
+        has_expired = expired_qty > 0
+
+        rows.append(
+            (
+                name,
+                qty,
+                cost,
+                value,
+                pnl,
+                expired_qty,
+                valid_qty,
+                is_all_expired,
+                has_expired,
+            )
+        )
 
     width = 1160
     header_h = 160
@@ -283,11 +346,21 @@ def draw_exchange_inventory_image(
     draw.text((620, y - 25), "價值", font=small_font, fill=GAME_COLORS["text_muted"])
     draw.text((800, y - 25), "盈虧", font=small_font, fill=GAME_COLORS["text_muted"])
 
-    for name, qty, cost, value, pnl in rows:
+    for (
+        name,
+        qty,
+        cost,
+        value,
+        pnl,
+        expired_qty,
+        valid_qty,
+        is_all_expired,
+        has_expired,
+    ) in rows:
         # 卡片背景
         draw_game_card(
             draw,
-            (20, y, width - 20, y + row_h - 8),
+            (20, y, width - 20, y + row_h + 10),
             radius=10,
             fill=GAME_COLORS["bg_card"],
             border_color=GAME_COLORS["border"],
@@ -300,11 +373,20 @@ def draw_exchange_inventory_image(
             else (GAME_COLORS["error"] if pnl < 0 else GAME_COLORS["text_muted"])
         )
 
+        # 商品名稱（如果全部過期，添加標記）
+        name_display = str(name)[:18]
+        if is_all_expired:
+            name_display = "💀 " + name_display + " [已腐敗]"
+        elif has_expired:
+            name_display = "⚠️ " + name_display + f" (過期{expired_qty}個)"
+
         draw.text(
             (40, y + 15),
-            str(name)[:18],
+            name_display,
             font=body_font,
-            fill=GAME_COLORS["text_primary"],
+            fill=GAME_COLORS["text_primary"]
+            if not is_all_expired
+            else GAME_COLORS["text_muted"],
         )
         draw.text(
             (320, y + 15), f"{qty}", font=small_font, fill=GAME_COLORS["text_secondary"]
@@ -480,7 +562,7 @@ def draw_exchange_history_image(
     ]
 
     for idx, (cid, values) in enumerate(series_map.items()):
-        name = name_map.get(cid, cid)
+        name = name_map.get(cid) or f"商品{cid}"
         v = [int(x or 0) for x in (values or [])]
         start = v[0] if v else 0
         end = v[-1] if v else 0
@@ -645,21 +727,21 @@ def draw_exchange_result_image(
     row_h = 36
     footer_h = 60
     safety_margin = 50  # 添加安全邊距
-    
+
     title_font = load_font(32)
     body_font = load_font(18)
     measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
     row_h = max(row_h, body_h + 12)
     bottom_pad = 20
-    
+
     # 計算實際需要的行數（考慮換行符）
     total_lines = 0
     for line in lines:
         # 計算每行文字因為換行符產生的實際行數
-        line_count = line.count('\n') + 1
+        line_count = line.count("\n") + 1
         total_lines += line_count
-    
+
     # 使用實際行數計算高度，並添加安全邊距
     calculated_height = header_h + max(2, total_lines) * row_h + footer_h + bottom_pad
     height = calculated_height + safety_margin
@@ -679,10 +761,13 @@ def draw_exchange_result_image(
     y = 100
     for line in lines:
         # 處理多行文字（按換行符分割）
-        sub_lines = line.split('\n')
+        sub_lines = line.split("\n")
         for sub_line in sub_lines:
             draw.text(
-                (45, y), f"• {sub_line}", font=body_font, fill=GAME_COLORS["text_secondary"]
+                (45, y),
+                f"• {sub_line}",
+                font=body_font,
+                fill=GAME_COLORS["text_secondary"],
             )
             y += row_h
 

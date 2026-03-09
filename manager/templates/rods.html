@@ -32,6 +32,7 @@
                         <th>来源</th>
                         <th>成本</th>
                         <th>属性加成</th>
+                        <th>实际作用效果</th>
                         <th class="text-end">操作</th>
                     </tr>
                 </thead>
@@ -48,6 +49,7 @@
                             <span class="badge bg-secondary">数量: {{ item.bonus_fish_quantity_modifier }}</span>
                             <span class="badge bg-secondary">稀有: {{ item.bonus_rare_fish_chance }}</span>
                         </td>
+                        <td>{{ item.effect_note or '未配置' }}</td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-info edit-btn"
                                     data-bs-toggle="modal"
@@ -95,6 +97,7 @@
                         <div class="col-md-4"><label>稀有加成</label><input type="number" step="0.01" name="bonus_rare_fish_chance" class="form-control" value="0.0"></div>
                         <div class="col-md-6"><label>耐久度(可选)</label><input type="number" name="durability" class="form-control"></div>
                         <div class="col-md-6"><label>图标URL(可选)</label><input type="text" name="icon_url" class="form-control"></div>
+                        <div class="col-12"><label>实际作用效果</label><textarea name="effect_note" class="form-control" rows="2" placeholder="例如：高耐久稳定收益，适合挂机；高稀有加成更偏向冲图鉴"></textarea></div>
                     </div>
                 </div>
                 <div class="modal-footer">

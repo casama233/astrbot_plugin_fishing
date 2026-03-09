@@ -185,6 +185,8 @@ class InventoryService:
         获取用户的鱼饵库存。
         """
         bait_inventory = self.inventory_repo.get_user_bait_inventory(user_id)
+        user = self.user_repo.get_by_id(user_id)
+        current_bait_id = user.current_bait_id if user else None
         enriched_baits = []
 
         for bait_id, quantity in bait_inventory.items():
@@ -198,8 +200,11 @@ class InventoryService:
                         "quantity": quantity,
                         "duration_minutes": bait_template.duration_minutes,
                         "effect_description": bait_template.effect_description,
+                        "is_equipped": bait_id == current_bait_id,
                     }
                 )
+
+        enriched_baits.sort(key=lambda x: (not x["is_equipped"], -x["rarity"]))
 
         return {"success": True, "baits": enriched_baits}
 

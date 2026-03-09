@@ -1,10 +1,13 @@
 import functools
 import os
 import traceback
+import json
+import re
 from typing import Dict, Any
 from datetime import datetime, timedelta
 import csv
 import io
+from pathlib import Path
 
 from quart import (
     Quart,
@@ -27,6 +30,85 @@ admin_bp = Blueprint(
     template_folder="templates",
     static_folder="static",
 )
+
+
+def _plugin_config_path() -> Path:
+    # .../data/plugins/astrbot_plugin_fishing/manager/server.py -> .../data/config/...
+    return (
+        Path(__file__).resolve().parents[3]
+        / "config"
+        / "astrbot_plugin_fishing_config.json"
+    )
+
+
+def _load_plugin_config() -> Dict[str, Any]:
+    cfg_path = _plugin_config_path()
+    if not cfg_path.exists():
+        return {}
+    with cfg_path.open("r", encoding="utf-8-sig") as f:
+        return json.load(f)
+
+
+def _save_plugin_config(cfg: Dict[str, Any]) -> None:
+    cfg_path = _plugin_config_path()
+    cfg_path.parent.mkdir(parents=True, exist_ok=True)
+    with cfg_path.open("w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def _normalize_exchange_config(exchange_cfg: Dict[str, Any]) -> Dict[str, Any]:
+    exchange_cfg.setdefault("initial_prices", {})
+    exchange_cfg.setdefault("volatility", {})
+    exchange_cfg.setdefault("commodity_descriptions", {})
+    exchange_cfg.setdefault("commodity_effects", {})
+    exchange_cfg.setdefault("shelf_life_days", {})
+
+    # 兼容旧字段 shelf_life -> shelf_life_days
+    shelf_life = exchange_cfg.get("shelf_life", {}) or {}
+    shelf_life_days = exchange_cfg.get("shelf_life_days", {}) or {}
+    for key, value in shelf_life.items():
+        if key.endswith("_min") or key.endswith("_max"):
+            continue
+        if key not in shelf_life_days:
+            try:
+                shelf_life_days[key] = int(value)
+            except Exception:
+                pass
+    exchange_cfg["shelf_life_days"] = shelf_life_days
+    return exchange_cfg
+
+
+def _apply_exchange_runtime_config(exchange_service, exchange_cfg: Dict[str, Any]):
+    # 同步到运行中服务，避免必须重启
+    exchange_cfg = _normalize_exchange_config(exchange_cfg)
+
+    if isinstance(exchange_service.config, dict):
+        exchange_service.config["exchange"] = exchange_cfg
+
+    exchange_service.price_service.config = exchange_cfg
+    exchange_service.inventory_service.config = exchange_cfg
+    exchange_service.price_service.commodities = (
+        exchange_service.price_service._load_commodities()
+    )
+    exchange_service.inventory_service.commodities = (
+        exchange_service.inventory_service._load_commodities()
+    )
+    exchange_service.commodities = exchange_service.price_service.commodities
+
+
+def _get_item_effect_notes(cfg: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+    notes = cfg.setdefault("item_effect_notes", {})
+    notes.setdefault("rods", {})
+    notes.setdefault("baits", {})
+    notes.setdefault("accessories", {})
+    return notes
+
+
+def _set_item_effect_note(category: str, item_id: int, note: str) -> None:
+    cfg = _load_plugin_config()
+    notes = _get_item_effect_notes(cfg)
+    notes.setdefault(category, {})[str(item_id)] = (note or "").strip()
+    _save_plugin_config(cfg)
 
 
 # 工厂函数现在接收服务实例
@@ -288,6 +370,10 @@ async def manage_rods():
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     # 调用服务层方法获取所有鱼竿模板
     items = item_template_service.get_all_rods()
+    cfg = _load_plugin_config()
+    notes = _get_item_effect_notes(cfg).get("rods", {})
+    for item in items:
+        setattr(item, "effect_note", notes.get(str(item.rod_id), ""))
     return await render_template("rods.html", items=items)
 
 
@@ -297,7 +383,8 @@ async def add_rod():
     form = await request.form
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     # 调用服务层方法添加新的鱼竿模板
-    item_template_service.add_rod_template(form.to_dict())
+    created = item_template_service.add_rod_template(form.to_dict())
+    _set_item_effect_note("rods", created.rod_id, form.get("effect_note", ""))
     await flash("鱼竿添加成功！", "success")
     return redirect(url_for("admin_bp.manage_rods"))
 
@@ -309,6 +396,7 @@ async def edit_rod(rod_id):
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     # 调用服务层方法更新指定的鱼竿模板
     item_template_service.update_rod_template(rod_id, form.to_dict())
+    _set_item_effect_note("rods", rod_id, form.get("effect_note", ""))
     await flash(f"鱼竿ID {rod_id} 更新成功！", "success")
     return redirect(url_for("admin_bp.manage_rods"))
 
@@ -453,6 +541,10 @@ async def import_rods_csv():
 async def manage_baits():
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     items = item_template_service.get_all_baits()
+    cfg = _load_plugin_config()
+    notes = _get_item_effect_notes(cfg).get("baits", {})
+    for item in items:
+        setattr(item, "effect_note", notes.get(str(item.bait_id), ""))
     return await render_template("baits.html", items=items)
 
 
@@ -461,7 +553,8 @@ async def manage_baits():
 async def add_bait():
     form = await request.form
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
-    item_template_service.add_bait_template(form.to_dict())
+    created = item_template_service.add_bait_template(form.to_dict())
+    _set_item_effect_note("baits", created.bait_id, form.get("effect_note", ""))
     await flash("鱼饵添加成功！", "success")
     return redirect(url_for("admin_bp.manage_baits"))
 
@@ -472,6 +565,7 @@ async def edit_bait(bait_id):
     form = await request.form
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     item_template_service.update_bait_template(bait_id, form.to_dict())
+    _set_item_effect_note("baits", bait_id, form.get("effect_note", ""))
     await flash(f"鱼饵ID {bait_id} 更新成功！", "success")
     return redirect(url_for("admin_bp.manage_baits"))
 
@@ -491,6 +585,10 @@ async def delete_bait(bait_id):
 async def manage_accessories():
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     items = item_template_service.get_all_accessories()
+    cfg = _load_plugin_config()
+    notes = _get_item_effect_notes(cfg).get("accessories", {})
+    for item in items:
+        setattr(item, "effect_note", notes.get(str(item.accessory_id), ""))
     return await render_template("accessories.html", items=items)
 
 
@@ -499,7 +597,10 @@ async def manage_accessories():
 async def add_accessory():
     form = await request.form
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
-    item_template_service.add_accessory_template(form.to_dict())
+    created = item_template_service.add_accessory_template(form.to_dict())
+    _set_item_effect_note(
+        "accessories", created.accessory_id, form.get("effect_note", "")
+    )
     await flash("饰品添加成功！", "success")
     return redirect(url_for("admin_bp.manage_accessories"))
 
@@ -510,6 +611,7 @@ async def edit_accessory(accessory_id):
     form = await request.form
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     item_template_service.update_accessory_template(accessory_id, form.to_dict())
+    _set_item_effect_note("accessories", accessory_id, form.get("effect_note", ""))
     await flash(f"饰品ID {accessory_id} 更新成功！", "success")
     return redirect(url_for("admin_bp.manage_accessories"))
 
@@ -974,11 +1076,40 @@ async def manage_exchange():
         # 获取用户持仓统计
         user_stats = exchange_service.get_user_commodity_stats()
 
+        plugin_cfg = _load_plugin_config()
+        exchange_cfg = _normalize_exchange_config(plugin_cfg.get("exchange", {}) or {})
+
+        commodity_rows = []
+        commodities = market_status.get("commodities", {}) if market_status else {}
+        for commodity_id, info in commodities.items():
+            commodity_rows.append(
+                {
+                    "commodity_id": commodity_id,
+                    "name": info.get("name", commodity_id),
+                    "description": info.get("description", ""),
+                    "initial_price": (exchange_cfg.get("initial_prices", {}) or {}).get(
+                        commodity_id, 1000
+                    ),
+                    "volatility": (exchange_cfg.get("volatility", {}) or {}).get(
+                        commodity_id, 0.1
+                    ),
+                    "shelf_life_days": (
+                        exchange_cfg.get("shelf_life_days", {}) or {}
+                    ).get(commodity_id, 3),
+                    "effect": (exchange_cfg.get("commodity_effects", {}) or {}).get(
+                        commodity_id, ""
+                    ),
+                }
+            )
+
+        commodity_rows.sort(key=lambda x: x["commodity_id"])
+
         return await render_template(
             "exchange.html",
             market_status=market_status,
             price_history=price_history,
             user_stats=user_stats,
+            commodity_rows=commodity_rows,
             now=datetime.now(),
         )
     except Exception as e:
@@ -1020,6 +1151,97 @@ async def reset_exchange_prices():
     except Exception as e:
         logger.error(f"重置交易所价格失败: {e}")
         await flash(f"价格重置失败: {str(e)}", "danger")
+
+    return redirect(url_for("admin_bp.manage_exchange"))
+
+
+@admin_bp.route("/exchange/commodity/upsert", methods=["POST"])
+@login_required
+@admin_required
+async def upsert_exchange_commodity():
+    try:
+        form = await request.form
+        commodity_id = (form.get("commodity_id") or "").strip().lower()
+        name = (form.get("name") or "").strip()
+        description = (form.get("description") or "").strip()
+        effect = (form.get("effect") or "").strip()
+
+        if not commodity_id or not re.fullmatch(r"[a-z0-9_]{2,64}", commodity_id):
+            await flash(
+                "商品ID格式无效（仅支持小写字母/数字/下划线，2-64位）", "danger"
+            )
+            return redirect(url_for("admin_bp.manage_exchange"))
+        if not name:
+            await flash("商品名称不能为空", "danger")
+            return redirect(url_for("admin_bp.manage_exchange"))
+
+        try:
+            initial_price = int(form.get("initial_price") or 1000)
+            volatility = float(form.get("volatility") or 0.1)
+            shelf_life_days = int(form.get("shelf_life_days") or 3)
+        except Exception:
+            await flash("价格/波动率/保质期参数格式错误", "danger")
+            return redirect(url_for("admin_bp.manage_exchange"))
+
+        if initial_price < 1:
+            initial_price = 1
+        volatility = max(0.001, min(volatility, 1.0))
+        shelf_life_days = max(1, shelf_life_days)
+
+        exchange_service = current_app.config["EXCHANGE_SERVICE"]
+        exchange_repo = exchange_service.exchange_repo
+
+        # 写入 commodities（MySQL/SQLite 兼容）
+        if hasattr(exchange_repo, "_connection_manager"):
+            with exchange_repo._connection_manager.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO commodities (commodity_id, name, description)
+                        VALUES (%s, %s, %s)
+                        ON DUPLICATE KEY UPDATE
+                          name = VALUES(name),
+                          description = VALUES(description)
+                        """,
+                        (commodity_id, name, description),
+                    )
+                conn.commit()
+        else:
+            import sqlite3
+
+            with sqlite3.connect(exchange_repo.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO commodities (commodity_id, name, description)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(commodity_id) DO UPDATE SET
+                      name = excluded.name,
+                      description = excluded.description
+                    """,
+                    (commodity_id, name, description),
+                )
+                conn.commit()
+
+        # 写入配置：初始价/波动率/保质期/描述/效果
+        cfg = _load_plugin_config()
+        exchange_cfg = _normalize_exchange_config(cfg.get("exchange", {}) or {})
+        exchange_cfg["initial_prices"][commodity_id] = initial_price
+        exchange_cfg["volatility"][commodity_id] = volatility
+        exchange_cfg["shelf_life_days"][commodity_id] = shelf_life_days
+        exchange_cfg.setdefault("shelf_life", {})[commodity_id] = shelf_life_days
+        exchange_cfg["commodity_descriptions"][commodity_id] = description
+        exchange_cfg["commodity_effects"][commodity_id] = effect
+        cfg["exchange"] = exchange_cfg
+        _save_plugin_config(cfg)
+
+        _apply_exchange_runtime_config(exchange_service, exchange_cfg)
+
+        await flash(f"商品 {commodity_id} 已保存，并同步作用效果与交易参数", "success")
+    except Exception as e:
+        logger.error(f"保存交易商品失败: {e}")
+        logger.error(traceback.format_exc())
+        await flash(f"保存失败: {str(e)}", "danger")
 
     return redirect(url_for("admin_bp.manage_exchange"))
 

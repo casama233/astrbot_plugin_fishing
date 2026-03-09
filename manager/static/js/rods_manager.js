@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     form.elements[key].value = data[key] === null ? '' : data[key];
                 }
             }
+            if (form.elements['effect_note']) {
+                form.elements['effect_note'].value = data.effect_note || '';
+            }
         });
     });
 });

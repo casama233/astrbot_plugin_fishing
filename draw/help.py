@@ -1,8 +1,20 @@
 import math
 import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from .text_utils import normalize_display_text, draw_text_smart, load_font_with_cjk_fallback, get_text_size_cached
-from .styles import COLOR_TITLE, COLOR_CMD, COLOR_LINE, COLOR_SHADOW, FONT_PATH_BOLD, FONT_PATH_REGULAR
+from .text_utils import (
+    normalize_display_text,
+    draw_text_smart,
+    load_font_with_cjk_fallback,
+    get_text_size_cached,
+)
+from .styles import (
+    COLOR_TITLE,
+    COLOR_CMD,
+    COLOR_LINE,
+    COLOR_SHADOW,
+    FONT_PATH_BOLD,
+    FONT_PATH_REGULAR,
+)
 
 
 def draw_help_image():
@@ -30,8 +42,9 @@ def draw_help_image():
     shadow_color = COLOR_SHADOW
 
     # 4. 获取文本尺寸的辅助函数（测量版）
-    _measure_img = Image.new('RGB', (10, 10), bg_bot)
+    _measure_img = Image.new("RGB", (10, 10), bg_bot)
     _measure_draw = ImageDraw.Draw(_measure_img)
+
     def measure_text_size(text, font):
         bbox = _measure_draw.textbbox((0, 0), text, font=font)
         return bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -67,22 +80,37 @@ def draw_help_image():
         # 简化阴影效果
         shadow_offset = 3
         # 绘制阴影
-        draw.rounded_rectangle([x0 + shadow_offset, y0 + shadow_offset, x1 + shadow_offset, y1 + shadow_offset],
-                               radius, fill=(220, 220, 220))
+        draw.rounded_rectangle(
+            [
+                x0 + shadow_offset,
+                y0 + shadow_offset,
+                x1 + shadow_offset,
+                y1 + shadow_offset,
+            ],
+            radius,
+            fill=(220, 220, 220),
+        )
         # 白色卡片
-        draw.rounded_rectangle([x0, y0, x1, y1], radius, fill=card_bg, outline=line_color, width=1)
+        draw.rounded_rectangle(
+            [x0, y0, x1, y1], radius, fill=card_bg, outline=line_color, width=1
+        )
 
     # 8. 绘制章节和命令
     def draw_section(title, cmds, y_start, cols=3):
         # 章节标题左对齊
         title_x = 50
-        draw_text_smart(draw, (title_x, y_start - 12), title, font=section_font, fill=title_color)
+        draw_text_smart(
+            draw, (title_x, y_start - 12), title, font=section_font, fill=title_color
+        )
         w, h = get_text_size_cached(title, section_font)
 
         # 标题下劃線
         underline_y = y_start + h // 2 + 2
-        draw.line([(title_x, underline_y), (title_x + w, underline_y)],
-                  fill=title_color, width=3)
+        draw.line(
+            [(title_x, underline_y), (title_x + w, underline_y)],
+            fill=title_color,
+            width=3,
+        )
 
         y = y_start + h // 2 + 25
 
@@ -104,13 +132,21 @@ def draw_help_image():
             cx = (x0 + x1) // 2
             # 命令文本
             cmd_w, _ = get_text_size_cached(cmd, cmd_font)
-            draw_text_smart(draw, (cx - cmd_w // 2, y0 + 12), cmd, font=cmd_font, fill=cmd_color)
-            
+            draw_text_smart(
+                draw, (cx - cmd_w // 2, y0 + 12), cmd, font=cmd_font, fill=cmd_color
+            )
+
             # 描述文本 - 支持多行
-            desc_lines = desc.split('\n') if '\n' in desc else [desc]
+            desc_lines = desc.split("\n") if "\n" in desc else [desc]
             for i, line in enumerate(desc_lines):
                 line_w, _ = get_text_size_cached(line, desc_font)
-                draw_text_smart(draw, (cx - line_w // 2, y0 + 40 + i * 18), line, font=desc_font, fill=(100, 100, 100))
+                draw_text_smart(
+                    draw,
+                    (cx - line_w // 2, y0 + 40 + i * 18),
+                    line,
+                    font=desc_font,
+                    fill=(100, 100, 100),
+                )
 
         rows = math.ceil(len(cmds) / cols)
         return y + rows * (card_h + pad) + 35
@@ -160,43 +196,43 @@ def draw_help_image():
         ("出售所有魚竿", "清空倉庫\n舊魚竿大甩賣"),
         ("出售所有飾品", "清空首飾盒\n舊飾品大處理"),
         ("商店", "官方商城\n童叟無欺"),
-        ("商店购买 [商店ID][商品ID][数量]", "買買買！\n不買不是釣魚人"),
+        ("商店 购买 [商品ID] [数量]", "買買買！\n不買不是釣魚人"),
         ("市场", "跳蚤市場\n淘淘玩家的好貨"),
-        ("上架 [ID] [价格] [数量] [匿名]", "擺攤賣貨\n支持蒙面交易"),
-        ("购买 [ID]", "看中就買\n手慢無"),
-        ("我的上架", "看看攤位上\n還有什麼沒賣掉"),
-        ("下架 [ID]", "收攤不賣了\n或者改個價"),
+        ("市场 上架 [ID] [价格] [数量]", "擺攤賣貨\n支持蒙面交易"),
+        ("市场 购买 [ID]", "看中就買\n手慢無"),
+        ("市场 我的上架", "看看攤位上\n還有什麼沒賣掉"),
+        ("市场 下架 [ID]", "收攤不賣了\n或者改個價"),
     ]
 
     gacha = [
         ("抽卡 [卡池ID]", "單抽奇蹟\n檢測血統的時刻"),
         ("十连 [卡池ID]", "十連保底\n大力出奇蹟"),
         ("查看卡池 [ID]", "看看池子裡\n都有什麼好東西"),
-        ("抽卡記錄", "查查流水\n看看虧了多少"),
+        ("抽卡记录", "查查流水\n看看虧了多少"),
         ("擦弹 [金额]", "玩的就是心跳\n贏了會所嫩模"),
-        ("擦彈記錄", "看看你的\n心跳回憶"),
+        ("擦弹记录", "看看你的\n心跳回憶"),
         ("命运之轮 [金额]", "是男人就\n下100層"),
         ("繼續/继续", "繼續挑戰\n下一層獎勵翻倍"),
         ("放棄/放弃", "見好就收\n落袋為安"),
     ]
 
     sicbo = [
-        ("開莊/开庄", "坐莊開局\n倒數60秒等人來送"),
-        ("大 [金额]", "押大(11-17點)\n賠率1:1"),
-        ("小 [金额]", "押小(4-10點)\n賠率1:1"),
-        ("单 [金额]", "押單數\n賠率1:1"),
-        ("双 [金额]", "押雙數\n賠率1:1"),
-        ("豹子 [金额]", "押三同號\n賠率1:24 (高風險)"),
-        ("一点 [金额]", "押出現1點\n動態賠率"),
-        ("4点 [金额]", "精準押4點\n賠率1:50 (夢想)"),
-        ("17点 [金额]", "精準押17點\n賠率1:50 (夢想)"),
-        ("骰寶狀態", "看看現在\n戰況如何"),
-        ("我的下注", "看看自己\n押了什麼"),
-        ("骰寶幫助", "規則說明\n賭神必讀"),
-        ("骰寶賠率", "完整賠率表\n數學家請進"),
-        ("骰宝结算", "管理員專用\n強制收盤"),
-        ("骰宝倒计时 [秒数]", "管理員專用\n控制開盤時間"),
-        ("骰宝模式 [模式]", "管理員專用\n切換圖片/文字"),
+        ("骰宝 开庄", "坐莊開局\n倒數60秒等人來送"),
+        ("骰宝 状态", "看看現在\n戰況如何"),
+        ("骰宝 我的下注", "看看自己\n押了什麼"),
+        ("骰宝 帮助", "規則說明\n賭神必讀"),
+        ("骰宝 赔率", "完整賠率表\n數學家請進"),
+        ("骰宝下注 大 [金额]", "押大(11-17點)\n賠率1:1"),
+        ("骰宝下注 小 [金额]", "押小(4-10點)\n賠率1:1"),
+        ("骰宝下注 单 [金额]", "押單數\n賠率1:1"),
+        ("骰宝下注 双 [金额]", "押雙數\n賠率1:1"),
+        ("骰宝下注 豹子 [金额]", "押三同號\n賠率1:24"),
+        ("骰宝下注 一点 [金额]", "押出現1點\n動態賠率"),
+        ("骰宝下注 4点 [金额]", "精準押4點\n賠率1:50"),
+        ("骰宝下注 17点 [金额]", "精準押17點\n賠率1:50"),
+        ("钓鱼管理 骰宝结算", "管理員專用\n強制收盤"),
+        ("钓鱼管理 骰宝倒计时 [秒数]", "管理員專用\n控制開盤時間"),
+        ("钓鱼管理 骰宝模式 [模式]", "管理員專用\n切換圖片/文字"),
     ]
 
     social = [
@@ -206,12 +242,12 @@ def draw_help_image():
         ("驱灵 [@用户]", "破除防護\n讓對手裸奔"),
         ("偷看鱼塘 [@用户]", "視姦群友\n看看有沒有大貨"),
         ("转账 [@用户] [金额]", "發紅包\n或是交保護費"),
-        ("发红包 [金额] [数量] [类型] [口令]", "撒幣時間\n全場由趙公子買單"),
-        ("领红包 [ID] [口令]", "搶紅包啦\n手慢無"),
-        ("红包列表", "看看還有\n哪些紅包沒領"),
-        ("红包详情 [ID]", "看看誰是\n運氣王"),
-        ("撤回红包 [ID]", "發錯了？\n趕緊撤回來"),
-        ("清理红包 [所有]", "管理員專用\n打掃戰場"),
+        ("红包 发红包 [金额] [数量]", "撒幣時間\n全場由趙公子買單"),
+        ("红包 领红包 [ID] [口令]", "搶紅包啦\n手慢無"),
+        ("红包 红包列表", "看看還有\n哪些紅包沒領"),
+        ("红包 红包详情 [ID]", "看看誰是\n運氣王"),
+        ("红包 撤回红包 [ID]", "發錯了？\n趕緊撤回來"),
+        ("钓鱼管理 清理红包 [所有]", "管理員專用\n打掃戰場"),
         ("查看称号", "看看頭頂\n掛著什麼頭銜"),
         ("使用称号 [ID]", "換個頭銜\n換種心情"),
         ("查看成就", "細數你的\n豐功偉績"),
@@ -222,34 +258,30 @@ def draw_help_image():
     exchange = [
         ("交易所", "期貨大廳\n觀察市場走勢"),
         ("交易所 开户", "成為股民\n的第一步"),
+        ("交易所 持仓", "看看手裡\n被套牢了多少"),
         ("交易所 买入 [商品] [数量]", "抄底建倉\n坐等升值"),
         ("交易所 卖出 [商品] [数量]", "高位套現\n落袋為安"),
+        ("交易所 历史 [商品] [天数]", "回看走勢\n研究波動"),
+        ("交易所 分析 [商品] [天数]", "看看盤面\n做點判斷"),
         ("交易所 帮助", "股市有風險\n入市需謹慎"),
-        ("持仓", "看看手裡\n被套牢了多少"),
-        ("清仓", "割肉離場\n或者止盈出局"),
+        ("交易所 清仓", "割肉離場\n或者止盈出局"),
     ]
 
     admin = [
-        ("修改金币 [用户ID] [数量]", "上帝之手\n修改餘額"),
-        ("奖励金币 [用户ID] [数量]", "系統發錢\n支持中文數字"),
-        ("扣除金币 [用户ID] [数量]", "系統罰款\n沒收非法所得"),
-        ("修改高级货币 [用户ID] [数量]", "修改點券\n氪金玩家待遇"),
-        ("奖励高级货币 [用户ID] [数量]", "發放點券\n節日福利"),
-        ("扣除高级货币 [用户ID] [数量]", "扣除點券\n違規處罰"),
-        ("全体奖励金币 [数量]", "普天同慶\n全服發錢"),
-        ("全体奖励高级货币 [数量]", "全服福利\n發放高級貨幣"),
-        ("全体扣除金币 [数量]", "全服稅收\n（慎用）"),
-        ("全体扣除高级货币 [数量]", "全服扣除\n（慎用）"),
-        ("全体发放道具 [道具ID] [数量]", "全服補償\n或者節日禮物"),
-        ("授予称号 [@用户/用户ID] [称号名称]", "欽定頭銜\n你就是釣魚王"),
-        ("移除称号 [@用户/用户ID] [称号名称]", "剝奪頭銜\n貶為庶民"),
-        ("创建称号 [称号名称] [描述] [显示格式]", "創造新頭銜\n定義榮耀"),
-        ("补充鱼池", "管理員專用\n重置稀有魚"),
-        ("开启钓鱼后台管理", "打開後門\nWeb管理端"),
-        ("关闭钓鱼后台管理", "關閉後門\n安全第一"),
-        ("代理上线 [用户ID]", "靈魂附體\n代打模式"),
-        ("代理下线", "靈魂出竅\n回歸自我"),
-        ("同步初始设定", "危！格式化\n（極度危險）"),
+        ("钓鱼管理 同步", "同步資料\n讓配置就位"),
+        ("钓鱼管理 修改金币 [用户ID] [数量]", "上帝之手\n修改餘額"),
+        ("钓鱼管理 奖励金币 [用户ID] [数量]", "系統發錢\n支持中文數字"),
+        ("钓鱼管理 扣除金币 [用户ID] [数量]", "系統罰款\n沒收非法所得"),
+        ("钓鱼管理 修改高级货币 [用户ID] [数量]", "修改點券\n氪金玩家待遇"),
+        ("钓鱼管理 全体发放道具 [道具ID] [数量]", "全服補償\n或者節日禮物"),
+        ("钓鱼管理 授予称号 [用户] [名称]", "欽定頭銜\n你就是釣魚王"),
+        ("钓鱼管理 移除称号 [用户] [名称]", "剝奪頭銜\n貶為庶民"),
+        ("钓鱼管理 创建称号 [名称] ...", "創造新頭銜\n定義榮耀"),
+        ("钓鱼管理 补充鱼池", "管理員專用\n重置稀有魚"),
+        ("钓鱼管理 开启钓鱼后台管理", "打開後門\nWeb管理端"),
+        ("钓鱼管理 关闭钓鱼后台管理", "關閉後門\n安全第一"),
+        ("钓鱼管理 代理上线 [用户ID]", "靈魂附體\n代打模式"),
+        ("钓鱼管理 代理下线", "靈魂出竅\n回歸自我"),
     ]
 
     # 10. 先计算自适应高度
@@ -279,7 +311,9 @@ def draw_help_image():
 
     # 绘制 Logo 和 标题
     try:
-        logo = Image.open(os.path.join(os.path.dirname(__file__), "resource", "astrbot_logo.jpg"))
+        logo = Image.open(
+            os.path.join(os.path.dirname(__file__), "resource", "astrbot_logo.jpg")
+        )
         logo = replace_white_background(logo, bg_top)
         logo.thumbnail((logo_size, logo_size), Image.Resampling.LANCZOS)
         mask = Image.new("L", logo.size, 0)
@@ -291,14 +325,30 @@ def draw_help_image():
         image.paste(output, (logo_x, logo_y), output)
     except Exception as e:
         # 如果没有logo文件，绘制一个圆角占位符
-        draw.rounded_rectangle((logo_x, logo_y, logo_x + logo_size, logo_y + logo_size),
-                               20, fill=bg_top, outline=(180, 180, 180), width=2)
-        draw.text((logo_x + logo_size // 2, logo_y + logo_size // 2), "LOGO",
-                  fill=(120, 120, 120), font=subtitle_font, anchor="mm")
+        draw.rounded_rectangle(
+            (logo_x, logo_y, logo_x + logo_size, logo_y + logo_size),
+            20,
+            fill=bg_top,
+            outline=(180, 180, 180),
+            width=2,
+        )
+        draw.text(
+            (logo_x + logo_size // 2, logo_y + logo_size // 2),
+            "LOGO",
+            fill=(120, 120, 120),
+            font=subtitle_font,
+            anchor="mm",
+        )
 
     title_text = "釣魚遊戲幫助"
     title_w, _ = get_text_size_cached(title_text, title_font)
-    draw_text_smart(draw, (width // 2 - title_w // 2, title_y - 20), title_text, font=title_font, fill=title_color)
+    draw_text_smart(
+        draw,
+        (width // 2 - title_w // 2, title_y - 20),
+        title_text,
+        font=title_font,
+        fill=title_color,
+    )
 
     # 重新基于真实 draw 定义尺寸函数
     def get_text_size(text, font):
@@ -320,10 +370,34 @@ def draw_help_image():
     footer_y = y0 + 20
     footer_text = "💡 提示：命令中的 [ID] 表示必填參數，<> 表示可選參數"
     footer_w, _ = get_text_size_cached(footer_text, desc_font)
-    draw_text_smart(draw, (width // 2 - footer_w // 2, footer_y), footer_text, font=desc_font, fill=(120, 120, 120))
+    draw_text_smart(
+        draw,
+        (width // 2 - footer_w // 2, footer_y),
+        footer_text,
+        font=desc_font,
+        fill=(120, 120, 120),
+    )
 
     # 11. 保存（高度已自适应，无需再次裁剪）
     final_height = footer_y + 48
     image = image.crop((0, 0, width, final_height))
 
     return image
+
+
+def draw_help_images_split() -> list[Image.Image]:
+    """将帮助图拆分为两张，降低平台压缩导致的可读性问题。"""
+    img = draw_help_image()
+    w, h = img.size
+    if h <= 1200:
+        return [img]
+
+    # 中线附近带少量重叠，避免切到标题行
+    overlap = 48
+    mid = h // 2
+    top_end = min(h, mid + overlap)
+    bottom_start = max(0, mid - overlap)
+
+    top = img.crop((0, 0, w, top_end))
+    bottom = img.crop((0, bottom_start, w, h))
+    return [top, bottom]

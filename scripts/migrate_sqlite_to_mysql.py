@@ -136,7 +136,10 @@ def map_sqlite_type(sqlite_type: str, col_name: str, indexed: bool = False) -> s
     if t == "":
         return "LONGTEXT"
 
-    if "INT" in t:
+    # Handle INTEGER PRIMARY KEY specially - should be BIGINT AUTO_INCREMENT
+    if t == "INTEGER":
+        return "BIGINT"
+    if "INT" in t and t != "INTEGER":
         return "BIGINT"
     if any(x in t for x in ("CHAR", "CLOB", "TEXT", "JSON")):
         if indexed:
@@ -211,13 +214,35 @@ def build_create_table_sql(sqlite_conn: sqlite3.Connection, table: str) -> str:
     for fk_row in fk_rows:
         indexed_cols.add(fk_row[3])
 
-    for _, name, col_type, notnull, default, pk in cols:
+    # Get autoincrement columns from SQLite
+    autoincrement_cols = set()
+    try:
+        cur.execute("PRAGMA table_info(sqlite_sequence)")
+        if cur.fetchall():  # Only if sqlite_sequence exists
+            cur.execute("SELECT name FROM sqlite_sequence")
+            # This won't work directly, need to check column definition
+            pass
+    except:
+        pass
+
+    for row_idx, (_, name, col_type, notnull, default, pk) in enumerate(cols):
         mysql_type = map_sqlite_type(
             col_type, name, indexed=(name in indexed_cols or int(pk) > 0)
         )
         parts = [q_ident(name), mysql_type]
+
+        # Check if this column is AUTOINCREMENT in SQLite
+        is_autoincrement = False
+        if int(pk) > 0 and col_type and "AUTOINCREMENT" in col_type.upper():
+            is_autoincrement = True
+        # Also check by pattern: INTEGER PRIMARY KEY in SQLite implies ROWID alias
+        if int(pk) > 0 and col_type and col_type.upper() == "INTEGER":
+            is_autoincrement = True
+
         if int(notnull) == 1:
             parts.append("NOT NULL")
+        if is_autoincrement:
+            parts.append("AUTO_INCREMENT")
         default_norm = normalize_default(default)
         if default_norm is not None and can_set_default(mysql_type):
             parts.append(f"DEFAULT {default_norm}")

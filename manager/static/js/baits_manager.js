@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
             }
+            if (form.elements['effect_note']) {
+                form.elements['effect_note'].value = data.effect_note || '';
+            }
         });
     });
 });
