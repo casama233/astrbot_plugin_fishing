@@ -201,19 +201,27 @@ def draw_backpack_image(user_data: Dict[str, Any], data_dir: str) -> Image.Image
 
             if max_dur:
                 # 計算耐久百分比
-                dur_percent = (cur_dur / max_dur * 100) if max_dur > 0 else 0
-                if dur_percent > 50:
-                    dur_color = GAME_COLORS["success"]
-                elif dur_percent > 20:
-                    dur_color = GAME_COLORS["warning"]
+                if cur_dur is None:
+                    draw.text(
+                        (x + 12, dur_y),
+                        "♾️ 無限",
+                        font=tiny_font,
+                        fill=GAME_COLORS["accent_blue"],
+                    )
                 else:
-                    dur_color = GAME_COLORS["error"]
-                draw.text(
-                    (x + 12, dur_y),
-                    f"耐久 {cur_dur}/{max_dur}",
-                    font=tiny_font,
-                    fill=dur_color,
-                )
+                    dur_percent = (cur_dur / max_dur * 100) if max_dur > 0 else 0
+                    if dur_percent > 50:
+                        dur_color = GAME_COLORS["success"]
+                    elif dur_percent > 20:
+                        dur_color = GAME_COLORS["warning"]
+                    else:
+                        dur_color = GAME_COLORS["error"]
+                    draw.text(
+                        (x + 12, dur_y),
+                        f"耐久 {cur_dur}/{max_dur}",
+                        font=tiny_font,
+                        fill=dur_color,
+                    )
             else:
                 draw.text(
                     (x + 12, dur_y),

@@ -11,6 +11,7 @@ from ..repositories.abstract_repository import (
     AbstractAchievementRepository,
 )
 from .special_accessory_effects import get_accessory_effect_code
+from .special_accessory_effects import get_accessory_effects, get_effect_multiplier
 from .gacha_service import GachaService
 from ..domain.models import User, TaxRecord
 from ..utils import get_now, get_today
@@ -464,6 +465,18 @@ class UserService:
         # 计算转账手续费
         tax_config = self.config.get("tax", {})
         transfer_tax_rate = tax_config.get("transfer_tax_rate", 0.05)  # 默认5%
+        equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
+            from_user_id
+        )
+        if equipped_accessory:
+            accessory_template = self.item_template_repo.get_accessory_by_id(
+                equipped_accessory.accessory_id
+            )
+            if accessory_template:
+                special_effects = get_accessory_effects(accessory_template.accessory_id)
+                transfer_tax_rate *= get_effect_multiplier(
+                    special_effects, "transfer_tax_multiplier", 1.0
+                )
         tax_amount = int(amount * transfer_tax_rate)
         total_cost = amount + tax_amount  # 转账方需支付的总金额
 

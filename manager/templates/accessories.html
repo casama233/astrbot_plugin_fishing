@@ -30,7 +30,7 @@
                         <th>名称</th>
                         <th>稀有度</th>
                         <th>属性加成</th>
-                        <th>实际作用代码</th>
+                        <th>特殊效果代码块</th>
                         <th class="text-end">操作</th>
                     </tr>
                 </thead>
@@ -46,7 +46,7 @@
                             <span class="badge bg-secondary">稀有: {{ item.bonus_rare_fish_chance }}</span>
                             <span class="badge bg-warning text-dark">金币: {{ item.bonus_coin_modifier }}</span>
                         </td>
-                        <td><code>{{ item.effect_note or '未配置' }}</code></td>
+                        <td><pre class="mb-0"><code>{{ item.effect_note or '未配置' }}</code></pre></td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-info edit-btn"
                                     data-bs-toggle="modal"
@@ -88,7 +88,31 @@
                         <div class="col-md-4"><label>装备槽类型</label><input type="text" name="slot_type" class="form-control" value="general"></div>
                         <div class="col-md-4"><label>图标URL(可选)</label><input type="text" name="icon_url" class="form-control"></div>
                         <div class="col-12"><label>其他效果描述</label><textarea name="other_bonus_description" class="form-control" rows="2"></textarea></div>
-                        <div class="col-12"><label>实际作用代码</label><textarea name="effect_note" class="form-control font-monospace" rows="4" placeholder="例如：bonus_coin_modifier=1.15&#10;bonus_rare_fish_chance=0.03"></textarea><div class="form-text">这里用于记录实际生效的代码/公式，不是给玩家看的描述。</div></div>
+                        <div class="col-12"><label>特殊效果代码块</label><textarea name="effect_note" class="form-control font-monospace" rows="6" placeholder="例如：&#10;fishing_cooldown_multiplier=0.5&#10;steal_cooldown_multiplier=0.7&#10;electric_cooldown_multiplier=0.8&#10;fishing_rare_bonus=0.03"></textarea><div class="form-text">这里用于定义饰品穿戴后的额外特殊效果。当前支持键值规则块，不是玩家描述文案。</div></div>
+                        <div class="col-12">
+                            <div class="alert alert-secondary mb-0">
+                                <div class="fw-bold mb-2">可用键速查</div>
+                                <div class="row g-2 small font-monospace">
+                                    <div class="col-md-6">
+                                        <div><code>fishing_cooldown_multiplier=0.5</code></div>
+                                        <div><code>fishing_success_bonus=0.05</code></div>
+                                        <div><code>fishing_rare_bonus=0.03</code></div>
+                                        <div><code>fishing_coin_bonus=0.10</code></div>
+                                        <div><code>fishing_quality_multiplier=1.2</code></div>
+                                        <div><code>fishing_quantity_multiplier=1.1</code></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div><code>steal_cooldown_multiplier=0.7</code></div>
+                                        <div><code>electric_cooldown_multiplier=0.8</code></div>
+                                        <div><code>auto_fishing_interval_multiplier=0.75</code></div>
+                                        <div><code>daily_tax_multiplier=0.5</code></div>
+                                        <div><code>transfer_tax_multiplier=0.6</code></div>
+                                        <div><code>market_tax_multiplier=0.8</code></div>
+                                    </div>
+                                </div>
+                                <div class="mt-2 small text-muted">支持 <code>key=value</code> 多行格式，也支持 JSON 对象格式。</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

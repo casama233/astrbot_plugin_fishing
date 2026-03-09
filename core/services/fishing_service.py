@@ -1118,28 +1118,44 @@ class FishingService:
                 tax_rate = min_rate + steps * step_rate
                 if tax_rate > max_rate:
                     tax_rate = max_rate
-            min_tax_amount = 1
-            if tax_rate > 0:
-                tax_amount = max(int(user.coins * tax_rate), min_tax_amount)
-                original_coins = user.coins
-                user.coins -= tax_amount
 
-                self.user_repo.update(user)
-
-                tax_log = TaxRecord(
-                    tax_id=0,  # DB会自增
-                    user_id=user.user_id,
-                    tax_amount=tax_amount,
-                    tax_rate=tax_rate,
-                    original_amount=original_coins,
-                    balance_after=user.coins,
-                    timestamp=get_now(),
-                    tax_type="每日资产税",
+                equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
+                    user.user_id
                 )
-                self.log_repo.add_tax_record(tax_log)
+                if equipped_accessory:
+                    accessory_template = self.item_template_repo.get_accessory_by_id(
+                        equipped_accessory.accessory_id
+                    )
+                    if accessory_template:
+                        special_effects = get_accessory_effects(
+                            accessory_template.accessory_id
+                        )
+                        tax_rate *= get_effect_multiplier(
+                            special_effects, "daily_tax_multiplier", 1.0
+                        )
 
-                total_tax_collected += tax_amount
-                taxed_user_count += 1
+                min_tax_amount = 1
+                if tax_rate > 0:
+                    tax_amount = max(int(user.coins * tax_rate), min_tax_amount)
+                    original_coins = user.coins
+                    user.coins -= tax_amount
+
+                    self.user_repo.update(user)
+
+                    tax_log = TaxRecord(
+                        tax_id=0,  # DB会自增
+                        user_id=user.user_id,
+                        tax_amount=tax_amount,
+                        tax_rate=tax_rate,
+                        original_amount=original_coins,
+                        balance_after=user.coins,
+                        timestamp=get_now(),
+                        tax_type="每日资产税",
+                    )
+                    self.log_repo.add_tax_record(tax_log)
+
+                    total_tax_collected += tax_amount
+                    taxed_user_count += 1
 
         logger.info(
             f"[税收-{execution_id}] 每日资产税执行完成，征税 {taxed_user_count} 人，跳过 {skipped_user_count} 人（已缴税），总计 {total_tax_collected} 金币"
@@ -1495,7 +1511,24 @@ class FishingService:
                     #      logger.info(f"用户 {user_id} 自动钓鱼失败: {result['message']}")
 
                 # 每轮检查间隔
-                time.sleep(40)
+                interval_seconds = 40.0
+                equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
+                    user_id
+                )
+                if equipped_accessory:
+                    accessory_template = self.item_template_repo.get_accessory_by_id(
+                        equipped_accessory.accessory_id
+                    )
+                    if accessory_template:
+                        special_effects = get_accessory_effects(
+                            accessory_template.accessory_id
+                        )
+                        interval_seconds *= get_effect_multiplier(
+                            special_effects,
+                            "auto_fishing_interval_multiplier",
+                            1.0,
+                        )
+                time.sleep(max(5.0, interval_seconds))
 
             except Exception as e:
                 logger.error(f"自动钓鱼任务出错: {e}")

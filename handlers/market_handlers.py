@@ -721,7 +721,9 @@ async def buy_in_shop(plugin: "FishingPlugin", event: AstrMessageEvent):
                 f"❌ 無法解析數量：{str(e)}\n示例：1、五、一千、1萬"
             )
             return
-    result = plugin.shop_service.purchase_item(user_id, int(item_id), qty)
+    result = plugin.shop_service.purchase_item(
+        user_id, int(item_id), qty, shop_id=int(shop_id)
+    )
     if result.get("success"):
         yield event.plain_result(result["message"])
         tip = build_tip_result(

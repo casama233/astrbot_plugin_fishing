@@ -790,6 +790,19 @@ class GameMechanicsService:
         )  # 默认4小时
         now = get_now()
 
+        thief_equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
+            thief_id
+        )
+        if thief_equipped_accessory:
+            accessory_template = self.item_template_repo.get_accessory_by_id(
+                thief_equipped_accessory.accessory_id
+            )
+            if accessory_template:
+                special_effects = get_accessory_effects(accessory_template.accessory_id)
+                cooldown_seconds *= get_effect_multiplier(
+                    special_effects, "steal_cooldown_multiplier", 1.0
+                )
+
         # 修复时区问题
         last_steal_time = thief.last_steal_time
         if (
@@ -827,18 +840,13 @@ class GameMechanicsService:
             thief_id, "SHADOW_CLOAK_BUFF"
         )
 
-        thief_equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
-            thief_id
-        )
+        special_effects = {}
         if thief_equipped_accessory:
             accessory_template = self.item_template_repo.get_accessory_by_id(
                 thief_equipped_accessory.accessory_id
             )
             if accessory_template:
                 special_effects = get_accessory_effects(accessory_template.accessory_id)
-                cooldown_seconds *= get_effect_multiplier(
-                    special_effects, "steal_cooldown_multiplier", 1.0
-                )
 
         if protection_buff:
             if not penetration_buff and not shadow_cloak_buff:
@@ -859,6 +867,17 @@ class GameMechanicsService:
             }
 
         # 3. 随机选择一条鱼偷取
+        steal_success_bonus = get_effect_multiplier(
+            special_effects, "steal_success_multiplier", 1.0
+        )
+        if steal_success_bonus < 1.0 and random.random() > steal_success_bonus:
+            thief.last_steal_time = now
+            self.user_repo.update(thief)
+            return {
+                "success": False,
+                "message": "❌ 你出手时动静太大，被对方察觉了，偷鱼失败！",
+            }
+
         stolen_fish_item = random.choice(victim_inventory)
         stolen_fish_template = self.item_template_repo.get_fish_by_id(
             stolen_fish_item.fish_id
@@ -934,6 +953,19 @@ class GameMechanicsService:
         )  # 默认3小时
         now = get_now()
 
+        thief_equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
+            thief_id
+        )
+        if thief_equipped_accessory:
+            accessory_template = self.item_template_repo.get_accessory_by_id(
+                thief_equipped_accessory.accessory_id
+            )
+            if accessory_template:
+                special_effects = get_accessory_effects(accessory_template.accessory_id)
+                cooldown_seconds *= get_effect_multiplier(
+                    special_effects, "electric_cooldown_multiplier", 1.0
+                )
+
         last_electric_fish_time = thief.last_electric_fish_time
         if (
             last_electric_fish_time
@@ -972,18 +1004,13 @@ class GameMechanicsService:
             thief_id, "SHADOW_CLOAK_BUFF"
         )
 
-        thief_equipped_accessory = self.inventory_repo.get_user_equipped_accessory(
-            thief_id
-        )
+        special_effects = {}
         if thief_equipped_accessory:
             accessory_template = self.item_template_repo.get_accessory_by_id(
                 thief_equipped_accessory.accessory_id
             )
             if accessory_template:
                 special_effects = get_accessory_effects(accessory_template.accessory_id)
-                cooldown_seconds *= get_effect_multiplier(
-                    special_effects, "electric_cooldown_multiplier", 1.0
-                )
 
         if protection_buff:
             if not penetration_buff and not shadow_cloak_buff:
@@ -1015,6 +1042,10 @@ class GameMechanicsService:
         final_success_rate = self.config.get("electric_fish", {}).get(
             "base_success_rate", 0.6
         )
+        final_success_rate *= get_effect_multiplier(
+            special_effects, "electric_success_multiplier", 1.0
+        )
+        final_success_rate = max(0.0, min(1.0, final_success_rate))
 
         # 进行随机判定
         roll = random.random()

@@ -999,26 +999,25 @@ async def use_equipment(
 
         # 解析參數：可能是數量、@用戶、或用戶ID
         if len(args) > 2:
-            # 檢查是否為@用戶
-            from ..utils import parse_target_user_id
+            from ..utils import parse_amount, parse_target_user_id
 
-            target_id, error_msg = parse_target_user_id(event, args, 2)
+            third_arg = args[2].strip()
 
-            if target_id:
-                # 找到了目標用戶
-                target_user_id = target_id
-            elif args[2].isdigit():
-                # 是數量參數
-                quantity = int(args[2])
+            # 优先按数量解析，避免纯数字目标参数把数量误判成用户ID
+            try:
+                quantity = parse_amount(third_arg)
                 if quantity <= 0:
                     yield event.plain_result("❌ 數量必須是正整數。")
                     return
 
-                # 檢查是否還有第三個參數（目標用戶）
                 if len(args) > 3:
-                    target_id, error_msg = parse_target_user_id(event, args, 3)
+                    target_id, _ = parse_target_user_id(event, args, 3)
                     if target_id:
                         target_user_id = target_id
+            except Exception:
+                target_id, _ = parse_target_user_id(event, args, 2)
+                if target_id:
+                    target_user_id = target_id
 
         # 使用道具
         if result := plugin.inventory_service.use_item(

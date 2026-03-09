@@ -488,43 +488,24 @@ class FishingPlugin(Star):
                         return
 
                     logger.warning(
-                        "检测到 MySQL 表 user_buffs 的 id 不是 AUTO_INCREMENT，正在自动修复。"
+                        "检测到 MySQL 表 user_buffs 的 id 不是 AUTO_INCREMENT，正在尝试轻量修复。"
                     )
-                    cursor.execute("DROP TABLE IF EXISTS user_buffs_repaired")
-                    cursor.execute(
-                        """
-                        CREATE TABLE user_buffs_repaired (
-                            id BIGINT NOT NULL AUTO_INCREMENT,
-                            user_id VARCHAR(255) NOT NULL,
-                            buff_type VARCHAR(255) NOT NULL,
-                            payload LONGTEXT,
-                            started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            expires_at DATETIME NULL,
-                            PRIMARY KEY (id),
-                            KEY idx_user_buffs_user_id (user_id),
-                            KEY idx_user_buffs_expires_at (expires_at)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                        """
-                    )
+
                     if id_column:
                         cursor.execute(
                             """
-                            INSERT INTO user_buffs_repaired (id, user_id, buff_type, payload, started_at, expires_at)
-                            SELECT id, user_id, buff_type, payload, started_at, expires_at
-                            FROM user_buffs
-                            ORDER BY id
+                            ALTER TABLE user_buffs
+                            MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT
                             """
                         )
-                    else:
-                        cursor.execute(
-                            """
-                            INSERT INTO user_buffs_repaired (user_id, buff_type, payload, started_at, expires_at)
-                            SELECT user_id, buff_type, payload, started_at, expires_at
-                            FROM user_buffs
-                            """
-                        )
-                    cursor.execute("DROP TABLE user_buffs")
-                    cursor.execute("RENAME TABLE user_buffs_repaired TO user_buffs")
+                        return
+
+                    cursor.execute(
+                        """
+                        ALTER TABLE user_buffs
+                        ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST
+                        """
+                    )
 
                 # 1) 交易所核心表兜底
                 cursor.execute(
