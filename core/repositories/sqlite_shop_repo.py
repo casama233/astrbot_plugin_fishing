@@ -41,27 +41,26 @@ class SqliteShopRepository(AbstractShopRepository):
                     data[k] = datetime.fromisoformat(data[k].replace("Z", "+00:00"))
                 except Exception:
                     pass
-        
+
         # 时间字段保持字符串格式（用于前端表单）
         for k in ("start_time", "end_time"):
             if k in data and data[k]:
                 if isinstance(data[k], str):
-                    # 确保格式正确
                     data[k] = data[k]
-                elif hasattr(data[k], 'strftime'):
-                    # 如果是datetime对象，转换为字符串
-                    data[k] = data[k].strftime('%Y-%m-%d %H:%M:%S')
+                elif hasattr(data[k], "strftime"):
+                    data[k] = data[k].strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    data[k] = str(data[k])
         # 时间格式处理（TIME类型，保持字符串格式）
         for k in ("daily_start_time", "daily_end_time"):
             if k in data and data[k]:
-                # 确保时间格式为 HH:MM
-                if isinstance(data[k], str) and ':' in data[k]:
-                    # 如果包含秒数，去掉秒数部分
-                    if data[k].count(':') == 2:
-                        data[k] = data[k][:5]  # 只保留 HH:MM
-                elif hasattr(data[k], 'strftime'):
-                    # 如果是时间对象，转换为字符串
-                    data[k] = data[k].strftime('%H:%M')
+                if isinstance(data[k], str) and ":" in data[k]:
+                    if data[k].count(":") == 2:
+                        data[k] = data[k][:5]
+                elif hasattr(data[k], "strftime"):
+                    data[k] = data[k].strftime("%H:%M")
+                else:
+                    data[k] = str(data[k])
         return data
 
     # ---- 商店管理（Shops） ----
@@ -71,23 +70,25 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         where = ["is_active = 1"]
         params: List[Any] = []
-        
+
         # 时间检查
         now = datetime.now().isoformat(sep=" ")
         where.append("(start_time IS NULL OR start_time <= ?)")
         where.append("(end_time IS NULL OR end_time >= ?)")
         params.extend([now, now])
-        
+
         # 每日时段检查 - 处理跨日情况
         current_time = datetime.now().time().strftime("%H:%M")
         # 对于跨日营业时间（如21:00-04:00），需要特殊处理
-        where.append("(daily_start_time IS NULL OR daily_end_time IS NULL OR (daily_start_time <= daily_end_time AND daily_start_time <= ? AND daily_end_time >= ?) OR (daily_start_time > daily_end_time AND (daily_start_time <= ? OR daily_end_time >= ?)))")
+        where.append(
+            "(daily_start_time IS NULL OR daily_end_time IS NULL OR (daily_start_time <= daily_end_time AND daily_start_time <= ? AND daily_end_time >= ?) OR (daily_start_time > daily_end_time AND (daily_start_time <= ? OR daily_end_time >= ?)))"
+        )
         params.extend([current_time, current_time, current_time, current_time])
-        
+
         if shop_type:
             where.append("shop_type = ?")
             params.append(shop_type)
-            
+
         sql = f"SELECT * FROM shops WHERE {' AND '.join(where)} ORDER BY sort_order ASC, shop_id ASC"
         cursor.execute(sql, params)
         rows = cursor.fetchall()
@@ -141,10 +142,17 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         fields = []
         params: List[Any] = []
-        
+
         for k in [
-            "name", "description", "shop_type", "is_active",
-            "start_time", "end_time", "daily_start_time", "daily_end_time", "sort_order"
+            "name",
+            "description",
+            "shop_type",
+            "is_active",
+            "start_time",
+            "end_time",
+            "daily_start_time",
+            "daily_end_time",
+            "sort_order",
         ]:
             if k in data:
                 fields.append(f"{k} = ?")
@@ -152,14 +160,14 @@ class SqliteShopRepository(AbstractShopRepository):
                 if k == "is_active":
                     v = 1 if v else 0
                 params.append(v)
-                
+
         if not fields:
             return
-            
+
         params.append(shop_id)
         cursor.execute(
             f"UPDATE shops SET {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP WHERE shop_id = ?",
-            params
+            params,
         )
         conn.commit()
 
@@ -181,7 +189,7 @@ class SqliteShopRepository(AbstractShopRepository):
             WHERE shop_id = ? 
             ORDER BY sort_order ASC, item_id ASC
             """,
-            (shop_id,)
+            (shop_id,),
         )
         rows = cursor.fetchall()
         return [self._normalize_row(r) for r in rows]
@@ -194,7 +202,9 @@ class SqliteShopRepository(AbstractShopRepository):
         row = cursor.fetchone()
         return self._normalize_row(row) if row else None
 
-    def create_shop_item(self, shop_id: int, item_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_shop_item(
+        self, shop_id: int, item_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """创建商店商品"""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -230,11 +240,19 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         fields = []
         params: List[Any] = []
-        
+
         for k in [
-            "name", "description", "category", "is_active",
-            "start_time", "end_time", "stock_total", "stock_sold",
-            "per_user_limit", "per_user_daily_limit", "sort_order"
+            "name",
+            "description",
+            "category",
+            "is_active",
+            "start_time",
+            "end_time",
+            "stock_total",
+            "stock_sold",
+            "per_user_limit",
+            "per_user_daily_limit",
+            "sort_order",
         ]:
             if k in data:
                 fields.append(f"{k} = ?")
@@ -242,14 +260,14 @@ class SqliteShopRepository(AbstractShopRepository):
                 if k == "is_active":
                     v = 1 if v else 0
                 params.append(v)
-                
+
         if not fields:
             return
-            
+
         params.append(item_id)
         cursor.execute(
             f"UPDATE shop_items SET {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP WHERE item_id = ?",
-            params
+            params,
         )
         conn.commit()
 
@@ -266,7 +284,7 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE shop_items SET stock_sold = COALESCE(stock_sold, 0) + ?, updated_at = CURRENT_TIMESTAMP WHERE item_id = ?",
-            (delta, item_id)
+            (delta, item_id),
         )
         conn.commit()
 
@@ -277,7 +295,7 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         cursor.execute(
             "SELECT *, quality_level FROM shop_item_costs WHERE item_id = ? ORDER BY group_id ASC, cost_id ASC",
-            (item_id,)
+            (item_id,),
         )
         rows = cursor.fetchall()
         return [self._normalize_row(r) for r in rows]
@@ -311,19 +329,25 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         fields = []
         params: List[Any] = []
-        
-        for k in ["cost_type", "cost_amount", "cost_item_id", "cost_relation", "group_id", "quality_level"]:
+
+        for k in [
+            "cost_type",
+            "cost_amount",
+            "cost_item_id",
+            "cost_relation",
+            "group_id",
+            "quality_level",
+        ]:
             if k in data:
                 fields.append(f"{k} = ?")
                 params.append(data[k])
-                
+
         if not fields:
             return
-            
+
         params.append(cost_id)
         cursor.execute(
-            f"UPDATE shop_item_costs SET {', '.join(fields)} WHERE cost_id = ?",
-            params
+            f"UPDATE shop_item_costs SET {', '.join(fields)} WHERE cost_id = ?", params
         )
         conn.commit()
 
@@ -341,7 +365,7 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         cursor.execute(
             "SELECT *, quality_level FROM shop_item_rewards WHERE item_id = ? ORDER BY reward_id ASC",
-            (item_id,)
+            (item_id,),
         )
         rows = cursor.fetchall()
         return [self._normalize_row(r) for r in rows]
@@ -373,19 +397,25 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         fields = []
         params: List[Any] = []
-        
-        for k in ["reward_type", "reward_item_id", "reward_quantity", "reward_refine_level", "quality_level"]:
+
+        for k in [
+            "reward_type",
+            "reward_item_id",
+            "reward_quantity",
+            "reward_refine_level",
+            "quality_level",
+        ]:
             if k in data:
                 fields.append(f"{k} = ?")
                 params.append(data[k])
-                
+
         if not fields:
             return
-            
+
         params.append(reward_id)
         cursor.execute(
             f"UPDATE shop_item_rewards SET {', '.join(fields)} WHERE reward_id = ?",
-            params
+            params,
         )
         conn.commit()
 
@@ -393,7 +423,9 @@ class SqliteShopRepository(AbstractShopRepository):
         """删除商品奖励"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM shop_item_rewards WHERE reward_id = ?", (reward_id,))
+        cursor.execute(
+            "DELETE FROM shop_item_rewards WHERE reward_id = ?", (reward_id,)
+        )
         conn.commit()
 
     # ---- 购买记录管理（Shop Purchase Records） ----
@@ -403,18 +435,20 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO shop_purchase_records (user_id, item_id, quantity) VALUES (?, ?, ?)",
-            (user_id, item_id, quantity)
+            (user_id, item_id, quantity),
         )
         conn.commit()
 
-    def get_user_purchased_count(self, user_id: str, item_id: int, since: Optional[datetime] = None) -> int:
+    def get_user_purchased_count(
+        self, user_id: str, item_id: int, since: Optional[datetime] = None
+    ) -> int:
         """获取用户购买数量（用于限购检查）"""
         conn = self._get_connection()
         cursor = conn.cursor()
         if since is None:
             cursor.execute(
                 "SELECT COALESCE(SUM(quantity), 0) FROM shop_purchase_records WHERE user_id = ? AND item_id = ?",
-                (user_id, item_id)
+                (user_id, item_id),
             )
         else:
             cursor.execute(
@@ -423,12 +457,14 @@ class SqliteShopRepository(AbstractShopRepository):
                 FROM shop_purchase_records
                 WHERE user_id = ? AND item_id = ? AND timestamp >= ?
                 """,
-                (user_id, item_id, since.isoformat(sep=" "))
+                (user_id, item_id, since.isoformat(sep=" ")),
             )
         row = cursor.fetchone()
         return int(row[0] if row and row[0] is not None else 0)
 
-    def get_user_purchase_history(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_user_purchase_history(
+        self, user_id: str, limit: int = 50
+    ) -> List[Dict[str, Any]]:
         """获取用户购买历史"""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -442,7 +478,7 @@ class SqliteShopRepository(AbstractShopRepository):
             ORDER BY spr.timestamp DESC
             LIMIT ?
             """,
-            (user_id, limit)
+            (user_id, limit),
         )
         rows = cursor.fetchall()
         return [self._normalize_row(r) for r in rows]
@@ -454,22 +490,22 @@ class SqliteShopRepository(AbstractShopRepository):
         cursor = conn.cursor()
         where = ["si.is_active = 1"]
         params: List[Any] = []
-        
+
         # 时间检查
         now = datetime.now().isoformat(sep=" ")
         where.append("(si.start_time IS NULL OR si.start_time <= ?)")
         where.append("(si.end_time IS NULL OR si.end_time >= ?)")
         params.extend([now, now])
-        
+
         if category:
             where.append("si.category = ?")
             params.append(category)
-            
+
         sql = f"""
         SELECT si.*, s.name as shop_name, s.shop_type
         FROM shop_items si
         JOIN shops s ON si.shop_id = s.shop_id
-        WHERE {' AND '.join(where)}
+        WHERE {" AND ".join(where)}
         ORDER BY si.sort_order ASC, si.item_id ASC
         """
         cursor.execute(sql, params)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from ..database.mysql_connection_manager import MysqlConnectionManager
@@ -19,17 +19,30 @@ class MysqlShopRepository(AbstractShopRepository):
             if key in data and isinstance(data[key], int):
                 data[key] = bool(data[key])
         for key in ("created_at", "updated_at", "timestamp"):
-            if key in data and data[key] and isinstance(data[key], str):
-                try:
-                    data[key] = datetime.fromisoformat(data[key].replace("Z", "+00:00"))
-                except Exception:
-                    pass
+            if key in data and data[key]:
+                if isinstance(data[key], str):
+                    try:
+                        data[key] = datetime.fromisoformat(
+                            data[key].replace("Z", "+00:00")
+                        )
+                    except Exception:
+                        pass
+                elif not hasattr(data[key], "isoformat"):
+                    data[key] = str(data[key])
         for key in ("start_time", "end_time"):
-            if key in data and data[key] and hasattr(data[key], "strftime"):
-                data[key] = data[key].strftime("%Y-%m-%d %H:%M:%S")
+            if key in data and data[key]:
+                if hasattr(data[key], "strftime"):
+                    data[key] = data[key].strftime("%Y-%m-%d %H:%M:%S")
+                elif not isinstance(data[key], str):
+                    data[key] = str(data[key])
         for key in ("daily_start_time", "daily_end_time"):
             if key in data and data[key]:
-                if isinstance(data[key], str) and data[key].count(":") == 2:
+                if isinstance(data[key], timedelta):
+                    total_seconds = int(data[key].total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    data[key] = f"{hours:02d}:{minutes:02d}"
+                elif isinstance(data[key], str) and data[key].count(":") == 2:
                     data[key] = data[key][:5]
                 elif hasattr(data[key], "strftime"):
                     data[key] = data[key].strftime("%H:%M")
