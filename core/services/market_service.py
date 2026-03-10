@@ -431,6 +431,14 @@ class MarketService:
                     timestamp=datetime.now(),
                 )
                 self.log_repo.add_tax_record(tax_log)
+                try:
+                    self.log_repo.add_log(
+                        user_id,
+                        "market_listing_tax",
+                        f"上架{validation_result['item_name']}扣除手续费 {tax_cost} 金币",
+                    )
+                except Exception:
+                    pass
 
                 # 创建市场条目
                 new_listing = MarketListing(

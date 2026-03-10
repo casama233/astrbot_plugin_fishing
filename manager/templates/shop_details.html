@@ -14,8 +14,20 @@
 </div>
 
 <div class="alert alert-info mb-3">
-    新手操作：先选“奖励”，再选“消耗”，最后保存。
-    AND=都要满足；OR=二选一。
+新手操作：先选"奖励"，再选"消耗"，最后保存。
+AND=都要满足；OR=二选一。
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="mb-2">一键模板（点一下就填好）</h6>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm" data-template="coins_for_bait">金币换鱼饵</button>
+            <button type="button" class="btn btn-outline-success btn-sm" data-template="fish_for_item">鱼换道具</button>
+            <button type="button" class="btn btn-outline-warning btn-sm" data-template="ticket_gate">通行证道具</button>
+        </div>
+        <div class="form-text mt-2">模板会自动填入“奖励/消耗”，你只需改数量。</div>
+    </div>
 </div>
 
 <div class="card border-primary">
@@ -140,8 +152,19 @@
                     <h5 class="modal-title" id="itemModalLabel">添加商品到商店</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="row">
+<div class="modal-body">
+<div class="card mb-3 border-info">
+<div class="card-body py-2">
+<h6 class="mb-2"><i class="fas fa-magic"></i> 一键模板（点一下就填好）</h6>
+<div class="d-flex flex-wrap gap-2">
+<button type="button" class="btn btn-outline-primary btn-sm" data-template="coins_for_bait">金币换鱼饵</button>
+<button type="button" class="btn btn-outline-success btn-sm" data-template="fish_for_item">鱼换道具</button>
+<button type="button" class="btn btn-outline-warning btn-sm" data-template="ticket_gate">通行证道具</button>
+</div>
+<div class="form-text mt-1 mb-0">模板会自动填入"奖励/消耗"，你只需改数量。</div>
+</div>
+</div>
+<div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">商品名称 *</label>
@@ -361,6 +384,58 @@ document.addEventListener('DOMContentLoaded', function () {
             if (addItemForm.elements['is_active']) addItemForm.elements['is_active'].checked = true;
         });
     }
+
+    // 模板一键填充
+    document.querySelectorAll('[data-template]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!addItemForm) return;
+
+            const rewardsList = document.getElementById('rewards-list');
+            const costsList = document.getElementById('costs-list');
+            if (!rewardsList || !costsList) return;
+
+            // 保留首行，清空其他
+            const rewardFirst = rewardsList.querySelector('.row.g-2.mb-2');
+            const costFirst = costsList.querySelector('.row.g-2.mb-2');
+            rewardsList.innerHTML = '';
+            costsList.innerHTML = '';
+            if (rewardFirst) rewardsList.appendChild(rewardFirst);
+            if (costFirst) costsList.appendChild(costFirst);
+
+            const rewardSelect = rewardsList.querySelector('select[name="reward_item_full_id"]');
+            const rewardQty = rewardsList.querySelector('input[name="reward_quantity"]');
+            const costSelect = costsList.querySelector('select[name="cost_item_full_id"]');
+            const costQty = costsList.querySelector('input[name="cost_amount"]');
+
+            const template = btn.getAttribute('data-template');
+            if (addItemForm.elements['name']) {
+                if (template === 'coins_for_bait') addItemForm.elements['name'].value = '金币兑换鱼饵';
+                if (template === 'fish_for_item') addItemForm.elements['name'].value = '鱼类兑换道具';
+                if (template === 'ticket_gate') addItemForm.elements['name'].value = '通行证道具';
+            }
+
+            if (template === 'coins_for_bait') {
+                if (rewardSelect) rewardSelect.value = rewardSelect.querySelector('option[value^="bait-"]')?.value || '';
+                if (rewardQty) rewardQty.value = 1;
+                if (costSelect) costSelect.value = 'coins-0';
+                if (costQty) costQty.value = 100;
+            }
+
+            if (template === 'fish_for_item') {
+                if (rewardSelect) rewardSelect.value = rewardSelect.querySelector('option[value^="item-"]')?.value || '';
+                if (rewardQty) rewardQty.value = 1;
+                if (costSelect) costSelect.value = costSelect.querySelector('option[value^="fish-"]')?.value || '';
+                if (costQty) costQty.value = 1;
+            }
+
+            if (template === 'ticket_gate') {
+                if (rewardSelect) rewardSelect.value = rewardSelect.querySelector('option[value^="item-"]')?.value || '';
+                if (rewardQty) rewardQty.value = 1;
+                if (costSelect) costSelect.value = 'coins-0';
+                if (costQty) costQty.value = 1;
+            }
+        });
+    });
 
     if(editItemBtns) {
         editItemBtns.forEach(button => {

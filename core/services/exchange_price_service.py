@@ -64,7 +64,6 @@ class ExchangePriceService:
             prices = self.exchange_repo.get_prices_for_date(today_str)
 
             if not prices:
-                # 如果没有今日价格，尝试获取昨日价格
                 yesterday_str = (datetime.now() - timedelta(days=1)).strftime(
                     "%Y-%m-%d"
                 )
@@ -75,20 +74,25 @@ class ExchangePriceService:
                         "success": True,
                         "prices": price_data,
                         "commodities": self.commodities,
-                        "market_sentiment": "neutral",
-                        "price_trend": "stable",
-                        "supply_demand": "平衡",
+                        "market_sentiment": self.config.get(
+                            "manual_market_sentiment", "neutral"
+                        ),
+                        "price_trend": self.config.get("manual_price_trend", "stable"),
+                        "supply_demand": self.config.get(
+                            "manual_supply_demand", "平衡"
+                        ),
                         "date": today_str,
                     }
-                # 昨日也没有则返回初始价格
                 initial_prices = self._get_initial_price_map()
                 return {
                     "success": True,
                     "prices": initial_prices,
                     "commodities": self.commodities,
-                    "market_sentiment": "neutral",
-                    "price_trend": "stable",
-                    "supply_demand": "平衡",
+                    "market_sentiment": self.config.get(
+                        "manual_market_sentiment", "neutral"
+                    ),
+                    "price_trend": self.config.get("manual_price_trend", "stable"),
+                    "supply_demand": self.config.get("manual_supply_demand", "平衡"),
                     "date": today_str,
                 }
 
@@ -97,9 +101,11 @@ class ExchangePriceService:
                 "success": True,
                 "prices": price_data,
                 "commodities": self.commodities,
-                "market_sentiment": "neutral",
-                "price_trend": "stable",
-                "supply_demand": "平衡",
+                "market_sentiment": self.config.get(
+                    "manual_market_sentiment", "neutral"
+                ),
+                "price_trend": self.config.get("manual_price_trend", "stable"),
+                "supply_demand": self.config.get("manual_supply_demand", "平衡"),
                 "date": today_str,
             }
         except Exception as e:

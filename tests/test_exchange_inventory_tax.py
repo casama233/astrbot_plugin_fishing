@@ -4,6 +4,7 @@ import sys
 import types
 from datetime import datetime, timedelta
 
+
 # Provide a lightweight astrbot.api.logger stub for unit tests.
 class _DummyLogger:
     def info(self, *args, **kwargs):
@@ -22,8 +23,8 @@ class _DummyLogger:
 if "astrbot.api" not in sys.modules:
     astrbot_module = types.ModuleType("astrbot")
     api_module = types.ModuleType("astrbot.api")
-    api_module.logger = _DummyLogger()
-    astrbot_module.api = api_module
+    api_module.__dict__["logger"] = _DummyLogger()
+    astrbot_module.__dict__["api"] = api_module
     sys.modules["astrbot"] = astrbot_module
     sys.modules["astrbot.api"] = api_module
 
@@ -43,7 +44,11 @@ class FakeUserRepo:
 
 
 class FakeExchangeRepo:
-    def __init__(self, commodities: list[UserCommodity], price_map: dict[str, list[Exchange]] | None = None):
+    def __init__(
+        self,
+        commodities: list[UserCommodity],
+        price_map: dict[str, list[Exchange]] | None = None,
+    ):
         self._commodities = list(commodities)
         self.price_map = price_map or {}
 
@@ -51,7 +56,9 @@ class FakeExchangeRepo:
         return list(self._commodities)
 
     def delete_user_commodity(self, instance_id: int) -> None:
-        self._commodities = [item for item in self._commodities if item.instance_id != instance_id]
+        self._commodities = [
+            item for item in self._commodities if item.instance_id != instance_id
+        ]
 
     def update_user_commodity_quantity(self, instance_id: int, quantity: int) -> None:
         for item in self._commodities:
@@ -65,7 +72,9 @@ class FakeExchangeRepo:
     def add_user_commodity(self, user_commodity: UserCommodity) -> None:
         self._commodities.append(user_commodity)
 
-    def get_user_commodity_by_instance_id(self, instance_id: int) -> UserCommodity | None:
+    def get_user_commodity_by_instance_id(
+        self, instance_id: int
+    ) -> UserCommodity | None:
         for item in self._commodities:
             if item.instance_id == instance_id:
                 return item
@@ -73,6 +82,13 @@ class FakeExchangeRepo:
 
     def get_prices_for_date(self, date_str: str) -> list[Exchange]:
         return self.price_map.get(date_str, [])
+
+    def get_exchange_by_commodity_id(self, commodity_id: str):
+        today = datetime.now().strftime("%Y-%m-%d")
+        for entry in self.price_map.get(today, []):
+            if entry.commodity_id == commodity_id:
+                return entry
+        return None
 
 
 class FakeLogRepo:
@@ -84,10 +100,14 @@ class FakeLogRepo:
 
 
 def _build_user(user_id: str = "user-1", coins: int = 0) -> User:
-    return User(user_id=user_id, created_at=datetime.now(), nickname="tester", coins=coins)
+    return User(
+        user_id=user_id, created_at=datetime.now(), nickname="tester", coins=coins
+    )
 
 
-def _commodity(instance_id: int, quantity: int, purchase_price: int, expires_delta_days: int = 3) -> UserCommodity:
+def _commodity(
+    instance_id: int, quantity: int, purchase_price: int, expires_delta_days: int = 3
+) -> UserCommodity:
     return UserCommodity(
         instance_id=instance_id,
         user_id="user-1",
@@ -103,7 +123,12 @@ def test_sell_commodity_taxes_only_profit():
     user = _build_user()
     repo = FakeExchangeRepo([_commodity(1, 10, 100)])
     log_repo = FakeLogRepo()
-    service = ExchangeInventoryService(FakeUserRepo(user), repo, {"exchange": {"tax_rate": 0.1}}, log_repo)
+    service = ExchangeInventoryService(  # type: ignore[arg-type,call-arg]
+        FakeUserRepo(user),
+        repo,
+        {"exchange": {"tax_rate": 0.1}},
+        log_repo,
+    )
 
     result = service.sell_commodity("user-1", "dried_fish", 10, current_price=150)
 
@@ -118,7 +143,12 @@ def test_sell_commodity_with_loss_has_no_tax():
     user = _build_user()
     repo = FakeExchangeRepo([_commodity(1, 5, 200)])
     log_repo = FakeLogRepo()
-    service = ExchangeInventoryService(FakeUserRepo(user), repo, {"exchange": {"tax_rate": 0.2}}, log_repo)
+    service = ExchangeInventoryService(  # type: ignore[arg-type,call-arg]
+        FakeUserRepo(user),
+        repo,
+        {"exchange": {"tax_rate": 0.2}},
+        log_repo,
+    )
 
     result = service.sell_commodity("user-1", "dried_fish", 5, current_price=150)
 
@@ -135,10 +165,17 @@ def test_clear_all_inventory_uses_profit_as_tax_base():
         _commodity(1, 2, 100),
         _commodity(2, 1, 50),
     ]
-    price_entries = [Exchange(date=today, time="00:00:00", commodity_id="dried_fish", price=200)]
+    price_entries = [
+        Exchange(date=today, time="00:00:00", commodity_id="dried_fish", price=200)
+    ]
     repo = FakeExchangeRepo(commodities, price_map={today: price_entries})
     log_repo = FakeLogRepo()
-    service = ExchangeInventoryService(FakeUserRepo(user), repo, {"exchange": {"tax_rate": 0.2}}, log_repo)
+    service = ExchangeInventoryService(  # type: ignore[arg-type,call-arg]
+        FakeUserRepo(user),
+        repo,
+        {"exchange": {"tax_rate": 0.2}},
+        log_repo,
+    )
 
     result = service.clear_all_inventory("user-1")
 
@@ -149,3 +186,41 @@ def test_clear_all_inventory_uses_profit_as_tax_base():
     assert log_repo.records[-1].original_amount == 350
     assert log_repo.records[-1].tax_amount == 70
 
+
+def test_sell_commodity_tax_base_uses_fifo_cost():
+    user = _build_user()
+    now = datetime.now()
+    commodities = [
+        UserCommodity(
+            instance_id=1,
+            user_id="user-1",
+            commodity_id="dried_fish",
+            quantity=1,
+            purchase_price=100,
+            purchased_at=now - timedelta(days=2),
+            expires_at=now + timedelta(days=3),
+        ),
+        UserCommodity(
+            instance_id=2,
+            user_id="user-1",
+            commodity_id="dried_fish",
+            quantity=1,
+            purchase_price=300,
+            purchased_at=now - timedelta(days=1),
+            expires_at=now + timedelta(days=3),
+        ),
+    ]
+    repo = FakeExchangeRepo(commodities)
+    log_repo = FakeLogRepo()
+    service = ExchangeInventoryService(  # type: ignore[arg-type,call-arg]
+        FakeUserRepo(user),
+        repo,
+        {"exchange": {"tax_rate": 0.1}},
+        log_repo,
+    )
+
+    result = service.sell_commodity("user-1", "dried_fish", 1, current_price=400)
+
+    assert result["success"]
+    assert result["tax_amount"] == 30
+    assert "税基 300" in result["message"]

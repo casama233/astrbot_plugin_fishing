@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderForm(zone = null) {
         const isEdit = zone !== null;
         const rarityDistribution = zone?.configs?.rarity_distribution || [0.5, 0.3, 0.15, 0.04, 0.01, 0];
+        const allowGlobalFallback = zone?.configs?.allow_global_fallback ?? true;
         while (rarityDistribution.length < 6) {
             rarityDistribution.push(0);
         }
@@ -94,24 +95,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="col-md-3 mb-3">
                         <label for="id" class="form-label">区域 ID</label>
                         <input type="number" class="form-control" name="id" value="${zone?.id || ''}" ${isEdit ? 'readonly' : ''} required>
+                        <div class="form-text">例：1、2、3</div>
                     </div>
                     <div class="col-md-9 mb-3">
                         <label for="name" class="form-label">区域名称</label>
                         <input type="text" class="form-control" name="name" value="${zone?.name || ''}" required>
+                        <div class="form-text">例：春潮花港</div>
                     </div>
                 </div>
-                <div class="mb-3">
+                 <div class="mb-3">
                     <label for="description" class="form-label">描述</label>
                     <textarea class="form-control" name="description" rows="2">${zone?.description || ''}</textarea>
+                    <div class="form-text">给玩家看的说明</div>
                 </div>
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label for="daily_rare_fish_quota" class="form-label">稀有鱼每日配额</label>
                         <input type="number" class="form-control" name="daily_rare_fish_quota" value="${zone?.daily_rare_fish_quota || 0}">
+                        <div class="form-text">0=不限制</div>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label for="fishing_cost" class="form-label">钓鱼消耗 (金币)</label>
                         <input type="number" class="form-control" name="fishing_cost" value="${zone?.fishing_cost || 10}" min="1">
+                        <div class="form-text">每次钓鱼扣多少</div>
                     </div>
                     <div class="col-md-4 mb-3 d-flex align-items-end">
                         <div class="form-check form-switch mb-0">
@@ -122,8 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="available_from" class="form-label">开放时间 (可选)</label>
-                        <input type="datetime-local" class="form-control" name="available_from" value="${formatDateTimeForInput(zone?.available_from)}">
+                    <label for="available_from" class="form-label">开放时间 (可选)</label>
+                    <input type="datetime-local" class="form-control" name="available_from" value="${formatDateTimeForInput(zone?.available_from)}">
                     </div>
                     <div class="col-md-6 mb-3">
                         <div class="d-flex justify-content-between align-items-center">
@@ -154,7 +160,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     <small class="text-muted">提示：6+星包含所有6星及以上稀有度，中奖后随机从高星鱼池选择。</small>
                 </div>
 
-                <!-- Fish Selection Component -->
+                 <div class="mb-3">
+                     <div class="form-check form-switch">
+                         <input class="form-check-input" type="checkbox" name="allow_global_fallback" id="allow_global_fallback" ${allowGlobalFallback ? 'checked' : ''}>
+                         <label class="form-check-label" for="allow_global_fallback">
+                             缺失稀有度自动回退全局鱼池
+                         </label>
+                     </div>
+                     <div class="form-text">开启后，区域未配置的稀有度会从全局鱼池补充。</div>
+                 </div>
+
+                 <!-- Fish Selection Component -->
                 <div class="mb-3">
                     <label class="form-label">限定鱼类选择 (不选则为全局鱼池)</label>
                     <div class="row mb-3">
@@ -208,13 +224,14 @@ document.addEventListener('DOMContentLoaded', function() {
                              </div>
                          </div>
                          <div class="col-md-6">
-                             <select class="form-control" name="required_item_id" ${!zone?.requires_pass ? 'disabled' : ''}>
-                                 <option value="">选择通行证道具</option>
-                                 ${itemOptions}
-                             </select>
-                         </div>
-                     </div>
-                 </div>
+                              <select class="form-control" name="required_item_id" ${!zone?.requires_pass ? 'disabled' : ''}>
+                                  <option value="">选择通行证道具</option>
+                                  ${itemOptions}
+                              </select>
+                              <div class="form-text">勾选后才需要选择道具</div>
+                          </div>
+                      </div>
+                  </div>
 
                 <!-- Modal Footer -->
                 <div class="modal-footer">
@@ -598,7 +615,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 showFormError(form, '稀有度分布总和必须为 1');
                 return;
             }
-            payload.configs = { rarity_distribution: rarityDistribution };
+             payload.configs = {
+                 rarity_distribution: rarityDistribution,
+                 allow_global_fallback: form.querySelector('#allow_global_fallback')?.checked ?? true
+             };
             payload.specific_fish_ids = Array.from(selectedSet);
             payload.requires_pass = form.querySelector('input[name="requires_pass"]').checked;
             payload.required_item_id = payload.requires_pass ? (parseInt(payload.required_item_id) || null) : null;

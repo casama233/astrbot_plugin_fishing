@@ -2,118 +2,35 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-chart-line"></i> 交易所管理</h2>
-    <div>
-        <button class="btn btn-warning me-2" onclick="updatePrices()">
-            <i class="fas fa-sync-alt"></i> 更新价格
-        </button>
-        <button class="btn btn-danger" onclick="resetPrices()">
-            <i class="fas fa-undo"></i> 重置价格
-        </button>
-    </div>
+<h2><i class="fas fa-chart-line"></i> 交易所管理</h2>
+<div>
+<button class="btn btn-warning me-2" onclick="updatePrices()">
+<i class="fas fa-sync-alt"></i> 更新价格
+</button>
+<button class="btn btn-danger" onclick="resetPrices()">
+<i class="fas fa-undo"></i> 重置价格
+</button>
+</div>
 </div>
 
 <div class="alert alert-info mb-3">
-    这里是交易所。你只需要记住两件事：
-    1) 价格会按时间自动更新；2) 商品会过期（腐败）。
-</div>
-
-<!-- 商品参数与作用效果管理 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card border-primary">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="fas fa-cubes"></i> 商品参数与作用效果（新增/编辑）</h5>
-            </div>
-            <div class="card-body">
-                <form method="post" action="/admin/exchange/commodity/upsert" class="row g-3">
-                    <div class="col-md-2">
-                        <label class="form-label">商品ID</label>
-                        <input class="form-control" name="commodity_id" placeholder="fish_bone" required>
-                        <div class="form-text">必须唯一，英文+下划线</div>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">名称</label>
-                        <input class="form-control" name="name" placeholder="鱼骨" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">描述</label>
-                        <input class="form-control" name="description" placeholder="商品描述" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">初始价格</label>
-                        <input type="number" min="1" class="form-control" name="initial_price" value="1000" required>
-                        <div class="form-text">首次出现价格</div>
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label">波动率</label>
-                        <input type="number" min="0.001" max="1" step="0.001" class="form-control" name="volatility" value="0.1" required>
-                        <div class="form-text">0.1=10%</div>
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label">保质期</label>
-                        <input type="number" min="1" class="form-control" name="shelf_life_days" value="3" required>
-                        <div class="form-text">天数</div>
-                    </div>
-                    <div class="col-md-1 d-grid">
-                        <label class="form-label">操作</label>
-                        <button class="btn btn-success" type="submit">保存</button>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">实际作用代码</label>
-                        <textarea class="form-control font-monospace" name="effect" rows="3" placeholder="例如：volatility=0.12&#10;shelf_life_days=7"></textarea>
-                        <div class="form-text">这里只是备注，真正生效看上面字段</div>
-                    </div>
-                </form>
-
-                <hr>
-
-                <div class="table-responsive">
-                    <table class="table table-sm table-striped align-middle">
-                        <thead>
-                            <tr>
-                                <th>商品ID</th>
-                                <th>名称</th>
-                                <th>初始价</th>
-                                <th>波动率</th>
-                                <th>保质期(天)</th>
-                                <th>描述</th>
-                                <th>作用代码</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in commodity_rows %}
-                            <tr>
-                                <td><code>{{ row.commodity_id }}</code></td>
-                                <td>{{ row.name }}</td>
-                                <td>{{ row.initial_price }}</td>
-                                <td>{{ row.volatility }}</td>
-                                <td>{{ row.shelf_life_days }}</td>
-                                <td>{{ row.description }}</td>
-                                <td><code>{{ row.effect or '-' }}</code></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+这里是交易所。你只需要记住两件事：
+1) 价格会按时间自动更新；2) 商品会过期（腐败）。
 </div>
 
 <!-- 当前价格卡片 -->
 <div class="row mb-4">
-    {% if market_status.success %}
+{% if market_status.success %}
 {% for commodity_id, price in market_status.prices.items() %}
 <div class="col-md-4">
 <div class="card {% if commodity_id == 'fish_roe' %}bg-warning{% elif commodity_id == 'dried_fish' %}bg-primary{% elif commodity_id == 'fish_bone' %}bg-success{% elif commodity_id == 'fish_scale' %}bg-info{% elif commodity_id == 'fish_sauce' %}bg-danger{% else %}bg-secondary{% endif %} text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4 class="card-title">{{ market_status.commodities[commodity_id].name }}</h4>
-                            <h2 class="card-text">{{ "{:,}".format(price|default(0)) }} 金币</h2>
-                            <small class="card-text">{{ market_status.commodities[commodity_id].description }}</small>
-                        </div>
+<div class="card-body">
+<div class="d-flex justify-content-between">
+<div>
+<h4 class="card-title">{{ market_status.commodities[commodity_id].name }}</h4>
+<h2 class="card-text">{{ "{:,}".format(price|default(0)) }} 金币</h2>
+<small class="card-text">{{ market_status.commodities[commodity_id].description }}</small>
+</div>
 <div class="align-self-center">
 {% if commodity_id == 'fish_roe' %}
 <i class="fas fa-egg fa-2x"></i>
@@ -129,287 +46,547 @@
 <i class="fas fa-tint fa-2x"></i>
 {% endif %}
 </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    {% endif %}
+</div>
+</div>
+</div>
+</div>
+{% endfor %}
+{% endif %}
 </div>
 
-<!-- 价格趋势图表 -->
+<!-- 价格趋势图表 - 移到最上方 -->
 <div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="fas fa-chart-area"></i> 价格趋势 (最近7天)</h5>
-                <button class="btn btn-sm btn-outline-primary" onclick="refreshChart()">
-                    <i class="fas fa-sync-alt"></i> 刷新图表
-                </button>
-            </div>
-            <div class="card-body">
-                <div style="height: 400px; position: relative;">
-                    <canvas id="priceChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="col-12">
+<div class="card">
+<div class="card-header d-flex justify-content-between align-items-center">
+<h5><i class="fas fa-chart-area"></i> 价格趋势 (最近7天)</h5>
+<div>
+<div class="btn-group me-2" id="chartFilterButtons">
+<button type="button" class="btn btn-sm btn-outline-secondary active" data-chart-filter="all">全部</button>
+{% for commodity_id, commodity in market_status.commodities.items() %}
+<button type="button" class="btn btn-sm btn-outline-primary" data-chart-filter="{{ commodity_id }}">
+{{ commodity.name|default(commodity_id) }}
+</button>
+{% endfor %}
+</div>
+<button class="btn btn-sm btn-outline-primary" onclick="refreshChart()">
+<i class="fas fa-sync-alt"></i> 刷新
+</button>
+</div>
+</div>
+<div class="card-body">
+<div style="height: 400px; position: relative;">
+<canvas id="priceChart"></canvas>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 商品参数与作用效果管理 -->
+<div class="card mb-4">
+<div class="card-body">
+<h6 class="mb-2">一键预设（新手用）</h6>
+<div class="d-flex flex-wrap gap-2">
+<button type="button" class="btn btn-outline-primary btn-sm" data-exchange-preset="low">低风险模板</button>
+<button type="button" class="btn btn-outline-warning btn-sm" data-exchange-preset="mid">中风险模板</button>
+<button type="button" class="btn btn-outline-danger btn-sm" data-exchange-preset="high">高风险模板</button>
+</div>
+<div class="form-text mt-2">点一下就会填好初始价、波动率、保质期。</div>
+</div>
+</div>
+
+<div class="row mb-4">
+<div class="col-12">
+<div class="card border-primary">
+<div class="card-header bg-primary text-white">
+<h5 class="mb-0"><i class="fas fa-cubes"></i> 商品参数与作用效果（新增/编辑）</h5>
+</div>
+<div class="card-body">
+<form method="post" action="/admin/exchange/commodity/upsert" class="row g-3" id="commodityForm">
+<input type="hidden" name="edit_mode" id="editMode" value="">
+<div class="col-md-2">
+<label class="form-label">商品ID</label>
+<input class="form-control" name="commodity_id" id="commodityId" placeholder="fish_bone" required>
+<div class="form-text">必须唯一，英文+下划线</div>
+</div>
+<div class="col-md-2">
+<label class="form-label">名称</label>
+<input class="form-control" name="name" id="commodityName" placeholder="鱼骨" required>
+</div>
+<div class="col-md-3">
+<label class="form-label">描述</label>
+<input class="form-control" name="description" id="commodityDesc" placeholder="商品描述">
+</div>
+<div class="col-md-2">
+<label class="form-label">初始价格</label>
+<input type="number" min="1" class="form-control" name="initial_price" id="commodityPrice" value="1000" required>
+<div class="form-text">首次出现价格</div>
+</div>
+<div class="col-md-1">
+<label class="form-label">波动率</label>
+<input type="number" min="0.001" max="1" step="0.001" class="form-control" name="volatility" id="commodityVolatility" value="0.1" required>
+<div class="form-text">0.1=10%</div>
+</div>
+<div class="col-md-1">
+<label class="form-label">保质期</label>
+<input type="number" min="1" class="form-control" name="shelf_life_days" id="commodityShelfLife" value="3" required>
+<div class="form-text">天数</div>
+</div>
+<div class="col-md-1 d-grid">
+<label class="form-label">操作</label>
+<button class="btn btn-success" type="submit" id="submitBtn">保存</button>
+<button class="btn btn-secondary d-none" type="button" id="cancelEditBtn" onclick="cancelEdit()">取消</button>
+</div>
+<div class="col-12">
+<label class="form-label">实际作用代码</label>
+<textarea class="form-control font-monospace" name="effect" id="commodityEffect" rows="3" placeholder="例如：volatility=0.12&#10;shelf_life_days=7"></textarea>
+<div class="form-text">这里只是备注，真正生效看上面字段</div>
+</div>
+</form>
+
+<hr>
+
+<div class="table-responsive">
+<table class="table table-sm table-striped align-middle">
+<thead>
+<tr>
+<th>商品ID</th>
+<th>名称</th>
+<th>初始价</th>
+<th>波动率</th>
+<th>保质期(天)</th>
+<th>描述</th>
+<th>作用代码</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody>
+{% for row in commodity_rows %}
+<tr>
+<td><code>{{ row.commodity_id }}</code></td>
+<td>{{ row.name }}</td>
+<td>{{ row.initial_price }}</td>
+<td>{{ row.volatility }}</td>
+<td>{{ row.shelf_life_days }}</td>
+<td>{{ row.description }}</td>
+<td><code>{{ row.effect or '-' }}</code></td>
+<td>
+<button class="btn btn-sm btn-outline-primary" onclick="editCommodity('{{ row.commodity_id }}', '{{ row.name }}', '{{ row.description }}', {{ row.initial_price }}, {{ row.volatility }}, {{ row.shelf_life_days }}, '{{ row.effect or '' }}')">
+<i class="fas fa-edit"></i> 编辑
+</button>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 市场状态管理 -->
+<div class="row mb-4">
+<div class="col-12">
+<div class="card border-warning">
+<div class="card-header bg-warning text-dark">
+<h5 class="mb-0"><i class="fas fa-cogs"></i> 市场状态设置（手动覆盖）</h5>
+</div>
+<div class="card-body">
+<div class="alert alert-info mb-3">
+<i class="fas fa-info-circle"></i> <strong>说明：</strong>这些状态主要用于向玩家展示市场氛围，不影响实际价格计算。
+</div>
+
+<form method="post" action="/admin/exchange/market_status" class="row g-3">
+<div class="col-md-4">
+<label class="form-label">市场情绪</label>
+<select class="form-select" name="market_sentiment" id="marketSentiment">
+<option value="panic">恐慌 - 玩家大量抛售</option>
+<option value="pessimistic">悲观 - 价格普遍下跌</option>
+<option value="neutral" selected>中性 - 市场稳定</option>
+<option value="optimistic">乐观 - 价格普遍上涨</option>
+<option value="euphoric">狂热 - 玩家疯狂买入</option>
+</select>
+<div class="form-text">
+<strong>效果：</strong>显示在交易所页面，影响玩家心理预期。<br>
+<strong>自然变动：</strong>若不手动设置，系统会根据配置文件中的 sentiment_weights 概率随机选择。
+</div>
+</div>
+
+<div class="col-md-4">
+<label class="form-label">价格趋势</label>
+<select class="form-select" name="price_trend" id="priceTrend">
+<option value="crashing">暴跌 - 大幅下跌中</option>
+<option value="declining">下跌 - 缓慢下跌</option>
+<option value="stable" selected>稳定 - 波动较小</option>
+<option value="rising">上涨 - 缓慢上涨</option>
+<option value="surging">暴涨 - 大幅上涨中</option>
+</select>
+<div class="form-text">
+<strong>效果：</strong>提示玩家当前价格走势方向。<br>
+<strong>自然变动：</strong>系统根据近期价格变化计算（上涨/下跌幅度超过5%自动判定）。
+</div>
+</div>
+
+<div class="col-md-4">
+<label class="form-label">供需状态</label>
+<select class="form-select" name="supply_demand" id="supplyDemand">
+<option value="oversupply">供过于求 - 卖家多买家少</option>
+<option value="surplus">轻微过剩 - 卖压较大</option>
+<option value="balanced" selected>平衡 - 买卖均衡</option>
+<option value="shortage">轻微短缺 - 买盘较强</option>
+<option value="scarcity">供不应求 - 买家多卖家少</option>
+</select>
+<div class="form-text">
+<strong>效果：</strong>显示商品稀缺程度，影响玩家交易决策。<br>
+<strong>自然变动：</strong>根据用户持仓和交易量统计计算（持仓集中度高=稀缺）。
+</div>
+</div>
+
+<div class="col-12 text-end">
+<button type="submit" class="btn btn-warning">
+<i class="fas fa-save"></i> 保存市场状态
+</button>
+</div>
+</form>
+
+<hr>
+
+<div class="row">
+<div class="col-md-4">
+<div class="card bg-light">
+<div class="card-body text-center">
+<h6><i class="fas fa-heartbeat"></i> 当前市场情绪</h6>
+<h4 id="currentSentiment" class="text-primary">{{ market_status.market_sentiment if market_status.success else '未知' }}</h4>
+</div>
+</div>
+</div>
+<div class="col-md-4">
+<div class="card bg-light">
+<div class="card-body text-center">
+<h6><i class="fas fa-chart-line"></i> 当前价格趋势</h6>
+<h4 id="currentTrend" class="text-info">{{ market_status.price_trend if market_status.success else '未知' }}</h4>
+</div>
+</div>
+</div>
+<div class="col-md-4">
+<div class="card bg-light">
+<div class="card-body text-center">
+<h6><i class="fas fa-balance-scale"></i> 当前供需状态</h6>
+<h4 id="currentSupply" class="text-success">{{ market_status.supply_demand if market_status.success else '未知' }}</h4>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 
 <!-- 用户持仓统计 -->
 <div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-users"></i> 用户持仓统计</h5>
-            </div>
-            <div class="card-body">
-                {% if user_stats.success %}
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <h3 class="text-primary">{{ user_stats.stats.total_users|default(0) }}</h3>
-                            <p class="text-muted">参与用户数</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <h3 class="text-success">{{ "{:,}".format(user_stats.stats.total_holdings|default(0)) }}</h3>
-                            <p class="text-muted">总持仓量</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <hr>
-                
-                <div class="row">
-                    {% for commodity_id, stats in user_stats.stats.commodity_stats.items() %}
-                    <div class="col-md-4">
-                        <div class="card border">
-                            <div class="card-body">
-                                <h6 class="card-title">{{ stats.name|default('未知商品') }}</h6>
-                                <div class="row text-center">
-                                    <div class="col-6">
-                                        <h5 class="text-primary">{{ "{:,}".format(stats.total_quantity|default(0)) }}</h5>
-                                        <small class="text-muted">总持仓</small>
-                                    </div>
-                                    <div class="col-6">
-                                        <h5 class="text-info">{{ stats.user_count|default(0) }}</h5>
-                                        <small class="text-muted">持有用户</small>
-                                    </div>
-                                </div>
-                                <div class="text-center mt-2">
-                                    <small class="text-muted">平均: {{ "{:.1f}".format(stats.average_quantity|default(0)) }}</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> 无法获取用户持仓统计
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+<div class="col-12">
+<div class="card">
+<div class="card-header">
+<h5><i class="fas fa-users"></i> 用户持仓统计</h5>
+</div>
+<div class="card-body">
+{% if user_stats.success %}
+<div class="row">
+<div class="col-md-3">
+<div class="text-center">
+<h3 class="text-primary">{{ user_stats.stats.total_users|default(0) }}</h3>
+<p class="text-muted">参与用户数</p>
+</div>
+</div>
+<div class="col-md-3">
+<div class="text-center">
+<h3 class="text-success">{{ "{:,}".format(user_stats.stats.total_holdings|default(0)) }}</h3>
+<p class="text-muted">总持仓量</p>
+</div>
+</div>
 </div>
 
-<!-- 市场信息 -->
+<hr>
+
 <div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-info-circle"></i> 市场信息</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>市场情绪</h6>
-                        <p class="text-muted">{{ market_status.market_sentiment if market_status.success else '未知' }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>价格趋势</h6>
-                        <p class="text-muted">{{ market_status.price_trend if market_status.success else '未知' }}</p>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>供需状态</h6>
-                        <p class="text-muted">{{ market_status.supply_demand if market_status.success else '未知' }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>更新时间</h6>
-                        <p class="text-muted">{{ market_status.date if market_status.success else '未知' }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+{% for commodity_id, stats in user_stats.stats.commodity_stats.items() %}
+<div class="col-md-4">
+<div class="card border">
+<div class="card-body">
+<h6 class="card-title">{{ stats.name|default('未知商品') }}</h6>
+<div class="row text-center">
+<div class="col-6">
+<h5 class="text-primary">{{ "{:,}".format(stats.total_quantity|default(0)) }}</h5>
+<small class="text-muted">总持仓</small>
+</div>
+<div class="col-6">
+<h5 class="text-info">{{ stats.user_count|default(0) }}</h5>
+<small class="text-muted">持有用户</small>
+</div>
+</div>
+<div class="text-center mt-2">
+<small class="text-muted">平均: {{ "{:.1f}".format(stats.average_quantity|default(0)) }}</small>
+</div>
+</div>
+</div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="alert alert-warning">
+<i class="fas fa-exclamation-triangle"></i> 无法获取用户持仓统计
+</div>
+{% endif %}
+</div>
+</div>
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// 价格趋势图表
 const ctx = document.getElementById('priceChart').getContext('2d');
 const priceChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [
-            {% if price_history.success and price_history.labels %}
-                {% for label in price_history.labels %}
-                    '{{ label }}'{% if not loop.last %},{% endif %}
-                {% endfor %}
-            {% endif %}
-        ],
-        datasets: [
-            {% if price_history.success and price_history.history %}
+type: 'line',
+data: {
+labels: [
+{% if price_history.success and price_history.labels %}
+{% for label in price_history.labels %}
+'{{ label }}'{% if not loop.last %},{% endif %}
+{% endfor %}
+{% endif %}
+],
+datasets: [
+{% if price_history.success and price_history.history %}
 {% for commodity_id, history in price_history.history.items() %}
 {
-    label: '{{ market_status.commodities[commodity_id].name|default("未知商品") }}',
-    data: [
-        {% for price in history %}
-        {{ price|default(0) }}{% if not loop.last %},{% endif %}
-        {% endfor %}
-    ],
-    borderColor: '{% if commodity_id == "fish_roe" %}#ffc107{% elif commodity_id == "dried_fish" %}#007bff{% elif commodity_id == "fish_bone" %}#28a745{% elif commodity_id == "fish_scale" %}#17a2b8{% elif commodity_id == "fish_sauce" %}#dc3545{% else %}#6c757d{% endif %}',
-    backgroundColor: '{% if commodity_id == "fish_roe" %}rgba(255, 193, 7, 0.1){% elif commodity_id == "dried_fish" %}rgba(0, 123, 255, 0.1){% elif commodity_id == "fish_bone" %}rgba(40, 167, 69, 0.1){% elif commodity_id == "fish_scale" %}rgba(23, 162, 184, 0.1){% elif commodity_id == "fish_sauce" %}rgba(220, 53, 69, 0.1){% else %}rgba(108, 117, 125, 0.1){% endif %}',
-    tension: 0.4
+label: '{{ market_status.commodities[commodity_id].name|default("未知商品") }}',
+data: [
+{% for price in history %}
+{{ price|default(0) }}{% if not loop.last %},{% endif %}
+{% endfor %}
+],
+borderColor: '{% if commodity_id == "fish_roe" %}#ffc107{% elif commodity_id == "dried_fish" %}#007bff{% elif commodity_id == "fish_bone" %}#28a745{% elif commodity_id == "fish_scale" %}#17a2b8{% elif commodity_id == "fish_sauce" %}#dc3545{% else %}#6c757d{% endif %}',
+backgroundColor: '{% if commodity_id == "fish_roe" %}rgba(255, 193, 7, 0.1){% elif commodity_id == "dried_fish" %}rgba(0, 123, 255, 0.1){% elif commodity_id == "fish_bone" %}rgba(40, 167, 69, 0.1){% elif commodity_id == "fish_scale" %}rgba(23, 162, 184, 0.1){% elif commodity_id == "fish_sauce" %}rgba(220, 53, 69, 0.1){% else %}rgba(108, 117, 125, 0.1){% endif %}',
+tension: 0.4
 }{% if not loop.last %},{% endif %}
 {% endfor %}
-            {% endif %}
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-            intersect: false,
-            mode: 'index'
-        },
-        scales: {
-            y: {
-                beginAtZero: false,
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                },
-                ticks: {
-                    callback: function(value) {
-                        return value.toLocaleString() + ' 金币';
-                    },
-                    font: {
-                        size: 12
-                    }
-                }
-            },
-            x: {
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                },
-                ticks: {
-                    font: {
-                        size: 12
-                    }
-                }
-            }
-        },
-        plugins: {
-            legend: {
-                position: 'top',
-                labels: {
-                    usePointStyle: true,
-                    padding: 20,
-                    font: {
-                        size: 14
-                    }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0,0,0,0.8)',
-                titleColor: 'white',
-                bodyColor: 'white',
-                borderColor: 'rgba(255,255,255,0.2)',
-                borderWidth: 1,
-                callbacks: {
-                    title: function(context) {
-                        return '日期: ' + context[0].label;
-                    },
-                    label: function(context) {
-                        const value = context.parsed.y;
-                        const change = context.parsed.y - (context.dataIndex > 0 ? context.dataset.data[context.dataIndex - 1] : context.parsed.y);
-                        const changePercent = context.dataIndex > 0 ? ((change / (context.parsed.y - change)) * 100).toFixed(1) : 0;
-                        const changeText = change > 0 ? `+${change.toLocaleString()}` : change.toLocaleString();
-                        const changePercentText = change > 0 ? `+${changePercent}%` : `${changePercent}%`;
-                        return [
-                            context.dataset.label + ': ' + value.toLocaleString() + ' 金币',
-                            '变化: ' + changeText + ' (' + changePercentText + ')'
-                        ];
-                    }
-                }
-            }
-        },
-        elements: {
-            point: {
-                radius: 4,
-                hoverRadius: 6
-            },
-            line: {
-                borderWidth: 3
-            }
-        }
-    }
+{% endif %}
+]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+interaction: {
+intersect: false,
+mode: 'index'
+},
+scales: {
+y: {
+beginAtZero: false,
+grid: {
+color: 'rgba(0,0,0,0.1)'
+},
+ticks: {
+callback: function(value) {
+return value.toLocaleString() + ' 金币';
+},
+font: {
+size: 12
+}
+}
+},
+x: {
+grid: {
+color: 'rgba(0,0,0,0.1)'
+},
+ticks: {
+font: {
+size: 12
+}
+}
+}
+},
+plugins: {
+legend: {
+position: 'top',
+labels: {
+usePointStyle: true,
+padding: 20,
+font: {
+size: 14
+}
+}
+},
+tooltip: {
+backgroundColor: 'rgba(0,0,0,0.8)',
+titleColor: 'white',
+bodyColor: 'white',
+borderColor: 'rgba(255,255,255,0.2)',
+borderWidth: 1,
+callbacks: {
+title: function(context) {
+return '日期: ' + context[0].label;
+},
+label: function(context) {
+const value = context.parsed.y;
+const change = context.parsed.y - (context.dataIndex > 0 ? context.dataset.data[context.dataIndex - 1] : context.parsed.y);
+const changePercent = context.dataIndex > 0 ? ((change / (context.parsed.y - change)) * 100).toFixed(1) : 0;
+const changeText = change > 0 ? `+${change.toLocaleString()}` : change.toLocaleString();
+const changePercentText = change > 0 ? `+${changePercent}%` : `${changePercent}%`;
+return [
+context.dataset.label + ': ' + value.toLocaleString() + ' 金币',
+'变化: ' + changeText + ' (' + changePercentText + ')'
+];
+}
+}
+}
+},
+elements: {
+point: {
+radius: 4,
+hoverRadius: 6
+},
+line: {
+borderWidth: 3
+}
+}
+}
 });
+
+// 图表筛选按钮
+document.querySelectorAll('[data-chart-filter]').forEach(btn => {
+btn.addEventListener('click', () => {
+const target = btn.getAttribute('data-chart-filter');
+// 更新按钮状态
+document.querySelectorAll('[data-chart-filter]').forEach(b => b.classList.remove('active'));
+btn.classList.add('active');
+// 更新图表
+priceChart.data.datasets.forEach(ds => {
+if (target === 'all') {
+ds.hidden = false;
+} else {
+ds.hidden = ds.label !== btn.textContent.trim();
+}
+});
+priceChart.update();
+});
+});
+
+// 编辑商品
+function editCommodity(id, name, desc, price, volatility, shelfLife, effect) {
+document.getElementById('editMode').value = 'edit';
+document.getElementById('commodityId').value = id;
+document.getElementById('commodityId').readOnly = true;
+document.getElementById('commodityName').value = name;
+document.getElementById('commodityDesc').value = desc;
+document.getElementById('commodityPrice').value = price;
+document.getElementById('commodityVolatility').value = volatility;
+document.getElementById('commodityShelfLife').value = shelfLife;
+document.getElementById('commodityEffect').value = effect;
+
+document.getElementById('submitBtn').textContent = '更新';
+document.getElementById('cancelEditBtn').classList.remove('d-none');
+
+// 滚动到表单
+document.getElementById('commodityForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+// 取消编辑
+function cancelEdit() {
+document.getElementById('editMode').value = '';
+document.getElementById('commodityId').value = '';
+document.getElementById('commodityId').readOnly = false;
+document.getElementById('commodityName').value = '';
+document.getElementById('commodityDesc').value = '';
+document.getElementById('commodityPrice').value = 1000;
+document.getElementById('commodityVolatility').value = 0.1;
+document.getElementById('commodityShelfLife').value = 3;
+document.getElementById('commodityEffect').value = '';
+
+document.getElementById('submitBtn').textContent = '保存';
+document.getElementById('cancelEditBtn').classList.add('d-none');
+}
 
 // 更新价格
 function updatePrices() {
-    if (confirm('确定要更新交易所价格吗？')) {
-        fetch('/admin/exchange/update_prices', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                location.reload();
-            } else {
-                alert('更新失败，请稍后再试');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('更新失败，请稍后再试');
-        });
-    }
+if (confirm('确定要更新交易所价格吗？')) {
+fetch('/admin/exchange/update_prices', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+}
+})
+.then(response => {
+if (response.ok) {
+location.reload();
+} else {
+alert('更新失败，请稍后再试');
+}
+})
+.catch(error => {
+console.error('Error:', error);
+alert('更新失败，请稍后再试');
+});
+}
 }
 
 // 重置价格
 function resetPrices() {
-    if (confirm('确定要重置交易所价格到初始值吗？此操作不可撤销！')) {
-        fetch('/admin/exchange/reset_prices', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                location.reload();
-            } else {
-                alert('重置失败，请稍后再试');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('重置失败，请稍后再试');
-        });
-    }
+if (confirm('确定要重置交易所价格到初始值吗？此操作不可撤销！')) {
+fetch('/admin/exchange/reset_prices', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+}
+})
+.then(response => {
+if (response.ok) {
+location.reload();
+} else {
+alert('重置失败，请稍后再试');
+}
+})
+.catch(error => {
+console.error('Error:', error);
+alert('重置失败，请稍后再试');
+});
+}
 }
 
 // 刷新图表
 function refreshChart() {
-    location.reload();
+location.reload();
 }
+
+// 一键预设
+document.querySelectorAll('[data-exchange-preset]').forEach(btn => {
+btn.addEventListener('click', () => {
+const preset = btn.getAttribute('data-exchange-preset');
+const form = document.querySelector('form[action="/admin/exchange/commodity/upsert"]');
+if (!form) return;
+
+const initial = form.querySelector('input[name="initial_price"]');
+const volatility = form.querySelector('input[name="volatility"]');
+const shelf = form.querySelector('input[name="shelf_life_days"]');
+
+if (preset === 'low') {
+if (initial) initial.value = 4000;
+if (volatility) volatility.value = 0.05;
+if (shelf) shelf.value = 7;
+}
+if (preset === 'mid') {
+if (initial) initial.value = 8000;
+if (volatility) volatility.value = 0.1;
+if (shelf) shelf.value = 4;
+}
+if (preset === 'high') {
+if (initial) initial.value = 15000;
+if (volatility) volatility.value = 0.18;
+if (shelf) shelf.value = 1;
+}
+});
+});
 </script>
 {% endblock %}

@@ -120,11 +120,11 @@ def draw_gacha_pool_detail_image(
 ) -> Image.Image:
     """卡池詳情圖片 - 統一遊戲風格版"""
     width = 980
-    item_height = 60  # 稍微增加高度
+    item_height = 56
     title_bar_height = 70
     info_section_height = 90
     footer_height = 70
-    spacing = 10
+    spacing = 8
     padding = 24
 
     title_font = load_font(32)
@@ -132,13 +132,14 @@ def draw_gacha_pool_detail_image(
     small_font = load_font(18)
     tiny_font = load_font(14)
 
-    # 計算高度並添加安全邊距
+    # 計算高度 - 雙列佈局，行數 = ceil(總數/2)
     num_items = max(1, len(probabilities))
+    num_rows = (num_items + 1) // 2  # 雙列，所以除以2
     calculated_height = (
         title_bar_height
         + info_section_height
         + padding
-        + (item_height + spacing) * num_items
+        + (item_height + spacing) * num_rows
         + footer_height
         + padding
     )
@@ -173,7 +174,7 @@ def draw_gacha_pool_detail_image(
         cost_text = f"💰 消耗：{cost_coins} 金幣 / 次"
 
     draw.text(
-        (padding + 20, y),
+        (padding + 240, y),
         cost_text,
         font=body_font,
         fill=GAME_COLORS["text_primary"],
@@ -193,56 +194,91 @@ def draw_gacha_pool_detail_image(
 
     y += 12
     draw_game_divider(draw, padding, width - padding, y)
-    y += spacing + 12
+    y += spacing + 8
 
-    # 概率列表
-    for item in probabilities:
-        rarity = int(_safe_get(item, "item_rarity", 1) or 1)
-        rarity = max(1, min(rarity, 10))  # 限制在1-10星範圍
-        stars = "⭐" * rarity
-        name = _safe_get(item, "item_name", "未知物品")
-        prob = _safe_get(item, "probability", 0)
-        try:
-            ptext = f"{float(prob) * 100:.3f}%"
-        except Exception:
-            ptext = str(prob)
+    # 概率列表表頭
+    draw.text(
+        (padding + 20, y),
+        "物品名稱",
+        font=small_font,
+        fill=GAME_COLORS["text_tertiary"],
+    )
+    draw.text(
+        (width - padding - 100, y),
+        "機率",
+        font=small_font,
+        fill=GAME_COLORS["text_tertiary"],
+    )
+    y += 24
 
-        # 使用統一卡片樣式
-        draw_game_card(draw, (padding, y, width - padding, y + item_height))
+    # 概率列表 - 雙列佈局
+    col_count = 2
+    col_width = (width - padding * 2 - 20) // col_count
+    items_per_col = (len(probabilities) + col_count - 1) // col_count
 
-        # 使用統一稀有度顏色
-        rarity_color = get_rarity_color(rarity)
-        draw.text(
-            (padding + 20, y + 10),  # 稍微上移
-            f"{stars} {name[:35]}",
-            font=small_font,
-            fill=rarity_color,
-        )
+    for col in range(col_count):
+        col_y = y
+        start_idx = col * items_per_col
+        end_idx = min(start_idx + items_per_col, len(probabilities))
 
-        # 增加一條細線或更好的間隔感（這裡透過調整文字位置實現）
-        draw.text(
-            (padding + 20, y + 10),
-            f"機率：{ptext}",
-            font=small_font,
-            fill=GAME_COLORS["text_secondary"],
-        )
+        for idx in range(start_idx, end_idx):
+            item = probabilities[idx]
+            rarity = int(_safe_get(item, "item_rarity", 1) or 1)
+            rarity = max(1, min(rarity, 10))
+            stars = "⭐" * rarity
+            name = _safe_get(item, "item_name", "未知物品")
+            prob = _safe_get(item, "probability", 0)
+            try:
+                ptext = f"{float(prob) * 100:.2f}%"
+            except Exception:
+                ptext = str(prob)
 
-        # 繪製一個進度條感的小條來表示概率視覺化
-        try:
-            bar_width = width - padding * 2 - 40
-            fill_width = int(bar_width * float(prob))
-            if fill_width > 0:
+            col_x = padding + col * (col_width + 10)
+
+            # 使用統一卡片樣式
+            draw_game_card(draw, (col_x, col_y, col_x + col_width, col_y + item_height))
+
+            # 使用統一稀有度顏色
+            rarity_color = get_rarity_color(rarity)
+
+            # 左側：名字 + 小進度條
+            draw.text(
+                (col_x + 12, col_y + 8),
+                f"{stars} {name[:22]}",
+                font=small_font,
+                fill=rarity_color,
+            )
+
+            # 短進度條
+            try:
+                bar_x = col_x + 12
+                bar_y = col_y + item_height - 10
+                bar_width = col_width - 80
+                fill_width = int(bar_width * float(prob))
                 draw.rectangle(
-                    [padding + 20, y + 40, padding + 20 + max(2, fill_width), y + 44],
-                    fill=rarity_color,
+                    [bar_x, bar_y, bar_x + bar_width, bar_y + 4],
+                    fill=GAME_COLORS.get("bg_secondary", "#2a2a3e"),
                 )
-        except:
-            pass
+                if fill_width > 0:
+                    draw.rectangle(
+                        [bar_x, bar_y, bar_x + max(2, fill_width), bar_y + 4],
+                        fill=rarity_color,
+                    )
+            except:
+                pass
 
-        y += item_height + spacing
+            # 右側：機率
+            draw.text(
+                (col_x + col_width - 90, col_y + 8),
+                ptext,
+                font=small_font,
+                fill=GAME_COLORS["text_primary"],
+            )
+
+            col_y += item_height + spacing
 
     # 底部提示
-    y = height - footer_height - padding - SAFETY_MARGIN
+    y = height - footer_height - padding
     draw_game_divider(draw, padding, width - padding, y)
     y += 20
     draw.text(
@@ -265,16 +301,16 @@ def draw_gacha_result_image(
     """抽卡結果圖片 - 統一遊戲風格版
 
     Args:
-        pool_id: 卡池ID
+        pool_id: 卡池 ID
         pool_name: 卡池名稱
         items: 抽卡結果列表
         is_ten_draw: 是否為十連抽
         multi_draw_times: 多次十連次數（僅當 is_ten_draw=True 且 times>1 時有效）
     """
     width = 900
-    item_height = 48
+    item_height = 52
     title_bar_height = 80
-    stats_height = 60
+    stats_height = 70
     footer_height = 60
     spacing = 8
     padding = 24
@@ -289,13 +325,14 @@ def draw_gacha_result_image(
         rarity = item.get("rarity", 1)
         rarity_counts[rarity] = rarity_counts.get(rarity, 0) + 1
 
-    # 計算高度並添加安全邊距
+    # 計算高度 - 根據實際物品數量動態計算（最多顯示20個）
     num_items = max(1, len(items))
+    display_count = min(num_items, 20)
     calculated_height = (
         title_bar_height
         + stats_height
         + padding
-        + (item_height + spacing) * min(num_items, 20)  # 最多顯示20個
+        + (item_height + spacing) * display_count
         + footer_height
         + padding
     )
@@ -316,37 +353,37 @@ def draw_gacha_result_image(
 
     y = padding
     draw_game_title_bar(draw, width, y, title_bar_height, title, title_font, "🎰")
-    y += title_bar_height + 8
+    y += title_bar_height + 12
 
-    # 卡池信息
+    # 卡池信息 - 使用更好看的格式
     draw.text(
         (padding + 20, y),
         f"卡池：{pool_name[:25]} (ID: {pool_id})",
         font=body_font,
-        fill=GAME_COLORS["text_secondary"],
+        fill=GAME_COLORS["text_primary"],
     )
-    y += 28
+    y += 32
 
-    # 統計信息
+    # 統計信息 - 居中顯示
     rarity_parts = []
     for r in sorted(rarity_counts.keys(), reverse=True):
         stars = "⭐" * r
         rarity_parts.append(f"{stars}×{rarity_counts[r]}")
-    stats_text = " | ".join(rarity_parts[:5])  # 最多顯示5種稀有度
+    stats_text = " | ".join(rarity_parts[:5])
     if len(rarity_parts) > 5:
         stats_text += " ..."
     draw.text(
         (padding + 20, y),
         f"📊 {stats_text}",
         font=small_font,
-        fill=GAME_COLORS["text_tertiary"],
+        fill=GAME_COLORS["text_secondary"],
     )
-    y += 28
+    y += 36
 
     draw_game_divider(draw, padding, width - padding, y)
-    y += spacing + 8
+    y += spacing + 12
 
-    # 物品列表（最多顯示20個，避免圖片過大）
+    # 物品列表（最多顯示20個）
     display_items = items[:20] if len(items) > 20 else items
     for item in display_items:
         rarity = item.get("rarity", 1)
@@ -360,20 +397,20 @@ def draw_gacha_result_image(
         rarity_color = get_rarity_color(rarity)
 
         if item_type == "coins":
-            # 金幣類型
+            # 金幣類型 - 優化顯示
             quantity = item.get("quantity", 0)
             draw.text(
-                (padding + 16, y + 14),
-                f"💰 金幣 ×{quantity:,}",
+                (padding + 20, y + 16),
+                f"💰 {quantity:,}",
                 font=body_font,
                 fill=GAME_COLORS["accent_gold"],
             )
         else:
-            # 普通物品
+            # 普通物品 - 增加星星和名字的分隔感
             stars = "⭐" * rarity
             draw.text(
-                (padding + 20, y + 14),
-                f"{stars} {name[:30]}",
+                (padding + 20, y + 16),
+                f"{stars} {name[:35]}",
                 font=body_font,
                 fill=rarity_color,
             )
@@ -388,15 +425,14 @@ def draw_gacha_result_image(
             font=small_font,
             fill=GAME_COLORS["text_muted"],
         )
-        y += 28
 
     # 底部提示
-    y = height - footer_height - padding - SAFETY_MARGIN
+    y = height - footer_height - padding
     draw_game_divider(draw, padding, width - padding, y)
     y += 20
     draw.text(
         (padding + 20, y),
-        f"💡 繼續抽卡：/抽卡 {pool_id} | /十連 {pool_id}",
+        f"💡 抽卡：/抽卡 {pool_id} 十連：/十連 {pool_id}",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
     )
@@ -529,7 +565,7 @@ def draw_multi_ten_gacha_summary_image(
 
     # 物品詳情
     draw.text(
-        (padding + 20, y), 
+        (padding + 20, y),
         "【🎁 物品詳情】",
         font=body_font,
         fill=GAME_COLORS["text_primary"],

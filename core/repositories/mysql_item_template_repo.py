@@ -118,25 +118,47 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
                 cursor.execute(
                     "SELECT * FROM fish ORDER BY rarity DESC, base_value DESC"
                 )
-                return [self._row_to_fish(row) for row in cursor.fetchall() if row]
+            return [self._row_to_fish(row) for row in cursor.fetchall() if row]
 
-    def get_random_fish(self, rarity: Optional[int] = None) -> Optional[Fish]:
+    def get_random_fish(
+        self, rarity: Optional[int] = None, zone_id: Optional[int] = None
+    ) -> Optional[Fish]:
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
                 if rarity is not None:
-                    cursor.execute(
-                        "SELECT * FROM fish WHERE rarity = %s ORDER BY RAND() LIMIT 1",
-                        (rarity,),
-                    )
+                    if zone_id is not None:
+                        cursor.execute(
+                            "SELECT * FROM fish WHERE rarity = %s AND (available_zones IS NULL OR available_zones = '' OR available_zones LIKE %s) ORDER BY RAND() LIMIT 1",
+                            (rarity, f"%{zone_id}%"),
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT * FROM fish WHERE rarity = %s ORDER BY RAND() LIMIT 1",
+                            (rarity,),
+                        )
                 else:
-                    cursor.execute("SELECT * FROM fish ORDER BY RAND() LIMIT 1")
+                    if zone_id is not None:
+                        cursor.execute(
+                            "SELECT * FROM fish WHERE available_zones IS NULL OR available_zones = '' OR available_zones LIKE %s ORDER BY RAND() LIMIT 1",
+                            (f"%{zone_id}%",),
+                        )
+                    else:
+                        cursor.execute("SELECT * FROM fish ORDER BY RAND() LIMIT 1")
                 row = cursor.fetchone()
                 return self._row_to_fish(row) if row else None
 
-    def get_fishes_by_rarity(self, rarity: int) -> List[Fish]:
+    def get_fishes_by_rarity(
+        self, rarity: int, zone_id: Optional[int] = None
+    ) -> List[Fish]:
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM fish WHERE rarity = %s", (rarity,))
+                if zone_id is not None:
+                    cursor.execute(
+                        "SELECT * FROM fish WHERE rarity = %s AND (available_zones IS NULL OR available_zones = '' OR available_zones LIKE %s)",
+                        (rarity, f"%{zone_id}%"),
+                    )
+                else:
+                    cursor.execute("SELECT * FROM fish WHERE rarity = %s", (rarity,))
                 return [self._row_to_fish(row) for row in cursor.fetchall() if row]
 
     def get_rod_by_id(self, rod_id: int) -> Optional[Rod]:

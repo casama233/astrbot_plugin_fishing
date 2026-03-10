@@ -1161,6 +1161,56 @@ async def reset_exchange_prices():
     return redirect(url_for("admin_bp.manage_exchange"))
 
 
+@admin_bp.route("/exchange/market_status", methods=["POST"])
+@login_required
+@admin_required
+async def update_exchange_market_status():
+    try:
+        form = await request.form
+        market_sentiment = form.get("market_sentiment", "neutral")
+        price_trend = form.get("price_trend", "stable")
+        supply_demand = form.get("supply_demand", "平衡")
+
+        cfg = _load_plugin_config()
+        exchange_cfg = cfg.get("exchange", {}) or {}
+        exchange_cfg["manual_market_sentiment"] = market_sentiment
+        exchange_cfg["manual_price_trend"] = price_trend
+        exchange_cfg["manual_supply_demand"] = supply_demand
+        cfg["exchange"] = exchange_cfg
+        _save_plugin_config(cfg)
+
+        exchange_service = current_app.config.get("EXCHANGE_SERVICE")
+        if exchange_service and hasattr(exchange_service, "price_service"):
+            price_service = exchange_service.price_service
+            price_service.config["manual_market_sentiment"] = market_sentiment
+            price_service.config["manual_price_trend"] = price_trend
+            price_service.config["manual_supply_demand"] = supply_demand
+
+        sentiment_labels = {
+            "panic": "恐慌",
+            "pessimistic": "悲观",
+            "neutral": "中性",
+            "optimistic": "乐观",
+            "euphoric": "狂热",
+        }
+        trend_labels = {
+            "crashing": "暴跌",
+            "declining": "下跌",
+            "stable": "稳定",
+            "rising": "上涨",
+            "surging": "暴涨",
+        }
+        await flash(
+            f"市场状态已更新：情绪={sentiment_labels.get(market_sentiment, market_sentiment)}，趋势={trend_labels.get(price_trend, price_trend)}，供需={supply_demand}",
+            "success",
+        )
+    except Exception as e:
+        logger.error(f"更新市场状态失败: {e}")
+        await flash(f"更新失败: {str(e)}", "danger")
+
+    return redirect(url_for("admin_bp.manage_exchange"))
+
+
 @admin_bp.route("/exchange/commodity/upsert", methods=["POST"])
 @login_required
 @admin_required
@@ -1346,6 +1396,19 @@ async def remove_market_item(market_id):
         logger.error(f"下架商品错误: {e}")
         logger.error(traceback.format_exc())
         return {"success": False, "message": f"下架商品时发生错误: {str(e)}"}, 500
+
+
+@admin_bp.route("/market/cleanup", methods=["POST"])
+@login_required
+async def cleanup_market_listings():
+    market_service = current_app.config["MARKET_SERVICE"]
+    try:
+        market_service.cleanup_expired_listings()
+        return {"success": True, "message": "已清理过期/腐败挂单"}
+    except Exception as e:
+        logger.error(f"清理市场挂单错误: {e}")
+        logger.error(traceback.format_exc())
+        return {"success": False, "message": f"清理失败: {str(e)}"}, 500
 
 
 @admin_bp.route("/users/create", methods=["POST"])
@@ -1658,12 +1721,15 @@ async def add_item():
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     try:
         form_data = await request.form
-        data = {k: v for k, v in form_data.items()}
+        data = {k: v for k, v in form_data.items() if v}
         data["rarity"] = int(data.get("rarity", 1))
         data["cost"] = int(data.get("cost", 0))
-        # 使用布尔值保存是否消耗品
-        is_flag = "is_consumable" in data
+        is_flag = "is_consumable" in form_data
         data["is_consumable"] = is_flag
+        if "effect_type" not in data:
+            data["effect_type"] = None
+        if "effect_payload" not in data:
+            data["effect_payload"] = None
         item_template_service.add_item_template(data)
         await flash("道具模板已添加", "success")
     except Exception as e:
@@ -1678,12 +1744,15 @@ async def edit_item(item_id):
     item_template_service = current_app.config["ITEM_TEMPLATE_SERVICE"]
     try:
         form_data = await request.form
-        data = {k: v for k, v in form_data.items()}
+        data = {k: v for k, v in form_data.items() if v}
         data["rarity"] = int(data.get("rarity", 1))
         data["cost"] = int(data.get("cost", 0))
-        # 使用布尔值保存是否消耗品
-        is_flag = "is_consumable" in data
+        is_flag = "is_consumable" in form_data
         data["is_consumable"] = is_flag
+        if "effect_type" not in data:
+            data["effect_type"] = None
+        if "effect_payload" not in data:
+            data["effect_payload"] = None
         item_template_service.update_item_template(item_id, data)
         await flash("道具模板已更新", "success")
     except Exception as e:
@@ -1799,6 +1868,38 @@ async def update_zone_api(zone_id):
         return jsonify({"success": True, "message": "钓鱼区域更新成功"})
     except Exception as e:
         logger.error(f"更新钓鱼区域失败: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@admin_bp.route("/api/zones/assign-fish", methods=["POST"])
+@login_required
+async def assign_fish_to_zones_api():
+    try:
+        data = await request.get_json()
+        fish_id = data.get("fish_id")
+        zone_ids = data.get("zone_ids") or []
+        if not fish_id or not isinstance(zone_ids, list):
+            return jsonify({"success": False, "message": "参数错误"}), 400
+
+        fishing_zone_service = current_app.config["FISHING_ZONE_SERVICE"]
+        for zone_id in zone_ids:
+            zone = fishing_zone_service.inventory_repo.get_zone_by_id(int(zone_id))
+            existing = (
+                fishing_zone_service.inventory_repo.get_specific_fish_ids_for_zone(
+                    zone.id
+                )
+            )
+            if fish_id not in existing:
+                existing.append(int(fish_id))
+                fishing_zone_service.inventory_repo.update_specific_fish_for_zone(
+                    zone.id, existing
+                )
+
+        fishing_zone_service.strategies = fishing_zone_service._load_strategies()
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"自动分配限定鱼失败: {e}")
         logger.error(traceback.format_exc())
         return jsonify({"success": False, "message": str(e)}), 500
 

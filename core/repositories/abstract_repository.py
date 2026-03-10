@@ -142,7 +142,9 @@ class AbstractItemTemplateRepository(ABC):
 
     # 根据稀有度获取鱼类模板
     @abstractmethod
-    def get_fishes_by_rarity(self, rarity: int) -> List[Fish]:
+    def get_fishes_by_rarity(
+        self, rarity: int, zone_id: Optional[int] = None
+    ) -> List[Fish]:
         pass
 
     # 获取鱼竿模板
@@ -212,7 +214,9 @@ class AbstractItemTemplateRepository(ABC):
 
     # 随机获取一条鱼的模板
     @abstractmethod
-    def get_random_fish(self, rarity: Optional[int] = None) -> Optional[Fish]:
+    def get_random_fish(
+        self, rarity: Optional[int] = None, zone_id: Optional[int] = None
+    ) -> Optional[Fish]:
         pass
 
     # 添加鱼类模板

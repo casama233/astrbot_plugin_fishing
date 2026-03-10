@@ -216,22 +216,28 @@ async def dispel_protection(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result("不能對自己使用驅靈香哦！")
         return
 
-    # 查找驅靈香道具
+    # 查找任意「驅靈」類道具（名稱/描述/效果描述包含關鍵字，或效果類型匹配）
     all_items = plugin.item_template_repo.get_all_items()
+    dispel_items = [
+        item
+        for item in all_items
+        if plugin.inventory_service.is_dispel_item_template(item)
+    ]
+
+    if not dispel_items:
+        yield event.plain_result("❌ 系統錯誤：找不到任何驅靈類道具")
+        return
+
+    # 找到使用者實際持有的一個驅靈道具
+    item_inventory = plugin.inventory_repo.get_user_item_inventory(user_id)
     dispel_item = None
-    for item in all_items:
-        if item.effect_type == "STEAL_PROTECTION_REMOVAL":
+    for item in dispel_items:
+        if item_inventory.get(item.item_id, 0) > 0:
             dispel_item = item
             break
 
     if not dispel_item:
-        yield event.plain_result("❌ 系統錯誤：找不到驅靈香道具")
-        return
-
-    # 檢查用戶是否持有驅靈香
-    item_inventory = plugin.inventory_repo.get_user_item_inventory(user_id)
-    if item_inventory.get(dispel_item.item_id, 0) < 1:
-        yield event.plain_result(f"❌ 你沒有【{dispel_item.name}】道具！")
+        yield event.plain_result("❌ 你沒有任何驅靈道具！")
         return
 
     # 使用統一的道具使用邏輯

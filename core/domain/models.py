@@ -19,6 +19,7 @@ class Fish:
     max_weight: int
     description: Optional[str] = None
     icon_url: Optional[str] = None
+    available_zones: Optional[List[int]] = None
 
 
 @dataclass

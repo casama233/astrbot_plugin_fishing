@@ -804,8 +804,17 @@ async def use_equipment(
                 yield event.plain_result("❌ 数量必须是正整数。")
                 return
 
+        # 解析目标用户（用于驱灵类道具）
+        target_user_id = None
+        if len(args) > 2:
+            parsed_target_id, _ = parse_target_user_id(event, args, 2, allow_self=False)
+            if parsed_target_id:
+                target_user_id = parsed_target_id
+
         # 使用道具
-        if result := plugin.inventory_service.use_item(user_id, int(item_id), quantity):
+        if result := plugin.inventory_service.use_item(
+            user_id, int(item_id), quantity, target_user_id=target_user_id
+        ):
             if result["success"]:
                 yield event.plain_result(result["message"])
             else:

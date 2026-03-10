@@ -2,148 +2,208 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2><i class="fas fa-gem"></i> 饰品管理</h2>
-    <div class="d-flex gap-2 align-items-center">
-        <a class="btn btn-outline-primary" href="{{ url_for('admin_bp.accessories_csv_template') }}">
-            <i class="fas fa-download"></i> 下载CSV模板
-        </a>
-        <form id="accCsvForm" action="{{ url_for('admin_bp.import_accessories_csv') }}" method="post" enctype="multipart/form-data" class="d-inline">
-            <input id="accCsvInput" type="file" name="file" accept=".csv" class="d-none" required>
-            <button type="button" id="accCsvBtn" class="btn btn-success">
-                <i class="fas fa-upload"></i> 导入CSV
-            </button>
-        </form>
-        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#itemModal" id="addItemBtn">
-            <i class="fas fa-plus"></i> 添加新饰品
-        </button>
-    </div>
+<h2><i class="fas fa-gem"></i> 饰品管理</h2>
+<div class="d-flex gap-2 align-items-center">
+<a class="btn btn-outline-primary" href="{{ url_for('admin_bp.accessories_csv_template') }}">
+<i class="fas fa-download"></i> 下载CSV模板
+</a>
+<form id="accCsvForm" action="{{ url_for('admin_bp.import_accessories_csv') }}" method="post" enctype="multipart/form-data" class="d-inline">
+<input id="accCsvInput" type="file" name="file" accept=".csv" class="d-none" required>
+<button type="button" id="accCsvBtn" class="btn btn-success">
+<i class="fas fa-upload"></i> 导入CSV
+</button>
+</form>
+<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#itemModal" id="addItemBtn">
+<i class="fas fa-plus"></i> 添加新饰品
+</button>
+</div>
 </div>
 
 <div class="alert alert-info mb-3">
-    这是饰品模板管理。必填：名称、稀有度。其余加成可先留默认值。
-    数值为 1.0 代表“没有加成”。
+这是饰品模板管理。必填：名称、稀有度。其余加成可先留默认值。
+数值为 1.0 代表"没有加成"。
 </div>
 
 <div class="card border-primary">
-    <div class="card-header">现有饰品列表</div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>名称</th>
-                        <th>稀有度</th>
-                        <th>属性加成</th>
-                        <th>特殊效果代码块</th>
-                        <th class="text-end">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr>
-                        <td>{{ item.accessory_id }}</td>
-                        <td>{{ item.name }}</td>
-                        <td>{{ '★' * item.rarity }}</td>
-                        <td>
-                            <span class="badge bg-secondary">品质: {{ item.bonus_fish_quality_modifier }}</span>
-                            <span class="badge bg-secondary">数量: {{ item.bonus_fish_quantity_modifier }}</span>
-                            <span class="badge bg-secondary">稀有: {{ item.bonus_rare_fish_chance }}</span>
-                            <span class="badge bg-warning text-dark">金币: {{ item.bonus_coin_modifier }}</span>
-                        </td>
-                        <td><pre class="mb-0"><code>{{ item.effect_note or '未配置' }}</code></pre></td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-info edit-btn"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#itemModal"
-                                    data-item-json='{{ item|tojson|safe }}'>
-                                <i class="fas fa-edit"></i> 编辑
-                            </button>
-                            <form action="{{ url_for('admin_bp.delete_accessory', accessory_id=item.accessory_id) }}" method="post" class="d-inline" onsubmit="return confirm('确定要删除【{{ item.name }}】吗？');">
-                                <button type="submit" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i> 删除
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+<div class="card-header">现有饰品列表</div>
+<div class="card-body">
+<div class="table-responsive">
+<table class="table table-striped table-hover">
+<thead>
+<tr>
+<th>ID</th>
+<th>名称</th>
+<th>稀有度</th>
+<th>属性加成</th>
+<th>特殊效果代码块</th>
+<th class="text-end">操作</th>
+</tr>
+</thead>
+<tbody>
+{% for item in items %}
+<tr>
+<td>{{ item.accessory_id }}</td>
+<td>{{ item.name }}</td>
+<td>{{ '★' * item.rarity }}</td>
+<td>
+<span class="badge bg-secondary">品质: {{ item.bonus_fish_quality_modifier }}</span>
+<span class="badge bg-secondary">数量: {{ item.bonus_fish_quantity_modifier }}</span>
+<span class="badge bg-secondary">稀有: {{ item.bonus_rare_fish_chance }}</span>
+<span class="badge bg-warning text-dark">金币: {{ item.bonus_coin_modifier }}</span>
+</td>
+<td><pre class="mb-0"><code>{{ item.effect_note or '未配置' }}</code></pre></td>
+<td class="text-end">
+<button class="btn btn-sm btn-info edit-btn"
+data-bs-toggle="modal"
+data-bs-target="#itemModal"
+data-item-json='{{ item|tojson|safe }}'>
+<i class="fas fa-edit"></i> 编辑
+</button>
+<form action="{{ url_for('admin_bp.delete_accessory', accessory_id=item.accessory_id) }}" method="post" class="d-inline" onsubmit="return confirm('确定要删除【{{ item.name }}】吗？');">
+<button type="submit" class="btn btn-sm btn-danger">
+<i class="fas fa-trash"></i> 删除
+</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
 </div>
 
 <div class="modal fade" id="itemModal" tabindex="-1" aria-labelledby="itemModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form id="item-form" method="post">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="itemModalLabel">管理饰品</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                     <div class="row g-3">
-                        <div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：海洋之心、幸运戒指</div></div>
-                        <div class="col-md-4"><label>稀有度</label><input type="number" name="rarity" class="form-control" min="1" required><div class="form-text">1=普通，5=稀有</div></div>
-                        <div class="col-12"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">给玩家看的说明</div></div>
-                        <div class="col-md-4"><label>品质加成</label><input type="number" step="0.01" name="bonus_fish_quality_modifier" class="form-control" value="1.0"><div class="form-text">1.1=+10%</div></div>
-                        <div class="col-md-4"><label>数量加成</label><input type="number" step="0.01" name="bonus_fish_quantity_modifier" class="form-control" value="1.0"><div class="form-text">2.0=双倍</div></div>
-                        <div class="col-md-4"><label>稀有加成</label><input type="number" step="0.01" name="bonus_rare_fish_chance" class="form-control" value="0.0"><div class="form-text">0.05=+5%</div></div>
-                        <div class="col-md-4"><label>金币加成</label><input type="number" step="0.01" name="bonus_coin_modifier" class="form-control" value="1.0"><div class="form-text">1.2=+20%</div></div>
-                        <div class="col-md-4"><label>装备槽类型</label><input type="text" name="slot_type" class="form-control" value="general"><div class="form-text">一般填 general</div></div>
-                        <div class="col-md-4"><label>图标URL(可选)</label><input type="text" name="icon_url" class="form-control"><div class="form-text">可留空</div></div>
-                        <div class="col-12"><label>其他效果描述</label><textarea name="other_bonus_description" class="form-control" rows="2"></textarea><div class="form-text">给玩家看的额外说明</div></div>
-                        <div class="col-12"><label>特殊效果代码块</label><textarea name="effect_note" class="form-control font-monospace" rows="6" placeholder="例如：&#10;fishing_cooldown_multiplier=0.5&#10;steal_cooldown_multiplier=0.7&#10;electric_cooldown_multiplier=0.8&#10;fishing_rare_bonus=0.03"></textarea><div class="form-text">这里用于定义饰品穿戴后的额外特殊效果。当前支持键值规则块，不是玩家描述文案。</div></div>
-                        <div class="col-12">
-                            <div class="alert alert-secondary mb-0">
-                                <div class="fw-bold mb-2">可用键速查</div>
-                                <div class="row g-2 small font-monospace">
-                                    <div class="col-md-6">
-                                        <div><code>fishing_cooldown_multiplier=0.5</code></div>
-                                        <div><code>fishing_success_bonus=0.05</code></div>
-                                        <div><code>fishing_rare_bonus=0.03</code></div>
-                                        <div><code>fishing_coin_bonus=0.10</code></div>
-                                        <div><code>fishing_quality_multiplier=1.2</code></div>
-                                        <div><code>fishing_quantity_multiplier=1.1</code></div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div><code>steal_cooldown_multiplier=0.7</code></div>
-                                        <div><code>electric_cooldown_multiplier=0.8</code></div>
-                                        <div><code>auto_fishing_interval_multiplier=0.75</code></div>
-                                        <div><code>daily_tax_multiplier=0.5</code></div>
-                                        <div><code>transfer_tax_multiplier=0.6</code></div>
-                                        <div><code>market_tax_multiplier=0.8</code></div>
-                                    </div>
-                                </div>
-                                <div class="mt-2 small text-muted">支持 <code>key=value</code> 多行格式，也支持 JSON 对象格式。</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+<form id="item-form" method="post">
+<div class="modal-header">
+<h5 class="modal-title" id="itemModalLabel">管理饰品</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+<div class="row g-3">
+<div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：海洋之心、幸运戒指</div></div>
+<div class="col-md-4"><label>稀有度</label><input type="number" name="rarity" class="form-control" min="1" required><div class="form-text">1=普通，5=稀有</div></div>
+<div class="col-12"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">给玩家看的说明</div></div>
+<div class="col-md-4"><label>品质加成</label><input type="number" step="0.01" name="bonus_fish_quality_modifier" class="form-control" value="1.0"><div class="form-text">1.1=+10%</div></div>
+<div class="col-md-4"><label>数量加成</label><input type="number" step="0.01" name="bonus_fish_quantity_modifier" class="form-control" value="1.0"><div class="form-text">2.0=双倍</div></div>
+<div class="col-md-4"><label>稀有加成</label><input type="number" step="0.01" name="bonus_rare_fish_chance" class="form-control" value="0.0"><div class="form-text">0.05=+5%</div></div>
+<div class="col-md-4"><label>金币加成</label><input type="number" step="0.01" name="bonus_coin_modifier" class="form-control" value="1.0"><div class="form-text">1.2=+20%</div></div>
+<div class="col-md-4"><label>装备槽类型</label><input type="text" name="slot_type" class="form-control" value="general"><div class="form-text">一般填 general</div></div>
+<div class="col-md-4"><label>图标URL(可选)</label><input type="text" name="icon_url" class="form-control"><div class="form-text">可留空</div></div>
+<div class="col-12"><label>其他效果描述</label><textarea name="other_bonus_description" class="form-control" rows="2"></textarea><div class="form-text">给玩家看的额外说明</div></div>
+<div class="col-12"><label>特殊效果代码块</label><textarea name="effect_note" class="form-control font-monospace" rows="6" placeholder="例如：&#10;fishing_cooldown_multiplier=0.5&#10;steal_cooldown_multiplier=0.7"></textarea><div class="form-text">定义饰品穿戴后的额外特殊效果，支持 <code>key=value</code> 多行格式或 JSON 对象格式。</div></div>
+
+<!-- 可用键速查表 - 重新设计 -->
+<div class="col-12">
+<div class="card border-info">
+<div class="card-header bg-info text-white py-2">
+<i class="fas fa-key me-1"></i> 可用键速查表
+</div>
+<div class="card-body p-2">
+<div class="row">
+<!-- 钓鱼相关 -->
+<div class="col-md-6 mb-2">
+<div class="fw-bold text-primary mb-1"><i class="fas fa-fish me-1"></i>钓鱼相关</div>
+<table class="table table-sm table-borderless mb-0 small">
+<tbody>
+<tr>
+<td class="ps-0" style="width: 280px;"><code>fishing_cooldown_multiplier</code></td>
+<td><span class="text-muted">钓鱼冷却时间倍率，0.5=减半</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_success_bonus</code></td>
+<td><span class="text-muted">钓鱼成功率加成，0.05=+5%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_rare_bonus</code></td>
+<td><span class="text-muted">稀有鱼出现率加成，0.03=+3%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_coin_bonus</code></td>
+<td><span class="text-muted">钓鱼金币收益加成，0.10=+10%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_quality_multiplier</code></td>
+<td><span class="text-muted">高品质鱼概率倍率，1.2=+20%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_quantity_multiplier</code></td>
+<td><span class="text-muted">钓鱼数量倍率，1.1=+10%</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- 社交/税收相关 -->
+<div class="col-md-6 mb-2">
+<div class="fw-bold text-warning mb-1"><i class="fas fa-users me-1"></i>社交与税收</div>
+<table class="table table-sm table-borderless mb-0 small">
+<tbody>
+<tr>
+<td class="ps-0" style="width: 280px;"><code>steal_cooldown_multiplier</code></td>
+<td><span class="text-muted">偷鱼冷却时间倍率，0.7=减少30%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>electric_cooldown_multiplier</code></td>
+<td><span class="text-muted">电鱼冷却时间倍率，0.8=减少20%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>auto_fishing_interval_multiplier</code></td>
+<td><span class="text-muted">自动钓鱼间隔倍率，0.75=缩短25%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>daily_tax_multiplier</code></td>
+<td><span class="text-muted">每日税率倍率，0.5=税收减半</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>transfer_tax_multiplier</code></td>
+<td><span class="text-muted">转账税率倍率，0.6=税收减少40%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>market_tax_multiplier</code></td>
+<td><span class="text-muted">市场交易税率倍率，0.8=税收减少20%</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="alert alert-light mb-0 py-2 small">
+<i class="fas fa-info-circle me-1"></i>
+<strong>使用示例：</strong>
+<code class="ms-1">fishing_cooldown_multiplier=0.8<br>fishing_rare_bonus=0.05</code>
+<span class="ms-2 text-muted">（表示钓鱼CD减20%，稀有率+5%）</span>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+<button type="submit" class="btn btn-primary">保存</button>
+</div>
+</form>
+</div>
+</div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    const addUrl = "{{ url_for('admin_bp.add_accessory') }}";
-    const editUrlBase = "{{ url_for('admin_bp.edit_accessory', accessory_id=0) }}".slice(0, -1);
-    document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('accCsvForm');
-        if (!form) return;
-        const input = document.getElementById('accCsvInput');
-        const btn = document.getElementById('accCsvBtn');
-        btn.addEventListener('click', function () { input.click(); });
-        input.addEventListener('change', function () {
-            if (input.files && input.files.length > 0) { form.submit(); }
-        });
-    });
+const addUrl = "{{ url_for('admin_bp.add_accessory') }}";
+const editUrlBase = "{{ url_for('admin_bp.edit_accessory', accessory_id=0) }}".slice(0, -1);
+document.addEventListener('DOMContentLoaded', function () {
+const form = document.getElementById('accCsvForm');
+if (!form) return;
+const input = document.getElementById('accCsvInput');
+const btn = document.getElementById('accCsvBtn');
+btn.addEventListener('click', function () { input.click(); });
+input.addEventListener('change', function () {
+if (input.files && input.files.length > 0) { form.submit(); }
+});
+});
 </script>
 <script src="{{ url_for('admin_bp.static', filename='js/accessories_manager.js') }}"></script>
 {% endblock %}

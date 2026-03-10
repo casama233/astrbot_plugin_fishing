@@ -267,17 +267,19 @@ def get_primary_font_path() -> str:
 class FontWithFallback:
     """
     带自动回退的字体包装类
-    当主字体不支持某个字符时，自动使用系统CJK字体
+    当主字体不支持某个字符时，自动使用系统CJK字体或Emoji字体
     """
 
     def __init__(
         self,
         primary_font: ImageFont.FreeTypeFont,
         fallback_font: Optional[ImageFont.FreeTypeFont] = None,
+        emoji_font: Optional[ImageFont.FreeTypeFont] = None,
     ):
         self.primary_font = primary_font
         self.fallback_font = fallback_font
-        self._char_cache = {}  # 缓存字符到字体的映射
+        self.emoji_font = emoji_font
+        self._char_cache = {}
 
     def _is_zero_width_modifier(self, char: str) -> bool:
         """判断零宽修饰符（如 VS16、ZWJ、组合符号）。"""
@@ -388,10 +390,17 @@ class FontWithFallback:
 
         try:
             fallback_font = self.fallback_font
+            emoji_font = self.emoji_font
             primary_ok = _font_can_render(self.primary_font, char)
             fallback_ok = (
                 _font_can_render(fallback_font, char) if fallback_font else False
             )
+            emoji_ok = _font_can_render(emoji_font, char) if emoji_font else False
+
+            # Emoji 字符优先使用 emoji 字体
+            if self._is_emoji_char(char) and emoji_ok:
+                self._char_cache[char] = emoji_font  # type: ignore
+                return emoji_font  # type: ignore
 
             if primary_ok and not fallback_ok:
                 self._char_cache[char] = self.primary_font
@@ -404,14 +413,11 @@ class FontWithFallback:
             if primary_ok and fallback_ok:
                 # 通用策略：
                 # - CJK（含标点）优先回退字体（字形覆盖更完整）
-                # - 其他字符优先主字体（保持英文/数字/emoji 风格一致）
+                # - 其他字符优先主字体（保持英文/数字风格一致）
                 if self._is_cjk_char(char) or self._is_cjk_punctuation(char):
                     if fallback_font:
                         self._char_cache[char] = fallback_font
                         return fallback_font
-                if self._is_emoji_char(char):
-                    self._char_cache[char] = self.primary_font
-                    return self.primary_font
                 self._char_cache[char] = self.primary_font
                 return self.primary_font
 
@@ -510,8 +516,17 @@ def load_font_with_cjk_fallback(font_path: str, size: int) -> FontWithFallback:
         primary_font = ImageFont.load_default()  # type: ignore
 
     # 用户指定 zpix 作为统一字体时，不启用回退，确保全局都使用同一款字体
+    # 但仍然加载 emoji 字体
     if os.path.basename(primary_path).lower() == "zpix.ttf":
-        return FontWithFallback(primary_font, None)  # type: ignore
+        emoji_font = None
+        resource_dir = os.path.join(os.path.dirname(__file__), "resource")
+        emoji_font_path = os.path.join(resource_dir, "Tomato_Emoji.ttf")
+        if os.path.exists(emoji_font_path):
+            try:
+                emoji_font = ImageFont.truetype(emoji_font_path, size)
+            except Exception:
+                pass
+        return FontWithFallback(primary_font, None, emoji_font)  # type: ignore
 
     # 加载 CJK 字体作为回退（仅使用项目资源中的字体，不查询系统）
     fallback_font = None
@@ -523,7 +538,17 @@ def load_font_with_cjk_fallback(font_path: str, size: int) -> FontWithFallback:
             # 如果加载失败，记录错误但不抛出异常
             pass
 
-    return FontWithFallback(primary_font, fallback_font)  # type: ignore
+    # 加载 Emoji 字体
+    emoji_font = None
+    resource_dir = os.path.join(os.path.dirname(__file__), "resource")
+    emoji_font_path = os.path.join(resource_dir, "Tomato_Emoji.ttf")
+    if os.path.exists(emoji_font_path):
+        try:
+            emoji_font = ImageFont.truetype(emoji_font_path, size)
+        except Exception:
+            pass
+
+    return FontWithFallback(primary_font, fallback_font, emoji_font)  # type: ignore
 
 
 def draw_text_smart(

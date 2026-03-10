@@ -604,6 +604,145 @@ class ExchangeHandlers:
             msg += "─" * 20 + "\n"
         yield event.plain_result(msg)
 
+    async def _view_trading_stats(self, event: AstrMessageEvent):
+        """查看交易統計：展示用戶持倉統計和盈虧情況"""
+        user_id = self._get_effective_user_id(event)
+        user = self.user_repo.get_by_id(user_id)
+
+        if not user or not user.exchange_account_status:
+            yield event.plain_result(
+                "您尚未開通交易所賬戶，請使用【交易所 開戶】命令開戶。"
+            )
+            return
+
+        market_status = self.exchange_service.get_market_status()
+        if not market_status.get("success"):
+            yield event.plain_result(
+                f"❌ 獲取市場信息失敗: {market_status.get('message', '未知錯誤')}"
+            )
+            return
+
+        current_prices = market_status.get("prices", {})
+        commodities = market_status.get("commodities", {})
+
+        inventory_result = self.exchange_service.get_user_inventory(user_id)
+        if not inventory_result.get("success"):
+            yield event.plain_result(
+                f"❌ 獲取庫存失敗: {inventory_result.get('message', '未知錯誤')}"
+            )
+            return
+
+        inventory = inventory_result.get("inventory", {})
+        analysis = self._calculate_inventory_profit_loss(inventory, current_prices)
+
+        total_quantity = sum(
+            data.get("total_quantity", 0) for data in inventory.values()
+        )
+        total_cost = analysis.get("total_cost", 0)
+        total_value = analysis.get("total_current_value", 0)
+        profit_loss = analysis.get("profit_loss", 0)
+        profit_rate = analysis.get("profit_rate", 0)
+
+        commodity_details = []
+        for commodity_id, data in inventory.items():
+            name = data.get("name", commodity_id)
+            qty = data.get("total_quantity", 0)
+            cost = data.get("total_cost", 0)
+            price = current_prices.get(commodity_id, 0)
+            value = qty * price
+            pnl = value - cost
+            pnl_pct = (pnl / cost * 100) if cost > 0 else 0
+
+            items = data.get("items", [])
+            expired_count = 0
+            expiring_soon = 0
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                expires_at = item.get("expires_at")
+                item_qty = item.get("quantity", 0)
+                if expires_at and isinstance(expires_at, datetime):
+                    time_left = expires_at - datetime.now()
+                    if time_left.total_seconds() <= 0:
+                        expired_count += item_qty
+                    elif time_left.total_seconds() < 86400:
+                        expiring_soon += item_qty
+
+            commodity_details.append(
+                {
+                    "name": name,
+                    "quantity": qty,
+                    "cost": cost,
+                    "value": value,
+                    "pnl": pnl,
+                    "pnl_pct": pnl_pct,
+                    "expired": expired_count,
+                    "expiring_soon": expiring_soon,
+                }
+            )
+
+        try:
+            from ..draw.exchange import draw_exchange_stats_image
+
+            image = draw_exchange_stats_image(
+                total_quantity=total_quantity,
+                total_cost=total_cost,
+                total_value=total_value,
+                profit_loss=profit_loss,
+                profit_rate=profit_rate,
+                commodity_details=commodity_details,
+                commodities_info=commodities,
+            )
+            image_path = os.path.join(self.plugin.tmp_dir, "exchange_stats.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
+
+            tip = build_tip_result(
+                event,
+                "⌨️ 建議下一步\n```\n/持倉\n```\n```\n/交易所 分析\n```",
+                plugin=self.plugin,
+                user_id=user_id,
+            )
+            if tip:
+                yield tip
+            return
+        except Exception as e:
+            from astrbot.api import logger
+
+            logger.error(f"繪製統計圖片失敗: {e}")
+
+        msg = "【📊 我的交易統計】\n"
+        msg += "═" * 30 + "\n"
+        msg += f"📦 總持倉數量: {total_quantity}\n"
+        msg += f"💰 總成本: {total_cost:,} 金幣\n"
+        msg += f"💎 當前價值: {total_value:,} 金幣\n"
+        profit_icon = "📈" if profit_loss >= 0 else "📉"
+        msg += f"{profit_icon} 盈虧: {profit_loss:+,} 金幣 ({profit_rate:+.1f}%)\n"
+        msg += "─" * 30 + "\n"
+
+        for detail in commodity_details:
+            name = detail["name"]
+            qty = detail["quantity"]
+            cost = detail["cost"]
+            pnl = detail["pnl"]
+            pnl_pct = detail["pnl_pct"]
+            expired = detail["expired"]
+            expiring = detail["expiring_soon"]
+
+            status = ""
+            if expired > 0:
+                status = f" 💀過期{expired}個"
+            elif expiring > 0:
+                status = f" ⚠️將過期{expiring}個"
+
+            pnl_icon = "📈" if pnl >= 0 else "📉"
+            msg += f"• {name}: {qty}個 | 成本{cost:,} | {pnl_icon}{pnl:+,} ({pnl_pct:+.1f}%){status}\n"
+
+        msg += "═" * 30 + "\n"
+        msg += "💡 使用【持倉】查看詳細庫存 | 【交易所 分析】查看市場分析"
+
+        yield event.plain_result(msg)
+
     async def exchange_main(self, event: AstrMessageEvent):
         """交易所主命令，根据参数分发到不同功能"""
         args = self._extract_exchange_args(event)
@@ -682,49 +821,8 @@ class ExchangeHandlers:
                 async for r in self._view_market_analysis(event):
                     yield r
             elif command == "stats":
-                try:
-                    from ..draw.exchange import draw_exchange_help_image
-
-                    sections = [
-                        (
-                            "📈 交易統計說明",
-                            [
-                                "總交易次數",
-                                "總交易金額",
-                                "盈虧統計",
-                                "持倉價值 / 成本 / 浮動盈虧",
-                            ],
-                        ),
-                        (
-                            "🧭 風險控制",
-                            [
-                                "控制單次倉位",
-                                "設定止損",
-                                "分散持倉",
-                                "定期檢視資產配置",
-                            ],
-                        ),
-                    ]
-                    schedule_display = self._get_formatted_update_schedule()
-                    exchange_cfg = (
-                        getattr(self.exchange_service.inventory_service, "config", {})
-                        or {}
-                    )
-                    tax_rate = float(exchange_cfg.get("tax_rate", 0.05) or 0.05)
-                    capacity = int(exchange_cfg.get("capacity", 1000) or 1000)
-                    image = draw_exchange_help_image(
-                        sections,
-                        schedule_display,
-                        f"{tax_rate * 100:.1f}%",
-                        str(capacity),
-                    )
-                    image_path = os.path.join(
-                        self.plugin.tmp_dir, "exchange_stats_help.png"
-                    )
-                    image.save(image_path)
-                    yield event.image_result(image_path)
-                except Exception:
-                    yield event.plain_result(self._get_trading_stats_help())
+                async for r in self._view_trading_stats(event):
+                    yield r
             elif command == "status":
                 async for r in self.exchange_status(event):
                     yield r

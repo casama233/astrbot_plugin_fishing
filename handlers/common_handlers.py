@@ -260,11 +260,8 @@ async def fishing_log(self: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result("❌ 系統忙碌中，請稍後再試。")
 
 
-from ..draw.help import draw_help_image, draw_help_images_split
-
-
 async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
-    """重構版幫助：分類清晰、含引導、數值即時查詢。"""
+    """文字版幫助：分類清晰、含引導、數值即時查詢。"""
 
     def _fmt_pct(x: float) -> str:
         try:
@@ -316,7 +313,6 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
                             for e in kw.value.elts:
                                 if isinstance(e, ast.Constant):
                                     aliases.append(str(e.value))
-                    # 去重并保持顺序
                     seen = set()
                     uniq_aliases = []
                     for a in aliases:
@@ -374,7 +370,6 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
 
     commands = _extract_command_table()
 
-    # 分类映射（主命令名）
     category_rules = {
         "core": {
             "title": "🌊 新手與核心",
@@ -487,7 +482,6 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
         if not placed:
             uncategorized.append(c)
 
-    # 即时配置/数值
     fishes = self.item_template_repo.get_all_fish() or []
     baits = self.item_template_repo.get_all_baits() or []
     zones = self.inventory_repo.get_all_zones() or []
@@ -581,34 +575,48 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
 
     pages = {
         "index": (
-            "【🎣 釣魚幫助：從入門到入土】\n"
-            "歡迎來到這個充滿鹹魚與夢想的世界！簡單來說，你的目標是：\n"
-            "1️⃣ 搬磚：簽到、釣魚，累積第一桶金\n"
-            "2️⃣ 敗家：買裝備、精煉、擴建魚塘\n"
-            "3️⃣ 炒股：低買高賣，成為市場大鱷\n"
-            "4️⃣ 互害：偷魚、電魚，友誼的小船說翻就翻\n\n"
-            "【功能導航】\n"
-            "- 1 核心：註冊、簽到、釣魚（打工人的日常）\n"
-            "- 2 背包：魚塘/水族箱/裝備（你的全部家當）\n"
-            "- 3 經濟：/商店、/市場（剁手與回血的地方）\n"
-            "- 4 交易所：統一走 /交易所 子命令\n"
-            "- 5 機率：抽卡/擦彈/命運之輪獨立指令\n"
-            "- 6 骰寶：/骰宝 + /骰宝下注\n"
-            "- 7 社交：互偷互電、/红包 互動\n"
-            "- 8 管理：統一走 /钓鱼管理 子命令\n\n"
-            "【當前伺服器情報】\n"
-            f"- 已發現魚種：{fish_count} 種；稀有度覆蓋：{(f'{min(rarity_set)}~{max(rarity_set)} 星' if rarity_set else '暫無')}\n"
-            f"- 魚獲重量：{min_weight}g ~ {max_weight}g（吃太飽了？）\n"
-            f"- 市場行情：{min_value} ~ {max_value} 金幣（看臉）\n"
-            f"- 開放區域：{active_zone_count}/{zone_count}；全區稀有餘額 {rare_quota_total}\n"
-            f"- 釣魚成本：{fish_cost} 金幣/次；(大多區域例外)冷卻時間：{fish_cd} 秒\n"
-            f"- 極品爆率上限：{_fmt_pct(quality_cap)}（玄不救非，氪能改命）\n\n"
-            "【90秒光速入門】\n"
-            "- /註冊 → /簽到 → /釣魚（重複N次）→ /全部賣出\n"
-            "- 有錢了？先 /商店 購買補給，再 /交易所 開戶 試水溫\n\n"
-            "👇 查詢具體指令：\n"
-            "用法：/釣魚幫助 <分類> 或 /釣魚幫助 <頁碼>\n"
-            "範例：/釣魚幫助 交易所 或 /釣魚幫助 骰寶"
+            f"【🎣 釣魚插件 - 新手導航】\n\n"
+            f"歡迎來到釣魚世界！這是一個休閒養成小遊戲。\n\n"
+            f"━━━━━ 新手必讀 ━━━━━\n\n"
+            f"【第一步：註冊】\n"
+            f"/註冊 - 領取你的釣魚執照\n\n"
+            f"【第二步：每日簽到】\n"
+            f"/簽到 - 每天可領 {sign_min}~{sign_max} 金幣\n\n"
+            f"【第三步：釣魚賺錢】\n"
+            f"/釣魚 - 消耗 {fish_cost} 金幣，釣魚賺差價\n"
+            f"- 冷卻時間：{fish_cd} 秒\n"
+            f"- 極品機率上限：{_fmt_pct(quality_cap)}\n\n"
+            f"【第四步：賣魚變現】\n"
+            f"/全部賣出 - 一鍵賣掉魚塘所有魚\n"
+            f"/背包 - 查看你的全部家當\n\n"
+            f"━━━━━ 進階玩法 ━━━━━\n\n"
+            f"【裝備強化】\n"
+            f"/魚竿、/飾品 - 查看裝備\n"
+            f"/精煉 - 強化裝備（有風險）\n\n"
+            f"【市場交易】\n"
+            f"/商店 - 購買魚餌、道具\n"
+            f"/市場 - 玩家自由交易\n"
+            f"/交易所 - 大宗商品投資\n\n"
+            f"【休閒玩法】\n"
+            f"/抽卡、/十連 - 抽裝備\n"
+            f"/擦彈 - 拼運氣小遊戲\n"
+            f"/骰寶 - 莊家下注遊戲\n\n"
+            f"【社交互動】\n"
+            f"/排行榜 - 看誰是肝帝\n"
+            f"/偷魚 @用戶 - 偷一條魚\n"
+            f"/電魚 @用戶 - 電擊對方魚塘\n"
+            f"/紅包 發紅包 - 發紅包給群友\n\n"
+            f"━━━━━ 當前伺服器 ━━━━━\n"
+            f"- 魚種數量：{fish_count} 種\n"
+            f"- 開放區域：{active_zone_count}/{zone_count} 區\n"
+            f"- 全區稀有配額：{rare_quota_total}\n\n"
+            f"━━━━━ 幫助查詢 ━━━━━\n"
+            f"/釣魚幫助 核心 - 基礎指令\n"
+            f"/釣魚幫助 背包 - 背包與養成\n"
+            f"/釣魚幫助 經濟 - 商店與市場\n"
+            f"/釣魚幫助 交易所 - 投資指南\n"
+            f"/釣魚幫助 全部 - 所有指令索引\n"
+            f"/釣魚幫助 <關鍵字> - 搜尋指令"
         ),
         "core": (
             "【1/10 🌊 核心玩法：打工人的自我修養】\n"
@@ -818,20 +826,9 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
 
     args = event.message_str.strip().split(maxsplit=1)
     if len(args) == 1:
-        # 預設返回兩張圖片幫助，降低平台壓縮導致的可讀性問題
-        try:
-            imgs = draw_help_images_split()
-            for idx, img in enumerate(imgs, start=1):
-                image_path = os.path.join(self.tmp_dir, f"fishing_help_{idx}.png")
-                img.save(image_path)
-                yield event.image_result(image_path)
-            return
-        except Exception as e:
-            logger.error(f"生成釣魚幫助圖片失敗: {e}", exc_info=True)
-            # 如果圖片生成失敗，回退到文字版首頁
-            for chunk in _chunk_text(pages["index"]):
-                yield event.plain_result(chunk)
-            return
+        for chunk in _chunk_text(pages["index"]):
+            yield event.plain_result(chunk)
+        return
 
     selector = args[1].strip()
     key = selector_map.get(selector)

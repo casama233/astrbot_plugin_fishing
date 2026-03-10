@@ -7,15 +7,24 @@ def up(cursor: sqlite3.Cursor):
 
     # 为现有区域添加默认配置
     default_configs = {
-        1: {"rarity_distribution": [0.6, 0.3, 0.08, 0.02, 0]},
-        2: {"rarity_distribution": [0.4, 0.3, 0.2, 0.09, 0.01]},
-        3: {"rarity_distribution": [0.3, 0.2, 0.2, 0.2, 0.1]}
+        1: {
+            "rarity_distribution": [0.6, 0.3, 0.08, 0.02, 0],
+            "allow_global_fallback": True,
+        },
+        2: {
+            "rarity_distribution": [0.4, 0.3, 0.2, 0.09, 0.01],
+            "allow_global_fallback": True,
+        },
+        3: {
+            "rarity_distribution": [0.3, 0.2, 0.2, 0.2, 0.1],
+            "allow_global_fallback": True,
+        },
     }
 
     for zone_id, configs in default_configs.items():
         cursor.execute(
             "UPDATE fishing_zones SET configs = ? WHERE id = ?",
-            (json.dumps(configs), zone_id)
+            (json.dumps(configs), zone_id),
         )
 
     # 从 015 合并过来的代码

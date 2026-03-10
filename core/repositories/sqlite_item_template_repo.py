@@ -176,23 +176,50 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
             cursor.execute("SELECT * FROM fish ORDER BY rarity DESC, base_value DESC")
             return [self._row_to_fish(row) for row in cursor.fetchall()]
 
-    def get_random_fish(self, rarity: Optional[int] = None) -> Optional[Fish]:
+    def get_random_fish(
+        self, rarity: Optional[int] = None, zone_id: Optional[int] = None
+    ) -> Optional[Fish]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             if rarity is not None:
-                cursor.execute(
-                    "SELECT * FROM fish WHERE rarity = ? ORDER BY RANDOM() LIMIT 1",
-                    (rarity,),
-                )
+                if zone_id is not None:
+                    cursor.execute(
+                        "SELECT * FROM fish WHERE rarity = ? AND (available_zones IS NULL OR available_zones = '' OR available_zones LIKE ?) ORDER BY RANDOM() LIMIT 1",
+                        (
+                            rarity,
+                            f'%"zone_id": {zone_id}%'
+                            if isinstance(self._row_to_fish.__self__, type)
+                            else f"%{zone_id}%",
+                        ),
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM fish WHERE rarity = ? ORDER BY RANDOM() LIMIT 1",
+                        (rarity,),
+                    )
             else:
-                cursor.execute("SELECT * FROM fish ORDER BY RANDOM() LIMIT 1")
+                if zone_id is not None:
+                    cursor.execute(
+                        "SELECT * FROM fish WHERE available_zones IS NULL OR available_zones = '' OR available_zones LIKE ? ORDER BY RANDOM() LIMIT 1",
+                        (f"%{zone_id}%",),
+                    )
+                else:
+                    cursor.execute("SELECT * FROM fish ORDER BY RANDOM() LIMIT 1")
             row = cursor.fetchone()
             return self._row_to_fish(row) if row else None
 
-    def get_fishes_by_rarity(self, rarity: int) -> List[Fish]:
+    def get_fishes_by_rarity(
+        self, rarity: int, zone_id: Optional[int] = None
+    ) -> List[Fish]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM fish WHERE rarity = ?", (rarity,))
+            if zone_id is not None:
+                cursor.execute(
+                    "SELECT * FROM fish WHERE rarity = ? AND (available_zones IS NULL OR available_zones = '' OR available_zones LIKE ?)",
+                    (rarity, f"%{zone_id}%"),
+                )
+            else:
+                cursor.execute("SELECT * FROM fish WHERE rarity = ?", (rarity,))
             return [self._row_to_fish(row) for row in cursor.fetchall()]
 
     # --- Rod Read Methods ---
@@ -276,12 +303,17 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
     def add_fish_template(self, data: Dict[str, Any]) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            available_zones = data.get("available_zones")
             cursor.execute(
                 """
-                INSERT INTO fish (name, description, rarity, base_value, min_weight, max_weight, icon_url)
-                VALUES (:name, :description, :rarity, :base_value, :min_weight, :max_weight, :icon_url)
+                INSERT INTO fish (name, description, rarity, base_value, min_weight, max_weight, icon_url, available_zones)
+                VALUES (:name, :description, :rarity, :base_value, :min_weight, :max_weight, :icon_url, :available_zones)
             """,
-                {**data, "icon_url": data.get("icon_url")},
+                {
+                    **data,
+                    "icon_url": data.get("icon_url"),
+                    "available_zones": available_zones,
+                },
             )
             conn.commit()
 
@@ -294,10 +326,15 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
                 UPDATE fish SET
                     name = :name, description = :description, rarity = :rarity,
                     base_value = :base_value, min_weight = :min_weight,
-                    max_weight = :max_weight, icon_url = :icon_url
+                    max_weight = :max_weight, icon_url = :icon_url,
+                    available_zones = :available_zones
                 WHERE fish_id = :fish_id
             """,
-                {**data, "icon_url": data.get("icon_url")},
+                {
+                    **data,
+                    "icon_url": data.get("icon_url"),
+                    "available_zones": data.get("available_zones"),
+                },
             )
             conn.commit()
 

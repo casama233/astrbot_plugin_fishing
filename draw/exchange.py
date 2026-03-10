@@ -569,106 +569,198 @@ def draw_exchange_history_image(
     name_map: Dict[str, str],
     days: int,
 ) -> Image.Image:
-    """歷史走勢 - 遊戲風格"""
-    width = 1240
-    header_h = 120
-    card_h = 150
-    gap = 16
-    footer_h = 75
-    count = max(1, len(series_map))
-    title_font = load_font(36)
+    """歷史走勢 - 所有商品在同一圖表中"""
+    width = 1200
+    header_h = 100
+    chart_h = 400
+    legend_h = 80
+    footer_h = 60
+    bottom_pad = 20
+
+    title_font = load_font(32)
     body_font = load_font(18)
-    small_font = load_font(16)
-    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
-    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
-    card_h = max(card_h, body_h + 110)
-    bottom_pad = 24
-    height = header_h + count * (card_h + gap) + footer_h + bottom_pad
+    small_font = load_font(14)
+    legend_font = load_font(16)
+
+    height = header_h + chart_h + legend_h + footer_h + bottom_pad
 
     image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
-    # 標題欄
     draw_game_title_bar(draw, width, 0, header_h, "交易所歷史走勢", title_font, "📉")
 
     draw.text(
-        (30, 70),
+        (30, 60),
         f"觀測窗口：近 {days} 天",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
     )
-
     if labels:
         draw.text(
-            (30, 92),
-            f"時間點：{labels[0]}  →  {labels[-1]}",
+            (200, 60),
+            f"時間範圍：{labels[0]} → {labels[-1]}",
             font=small_font,
             fill=GAME_COLORS["text_secondary"],
         )
 
-    y = header_h + 15
+    chart_y = header_h + 10
+    chart_rect = (40, chart_y, width - 40, chart_y + chart_h - 20)
+
+    draw_game_card(
+        draw,
+        chart_rect,
+        radius=12,
+        fill=GAME_COLORS["bg_card"],
+        border_color=GAME_COLORS["border"],
+    )
+
     palette = [
         GAME_COLORS["accent_blue"],
         GAME_COLORS["success"],
         GAME_COLORS["accent_red"],
         GAME_COLORS["accent_gold"],
+        GAME_COLORS["error"],
+        (128, 0, 128),
     ]
 
-    for idx, (cid, values) in enumerate(series_map.items()):
-        name = name_map.get(cid) or f"商品{cid}"
-        v = [int(x or 0) for x in (values or [])]
-        start = v[0] if v else 0
-        end = v[-1] if v else 0
-        change = end - start
-        pct = (change / start * 100) if start > 0 else 0.0
-        trend = "📈" if change > 0 else ("📉" if change < 0 else "➖")
-        trend_color = (
-            GAME_COLORS["success"]
-            if change > 0
-            else (GAME_COLORS["error"] if change < 0 else GAME_COLORS["text_muted"])
-        )
+    all_values = []
+    for values in series_map.values():
+        all_values.extend([int(x or 0) for x in (values or [])])
 
-        # 卡片
-        draw_game_card(
-            draw,
-            (20, y, width - 20, y + card_h),
-            radius=12,
-            fill=GAME_COLORS["bg_card"],
-            border_color=GAME_COLORS["border"],
-        )
-
-        # 商品名和趨勢
+    if not all_values:
         draw.text(
-            (40, y + 15),
-            f"{name}  {trend} {change:+,} ({pct:+.1f}%)",
+            (width // 2 - 50, chart_y + chart_h // 2),
+            "暫無數據",
             font=body_font,
-            fill=trend_color,
+            fill=GAME_COLORS["text_muted"],
         )
+    else:
+        min_val = min(all_values)
+        max_val = max(all_values)
+        val_range = max_val - min_val if max_val != min_val else 1
 
-        # 起始/最新價格
+        pad_left = 80
+        pad_right = 20
+        pad_top = 30
+        pad_bottom = 40
+
+        plot_x0 = chart_rect[0] + pad_left
+        plot_x1 = chart_rect[2] - pad_right
+        plot_y0 = chart_rect[1] + pad_top
+        plot_y1 = chart_rect[3] - pad_bottom
+
         draw.text(
-            (45, y + 45),
-            f"起始: {start:,}    最新: {end:,}",
+            (plot_x0 - 5, plot_y0 - 20),
+            f"價格",
             font=small_font,
-            fill=GAME_COLORS["text_secondary"],
+            fill=GAME_COLORS["text_muted"],
+        )
+        draw.text(
+            (plot_x0 - 10, plot_y0),
+            f"{max_val:,}",
+            font=small_font,
+            fill=GAME_COLORS["text_muted"],
+        )
+        draw.text(
+            (plot_x0 - 10, plot_y1 - 15),
+            f"{min_val:,}",
+            font=small_font,
+            fill=GAME_COLORS["text_muted"],
         )
 
-        # 走勢圖
-        _line_chart(
-            draw,
-            (320, y + 20, width - 35, y + card_h - 20),
-            v,
-            palette[idx % len(palette)],
+        num_points = max(len(v) for v in series_map.values()) if series_map else 0
+        if num_points > 1:
+            step = (plot_x1 - plot_x0) / (num_points - 1)
+        else:
+            step = 0
+
+        for i in range(0, num_points, max(1, num_points // 5)):
+            x = plot_x0 + i * step
+            if i < len(labels):
+                draw.text(
+                    (x - 20, plot_y1 + 5),
+                    labels[i][-5:] if len(labels[i]) > 5 else labels[i],
+                    font=small_font,
+                    fill=GAME_COLORS["text_muted"],
+                )
+
+        draw.line(
+            (plot_x0, plot_y1, plot_x1, plot_y1), fill=GAME_COLORS["border"], width=1
+        )
+        draw.line(
+            (plot_x0, plot_y0, plot_x0, plot_y1), fill=GAME_COLORS["border"], width=1
         )
 
-        y += card_h + gap
+        legend_items = []
+        for idx, (cid, values) in enumerate(series_map.items()):
+            name = name_map.get(cid) or f"商品{cid}"
+            v = [int(x or 0) for x in (values or [])]
+            if not v:
+                continue
 
-    # 底部
+            color = palette[idx % len(palette)]
+            points = []
+            for i, val in enumerate(v):
+                x = plot_x0 + i * step if num_points > 1 else (plot_x0 + plot_x1) // 2
+                y = plot_y1 - int((val - min_val) / val_range * (plot_y1 - plot_y0))
+                points.append((x, y))
+
+            if len(points) >= 2:
+                draw.line(points, fill=color, width=3)
+            elif len(points) == 1:
+                draw.ellipse(
+                    (
+                        points[0][0] - 4,
+                        points[0][1] - 4,
+                        points[0][0] + 4,
+                        points[0][1] + 4,
+                    ),
+                    fill=color,
+                )
+
+            start = v[0] if v else 0
+            end = v[-1] if v else 0
+            change = end - start
+            pct = (change / start * 100) if start > 0 else 0.0
+            legend_items.append((name, color, start, end, change, pct))
+
+        legend_y = chart_y + chart_h + 10
+        cols = 2
+        col_width = (width - 80) // cols
+
+        for idx, (name, color, start, end, change, pct) in enumerate(legend_items):
+            col = idx % cols
+            row = idx // cols
+            x = 40 + col * col_width
+            y = legend_y + row * 35
+
+            draw.ellipse((x, y + 5, x + 14, y + 19), fill=color)
+
+            trend = "📈" if change > 0 else ("📉" if change < 0 else "➖")
+            trend_color = (
+                GAME_COLORS["success"]
+                if change > 0
+                else (GAME_COLORS["error"] if change < 0 else GAME_COLORS["text_muted"])
+            )
+
+            draw.text(
+                (x + 20, y),
+                f"{name}",
+                font=legend_font,
+                fill=GAME_COLORS["text_primary"],
+            )
+            draw.text(
+                (x + 120, y),
+                f"{trend} {change:+,} ({pct:+.1f}%)",
+                font=small_font,
+                fill=trend_color,
+            )
+
     footer_y = height - footer_h - bottom_pad
-    draw_game_divider(draw, 30, width - 30, footer_y + 10)
+    draw_game_divider(draw, 30, width - 30, footer_y + 5)
     draw.text(
-        (30, footer_y + 28),
-        "💡 指令：/交易所 歷史 [商品] [天數]（1-30）",
+        (30, footer_y + 18),
+        "💡 指令：/交易所 歷史 [商品] [天數]（1-30）| 數值越低線條越靠下",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
     )
@@ -823,5 +915,154 @@ def draw_exchange_result_image(
                 fill=GAME_COLORS["text_secondary"],
             )
             y += row_h
+
+    return image
+
+
+def draw_exchange_stats_image(
+    total_quantity: int,
+    total_cost: int,
+    total_value: int,
+    profit_loss: int,
+    profit_rate: float,
+    commodity_details: List[Dict[str, Any]],
+    commodities_info: Dict[str, Any],
+) -> Image.Image:
+    """交易統計 - 遊戲風格"""
+    width = 1200
+    header_h = 160
+    row_h = 70
+    footer_h = 70
+    title_font = load_font(34)
+    body_font = load_font(20)
+    small_font = load_font(16)
+    measure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
+    row_h = max(row_h, body_h + 40)
+    bottom_pad = 24
+    height = header_h + max(1, len(commodity_details)) * row_h + footer_h + bottom_pad
+
+    image = create_game_gradient(width, height)
+    draw = ImageDraw.Draw(image)
+
+    draw_game_title_bar(draw, width, 0, header_h, "我的交易統計", title_font, "📊")
+
+    is_profit = profit_loss >= 0
+    pnl_color = GAME_COLORS["success"] if is_profit else GAME_COLORS["error"]
+    pnl_icon = "📈" if is_profit else "📉"
+
+    draw.text(
+        (30, 65),
+        f"📦 總持倉: {total_quantity}個  |  💰 總成本: {total_cost:,} 金幣",
+        font=small_font,
+        fill=GAME_COLORS["text_secondary"],
+    )
+    draw.text(
+        (30, 90),
+        f"💎 當前價值: {total_value:,} 金幣  |  {pnl_icon} 盈虧: {profit_loss:+,} ({profit_rate:+.1f}%)",
+        font=small_font,
+        fill=pnl_color,
+    )
+
+    draw.text(
+        (30, 118),
+        "─" * 50,
+        font=small_font,
+        fill=GAME_COLORS["border"],
+    )
+
+    y = header_h + 10
+
+    draw.text((40, y - 25), "商品", font=small_font, fill=GAME_COLORS["text_muted"])
+    draw.text((200, y - 25), "數量", font=small_font, fill=GAME_COLORS["text_muted"])
+    draw.text((300, y - 25), "成本", font=small_font, fill=GAME_COLORS["text_muted"])
+    draw.text((450, y - 25), "價值", font=small_font, fill=GAME_COLORS["text_muted"])
+    draw.text((600, y - 25), "盈虧", font=small_font, fill=GAME_COLORS["text_muted"])
+    draw.text((800, y - 25), "狀態", font=small_font, fill=GAME_COLORS["text_muted"])
+
+    for detail in commodity_details:
+        name = detail["name"]
+        qty = detail["quantity"]
+        cost = detail["cost"]
+        value = detail["value"]
+        pnl = detail["pnl"]
+        pnl_pct = detail["pnl_pct"]
+        expired = detail["expired"]
+        expiring = detail["expiring_soon"]
+
+        draw_game_card(
+            draw,
+            (20, y, width - 20, y + row_h),
+            radius=10,
+            fill=GAME_COLORS["bg_card"],
+            border_color=GAME_COLORS["border"],
+        )
+
+        draw.text(
+            (40, y + 15),
+            str(name)[:10],
+            font=body_font,
+            fill=GAME_COLORS["text_primary"],
+        )
+        draw.text(
+            (200, y + 15),
+            f"{qty}",
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
+        )
+        draw.text(
+            (300, y + 15),
+            f"{cost:,}",
+            font=small_font,
+            fill=GAME_COLORS["text_secondary"],
+        )
+        draw.text(
+            (450, y + 15),
+            f"{value:,}",
+            font=small_font,
+            fill=GAME_COLORS["accent_gold"],
+        )
+
+        item_pnl_color = GAME_COLORS["success"] if pnl >= 0 else GAME_COLORS["error"]
+        pnl_emoji = "📈" if pnl >= 0 else "📉"
+        draw.text(
+            (600, y + 15),
+            f"{pnl_emoji} {pnl:+,} ({pnl_pct:+.1f}%)",
+            font=small_font,
+            fill=item_pnl_color,
+        )
+
+        status_text = ""
+        status_color = GAME_COLORS["text_secondary"]
+        if expired > 0:
+            status_text = f"💀 過期{expired}個"
+            status_color = GAME_COLORS["error"]
+        elif expiring > 0:
+            status_text = f"⚠️ 將過期{expiring}個"
+            status_color = (
+                GAME_COLORS["warning"]
+                if "warning" in GAME_COLORS
+                else GAME_COLORS["accent_gold"]
+            )
+        else:
+            status_text = "✅ 正常"
+
+        draw.text(
+            (800, y + 15),
+            status_text,
+            font=small_font,
+            fill=status_color,
+        )
+
+        y += row_h
+
+    footer_y = height - footer_h - bottom_pad
+    draw_game_divider(draw, 30, width - 30, footer_y + 10)
+    draw.text(
+        (30, footer_y + 25),
+        "💡 查詳情：/持倉 | 看分析：/交易所 分析",
+        font=small_font,
+        fill=GAME_COLORS["text_secondary"],
+    )
 
     return image

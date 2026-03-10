@@ -61,6 +61,11 @@
                 {% endif %}
                 <p><strong>稀有鱼每日配额:</strong> {{ zone.daily_rare_fish_quota }}</p>
                 <p><strong>钓鱼消耗:</strong> {{ zone.fishing_cost }} 金币</p>
+                <p><strong>稀有度回退:</strong>
+                    <span class="badge bg-{{ 'success' if zone.configs.allow_global_fallback is not defined or zone.configs.allow_global_fallback else 'secondary' }}">
+                        {{ '开启' if zone.configs.allow_global_fallback is not defined or zone.configs.allow_global_fallback else '关闭' }}
+                    </span>
+                </p>
                 {% if zone.requires_pass and zone.required_item_id %}
                 <p><strong>通行证要求:</strong> 
                     <span class="badge bg-warning">

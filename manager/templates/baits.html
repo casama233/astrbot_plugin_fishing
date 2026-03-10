@@ -2,132 +2,203 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2><i class="fas fa-bug"></i> 鱼饵管理</h2>
-    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#itemModal" id="addItemBtn">
-        <i class="fas fa-plus"></i> 添加新鱼饵
-    </button>
+<h2><i class="fas fa-bug"></i> 鱼饵管理</h2>
+<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#itemModal" id="addItemBtn">
+<i class="fas fa-plus"></i> 添加新鱼饵
+</button>
 </div>
 
 <div class="alert alert-info mb-3">
-    这是鱼饵模板管理。只要填“名称、稀有度、成本”，就能用。
-    其它加成可以慢慢调。
+这是鱼饵模板管理。只要填"名称、稀有度、成本"，就能用。其它加成可以慢慢调。
 </div>
 
 <div class="card border-primary">
-    <div class="card-header">现有鱼饵列表</div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>名称</th>
-                        <th>稀有度</th>
-                        <th>成本</th>
-                        <th>效果描述</th>
-                        <th>实际作用代码</th>
-                        <th class="text-center">结构化效果</th>
-                        <th class="text-end">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr>
-                        <td>{{ item.bait_id }}</td>
-                        <td>{{ item.name }}</td>
-                        <td>{{ '★' * item.rarity }}</td>
-                        <td>{{ item.cost }}</td>
-                        <td>{{ item.effect_description or '无' }}</td>
-                        <td><code>{{ item.effect_note or '未配置' }}</code></td>
-                        <td>
-                            <span class="badge bg-success" title="成功率加成">+{{ item.success_rate_modifier * 100 }}%</span>
-                            <span class="badge bg-info" title="稀有度加成">+{{ item.rare_chance_modifier * 100 }}%</span>
-                            <span class="badge bg-secondary" title="垃圾减少率">{{ item.garbage_reduction_modifier * 100 }}%</span>
-                            <span class="badge bg-warning text-dark" title="价值乘数">x{{ item.value_modifier }}</span>
-                            <span class="badge bg-primary" title="数量乘数">x{{ item.quantity_modifier }}</span>
-                            {% if item.is_consumable %}
-                                <span class="badge bg-danger">消耗品</span>
-                            {% else %}
-                                <span class="badge bg-dark">可重复</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-info edit-btn"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#itemModal"
-                                    data-item-json='{{ item|tojson|safe }}'>
-                                <i class="fas fa-edit"></i> 编辑
-                            </button>
-                            <form action="{{ url_for('admin_bp.delete_bait', bait_id=item.bait_id) }}" method="post" class="d-inline" onsubmit="return confirm('确定要删除【{{ item.name }}】吗？');">
-                                <button type="submit" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i> 删除
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+<div class="card-header">现有鱼饵列表</div>
+<div class="card-body">
+<div class="table-responsive">
+<table class="table table-striped table-hover">
+<thead>
+<tr>
+<th>ID</th>
+<th>名称</th>
+<th>稀有度</th>
+<th>成本</th>
+<th>效果描述</th>
+<th class="text-center">结构化效果</th>
+<th>特殊效果代码</th>
+<th class="text-end">操作</th>
+</tr>
+</thead>
+<tbody>
+{% for item in items %}
+<tr>
+<td>{{ item.bait_id }}</td>
+<td>{{ item.name }}</td>
+<td>{{ '★' * item.rarity }}</td>
+<td>{{ item.cost }}</td>
+<td>{{ item.effect_description or '无' }}</td>
+<td>
+<span class="badge bg-success" title="成功率加成">+{{ item.success_rate_modifier * 100 }}%</span>
+<span class="badge bg-info" title="稀有度加成">+{{ item.rare_chance_modifier * 100 }}%</span>
+<span class="badge bg-secondary" title="垃圾减少率">{{ item.garbage_reduction_modifier * 100 }}%</span>
+<span class="badge bg-warning text-dark" title="价值乘数">x{{ item.value_modifier }}</span>
+<span class="badge bg-primary" title="数量乘数">x{{ item.quantity_modifier }}</span>
+{% if item.is_consumable %}
+<span class="badge bg-danger">消耗品</span>
+{% else %}
+<span class="badge bg-dark">可重复</span>
+{% endif %}
+</td>
+<td><code class="small">{{ item.effect_note or '-' }}</code></td>
+<td class="text-end">
+<button class="btn btn-sm btn-info edit-btn"
+data-bs-toggle="modal"
+data-bs-target="#itemModal"
+data-item-json='{{ item|tojson|safe }}'>
+<i class="fas fa-edit"></i> 编辑
+</button>
+<form action="{{ url_for('admin_bp.delete_bait', bait_id=item.bait_id) }}" method="post" class="d-inline" onsubmit="return confirm('确定要删除【{{ item.name }}】吗？');">
+<button type="submit" class="btn btn-sm btn-danger">
+<i class="fas fa-trash"></i> 删除
+</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
 </div>
 
 <div class="modal fade" id="itemModal" tabindex="-1" aria-labelledby="itemModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form id="item-form" method="post">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="itemModalLabel">管理鱼饵</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：万能饵、普通蚯蚓</div></div>
-                        <div class="col-md-4">
-                            <label>稀有度</label>
-                            <input type="number" name="rarity" class="form-control" min="1" required>
-                            <div class="form-text text-muted small">1=普通，5=稀有</div>
-                        </div>
-                        <div class="col-12"><label>描述 (给玩家看)</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">描述用途</div></div>
-                        <div class="col-12"><label>效果描述 (给玩家看)</label><textarea name="effect_description" class="form-control" rows="2"></textarea><div class="form-text">玩家看到的效果提示</div></div>
-                        <div class="col-12"><label>实际作用代码</label><textarea name="effect_note" class="form-control font-monospace" rows="4" placeholder="例如：success_rate_modifier=0.15&#10;duration_minutes=30"></textarea><div class="form-text">这里仍是记录用途，不会像饰品特殊效果代码块那样参与额外逻辑执行。</div></div>
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+<form id="item-form" method="post">
+<div class="modal-header">
+<h5 class="modal-title" id="itemModalLabel">管理鱼饵</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+<div class="row g-3">
+<div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：万能饵、普通蚯蚓</div></div>
+<div class="col-md-4">
+<label>稀有度</label>
+<input type="number" name="rarity" class="form-control" min="1" required>
+<div class="form-text text-muted small">1=普通，5=稀有</div>
+</div>
+<div class="col-12"><label>描述 (给玩家看)</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">描述用途</div></div>
+<div class="col-12"><label>效果描述 (给玩家看)</label><textarea name="effect_description" class="form-control" rows="2"></textarea><div class="form-text">玩家看到的效果提示</div></div>
 
-                        <hr class="my-4">
-                        <h6 class="mb-3">核心数值配置</h6>
+<hr class="my-4">
+<h6 class="mb-3">核心数值配置</h6>
 
-                        <div class="col-md-4"><label>持续分钟(0为一次性)</label><input type="number" name="duration_minutes" class="form-control" value="0"><div class="form-text">0=用一次就结束</div></div>
-                        <div class="col-md-4"><label>购买成本</label><input type="number" name="cost" class="form-control" value="0"><div class="form-text">商店购买价格</div></div>
-                        <div class="col-md-4"><label>要求鱼竿稀有度</label><input type="number" name="required_rod_rarity" class="form-control" value="0"><div class="form-text">0=不限制</div></div>
+<div class="col-md-4"><label>持续分钟(0为一次性)</label><input type="number" name="duration_minutes" class="form-control" value="0"><div class="form-text">0=用一次就结束</div></div>
+<div class="col-md-4"><label>购买成本</label><input type="number" name="cost" class="form-control" value="0"><div class="form-text">商店购买价格</div></div>
+<div class="col-md-4"><label>要求鱼竿稀有度</label><input type="number" name="required_rod_rarity" class="form-control" value="0"><div class="form-text">0=不限制</div></div>
 
-                        <div class="col-md-4"><label>成功率加成 (+0.1 = +10%)</label><input type="number" step="0.01" name="success_rate_modifier" class="form-control" value="0.0"></div>
-                        <div class="col-md-4"><label>稀有率加成 (+0.05 = +5%)</label><input type="number" step="0.01" name="rare_chance_modifier" class="form-control" value="0.0"></div>
-                        <div class="col-md-4"><label>垃圾减少率 (0.5 = 50%)</label><input type="number" step="0.01" name="garbage_reduction_modifier" class="form-control" value="0.0"></div>
-                        <div class="col-md-4"><label>价值乘数 (1.1 = +10%)</label><input type="number" step="0.01" name="value_modifier" class="form-control" value="1.0"></div>
-                        <div class="col-md-4"><label>数量乘数 (2.0 = 双倍)</label><input type="number" step="0.01" name="quantity_modifier" class="form-control" value="1.0"></div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="is_consumable" id="isConsumable" checked>
-                                <label class="form-check-label" for="isConsumable">是一次性消耗品</label>
-                            </div>
-                        </div>
+<div class="col-md-4"><label>成功率加成 (+0.1 = +10%)</label><input type="number" step="0.01" name="success_rate_modifier" class="form-control" value="0.0"></div>
+<div class="col-md-4"><label>稀有率加成 (+0.05 = +5%)</label><input type="number" step="0.01" name="rare_chance_modifier" class="form-control" value="0.0"></div>
+<div class="col-md-4"><label>垃圾减少率 (0.5 = 50%)</label><input type="number" step="0.01" name="garbage_reduction_modifier" class="form-control" value="0.0"></div>
+<div class="col-md-4"><label>价值乘数 (1.1 = +10%)</label><input type="number" step="0.01" name="value_modifier" class="form-control" value="1.0"></div>
+<div class="col-md-4"><label>数量乘数 (2.0 = 双倍)</label><input type="number" step="0.01" name="quantity_modifier" class="form-control" value="1.0"></div>
+<div class="col-md-4"><label>重量乘数 (1.5 = +50%)</label><input type="number" step="0.01" name="weight_modifier" class="form-control" value="1.0"></div>
 
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
+<div class="col-md-6 d-flex align-items-end">
+<div class="form-check form-switch">
+<input class="form-check-input" type="checkbox" name="is_consumable" id="isConsumable" checked>
+<label class="form-check-label" for="isConsumable">是一次性消耗品</label>
+</div>
+</div>
+
+<div class="col-12"><label>特殊效果代码块</label><textarea name="effect_note" class="form-control font-monospace" rows="6" placeholder="例如：&#10;fishing_success_bonus=0.05&#10;fishing_rare_bonus=0.03"></textarea><div class="form-text">定义鱼饵使用后的额外特殊效果，支持 <code>key=value</code> 多行格式或 JSON 对象格式。此效果会叠加到结构化效果之上。</div></div>
+
+<!-- 可用键速查表 -->
+<div class="col-12">
+<div class="card border-info">
+<div class="card-header bg-info text-white py-2">
+<i class="fas fa-key me-1"></i> 可用键速查表
+</div>
+<div class="card-body p-2">
+<div class="row">
+<div class="col-md-6 mb-2">
+<div class="fw-bold text-primary mb-1"><i class="fas fa-fish me-1"></i>钓鱼加成</div>
+<table class="table table-sm table-borderless mb-0 small">
+<tbody>
+<tr>
+<td class="ps-0" style="width: 280px;"><code>fishing_success_bonus</code></td>
+<td><span class="text-muted">成功率加成，0.05=+5%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_rare_bonus</code></td>
+<td><span class="text-muted">稀有鱼出现率加成，0.03=+3%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_coin_bonus</code></td>
+<td><span class="text-muted">钓鱼金币收益加成，0.10=+10%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_quality_multiplier</code></td>
+<td><span class="text-muted">高品质鱼概率倍率，1.2=+20%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_quantity_multiplier</code></td>
+<td><span class="text-muted">钓鱼数量倍率，1.1=+10%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>fishing_weight_multiplier</code></td>
+<td><span class="text-muted">钓鱼重量倍率，1.5=+50%</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="col-md-6 mb-2">
+<div class="fw-bold text-warning mb-1"><i class="fas fa-cog me-1"></i>其他效果</div>
+<table class="table table-sm table-borderless mb-0 small">
+<tbody>
+<tr>
+<td class="ps-0" style="width: 280px;"><code>garbage_reduction</code></td>
+<td><span class="text-muted">垃圾鱼额外减少率，0.3=减少30%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>cooldown_multiplier</code></td>
+<td><span class="text-muted">钓鱼冷却时间倍率，0.8=减少20%</span></td>
+</tr>
+<tr>
+<td class="ps-0"><code>duration_multiplier</code></td>
+<td><span class="text-muted">鱼饵持续时间倍率，2.0=双倍时间</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="alert alert-light mb-0 py-2 small">
+<i class="fas fa-info-circle me-1"></i>
+<strong>使用示例：</strong>
+<code class="ms-1">fishing_success_bonus=0.05<br>fishing_rare_bonus=0.02</code>
+<span class="ms-2 text-muted">（表示额外+5%成功率，+2%稀有率）</span>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+<button type="submit" class="btn btn-primary">保存</button>
+</div>
+</form>
+</div>
+</div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 {{ super() }}
 <script>
-    const addUrl = "{{ url_for('admin_bp.add_bait') }}";
-    const editUrlBase = "{{ url_for('admin_bp.edit_bait', bait_id=0) }}".slice(0, -1);
+const addUrl = "{{ url_for('admin_bp.add_bait') }}";
+const editUrlBase = "{{ url_for('admin_bp.edit_bait', bait_id=0) }}".slice(0, -1);
 </script>
 <script src="{{ url_for('admin_bp.static', filename='js/baits_manager.js') }}"></script>
 {% endblock %}

@@ -601,11 +601,12 @@ class InventoryService:
         coins_from_bags = self._auto_consume_money_bags(user)
         if coins_from_bags > 0:
             try:
-                self.log_repo.add_log(
-                    user.user_id,
-                    "money_bag_auto_open",
-                    f"自动开启钱袋获得 {coins_from_bags} 金币",
-                )
+                if self.log_repo:
+                    self.log_repo.add_log(
+                        user.user_id,
+                        "money_bag_auto_open",
+                        f"自动开启钱袋获得 {coins_from_bags} 金币",
+                    )
             except Exception:
                 pass
 
@@ -663,6 +664,8 @@ class InventoryService:
             return 0
 
         total_gained = 0
+        if not self.effect_manager:
+            return 0
         effect_handler = self.effect_manager.get_effect("ADD_COINS")
         if not effect_handler:
             return 0
@@ -955,7 +958,8 @@ class InventoryService:
                 }
 
             user.equipped_rod_instance_id = instance_id
-            equip_item_name = self.item_template_repo.get_rod_by_id(equip_item_id).name
+            rod_template = self.item_template_repo.get_rod_by_id(equip_item_id)
+            equip_item_name = rod_template.name if rod_template else "鱼竿"
 
         elif item_type == "accessory":
             instances = self.inventory_repo.get_user_accessory_instances(user_id)
@@ -966,9 +970,12 @@ class InventoryService:
             if instance_id not in [i.accessory_instance_id for i in instances]:
                 return {"success": False, "message": "❌ 饰品不存在或不属于你"}
             user.equipped_accessory_instance_id = instance_id
-            equip_item_name = self.item_template_repo.get_accessory_by_id(
+            if equip_item_id is None:
+                return {"success": False, "message": "❌ 饰品不存在或不属于你"}
+            accessory_template = self.item_template_repo.get_accessory_by_id(
                 equip_item_id
-            ).name
+            )
+            equip_item_name = accessory_template.name if accessory_template else "饰品"
         else:
             return {"success": False, "message": "❌ 不支持的装备类型"}
 
@@ -1616,8 +1623,10 @@ class InventoryService:
                                 max_rarity = payload.get("max_rarity")
 
                                 # 检查护符是否对当前装备生效
-                                if max_rarity is not None and template.rarity > int(
-                                    max_rarity
+                                if (
+                                    max_rarity is not None
+                                    and template
+                                    and getattr(template, "rarity", 0) > int(max_rarity)
                                 ):
                                     continue
 
@@ -1834,12 +1843,12 @@ class InventoryService:
 
         # 检查模板是否存在durability属性（配饰可能没有耐久度）
         original_max_durability = None
-        if (
-            template
-            and hasattr(template, "durability")
-            and template.durability is not None
-        ):
-            original_max_durability = template.durability
+        if isinstance(template, dict):
+            durability_value = template.get("durability")
+        else:
+            durability_value = getattr(template, "durability", None)
+        if durability_value is not None:
+            original_max_durability = durability_value
 
         # 提升精炼等级
         old_refine_level = instance.refine_level
@@ -1855,7 +1864,10 @@ class InventoryService:
         is_first_infinite = False
 
         # 获取装备稀有度（对于所有装备类型）
-        rarity = template.rarity if template and hasattr(template, "rarity") else 1
+        if isinstance(template, dict):
+            rarity = int(template.get("rarity", 1) or 1)
+        else:
+            rarity = template.rarity if template and hasattr(template, "rarity") else 1
 
         # 检查是否符合无限耐久条件（5星以上10级）
         if new_refine_level >= 10 and rarity >= 5:
@@ -1931,9 +1943,13 @@ class InventoryService:
         if not item_template:
             return {"success": False, "message": "道具信息不存在"}
 
-        if not getattr(item_template, "is_consumable", False):
-            effect_type = getattr(item_template, "effect_type", None)
-            item_name = getattr(item_template, "name", "该道具")
+        item_name = getattr(item_template, "name", "该道具")
+        is_dispel = self.is_dispel_item_template(item_template)
+        effect_type = getattr(item_template, "effect_type", None)
+        if is_dispel and not effect_type:
+            effect_type = "STEAL_PROTECTION_REMOVAL"
+
+        if not getattr(item_template, "is_consumable", False) and not is_dispel:
             if effect_type == "ADD_COINS" or "钱袋" in item_name:
                 return {
                     "success": False,
@@ -1951,13 +1967,17 @@ class InventoryService:
                 ),
             }
 
-        effect_type = item_template.effect_type
         if not effect_type:
             return {
                 "success": True,
                 "message": f"成功使用了 {quantity} 个【{item_template.name}】，但它似乎没什么效果。",
             }
 
+        if not self.effect_manager:
+            return {
+                "success": False,
+                "message": "效果系统未就绪，请稍后再试。",
+            }
         effect_handler = self.effect_manager.get_effect(effect_type)
         if not effect_handler:
             return {
@@ -1998,6 +2018,22 @@ class InventoryService:
             # 異常處理，防止某個效果的bug導致整個流程中斷
             # 在實際生產中，這裡應該有更詳細的日誌記錄
             return {"success": False, "message": f"使用道具时发生未知错误: {e}"}
+
+    @staticmethod
+    def is_dispel_item_template(item_template) -> bool:
+        name = (getattr(item_template, "name", "") or "").lower()
+        desc = (getattr(item_template, "description", "") or "").lower()
+        effect_desc = (getattr(item_template, "effect_description", "") or "").lower()
+        effect_type = (getattr(item_template, "effect_type", "") or "").upper()
+
+        if effect_type == "STEAL_PROTECTION_REMOVAL":
+            return True
+
+        keywords = ["驱灵", "驅靈", "驱散", "驅散"]
+        for key in keywords:
+            if key in name:
+                return True
+        return False
 
     def open_all_money_bags(self, user_id: str) -> Dict[str, Any]:
         """
@@ -2050,6 +2086,8 @@ class InventoryService:
             }
 
         # 获取金币效果处理器
+        if not self.effect_manager:
+            return {"success": False, "message": "效果系统未就绪，请稍后再试。"}
         effect_handler = self.effect_manager.get_effect("ADD_COINS")
         if not effect_handler:
             return {"success": False, "message": "金币效果处理器不可用"}
@@ -2079,14 +2117,14 @@ class InventoryService:
                     )
                 else:
                     # 如果开启失败，恢复道具数量
-                    self.inventory_repo.increase_item_quantity(
+                    self.inventory_repo.update_item_quantity(
                         user_id, tpl.item_id, quantity
                     )
 
             except Exception as e:
                 # 如果开启失败，恢复道具数量
                 try:
-                    self.inventory_repo.increase_item_quantity(
+                    self.inventory_repo.update_item_quantity(
                         user_id, tpl.item_id, quantity
                     )
                 except:
