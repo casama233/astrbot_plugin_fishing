@@ -270,15 +270,24 @@ class ExchangeInventoryService:
                 remaining_quantity -= sold
 
             # 计算总收益（只有有效商品有价值）
-            items_to_process = expired_items + valid_items  # 供盈亏分析和库存扣减复用
+            items_to_process = expired_items + valid_items  # 供库存扣减复用
             total_income = current_price * valid_sold
             is_all_expired = expired_sold == quantity
 
-            # 计算盈亏分析（用于确定税基）
-            profit_loss = self._calculate_profit_loss_analysis(
-                items_to_process, quantity, current_price
-            )
-            taxable_profit = max(int(profit_loss.get("profit_loss", 0)), 0)
+            # 计算盈亏分析（税基只针对有效卖出部分）
+            profit_loss = {
+                "total_cost": 0,
+                "total_income": 0,
+                "profit_loss": 0,
+                "profit_rate": 0,
+                "is_profit": False,
+            }
+            taxable_profit = 0
+            if valid_sold > 0:
+                profit_loss = self._calculate_profit_loss_analysis(
+                    valid_items, valid_sold, current_price
+                )
+                taxable_profit = max(int(profit_loss.get("profit_loss", 0)), 0)
 
             # 计算税费（仅对盈利部分征税）
             tax_rate = self.config.get("tax_rate", 0.05)
@@ -344,10 +353,14 @@ class ExchangeInventoryService:
             elif expired_sold > 0:
                 message = (
                     f"✅ 卖出成功！处理了 {quantity} 个商品（其中 {expired_sold} 个已腐败），"
-                    f"获得 {net_income:,} 金币\n{tax_message}\n💀 提示：腐败商品价值为0"
+                    f"成交价 {current_price:,} 金币/个，到手 {net_income:,} 金币\n{tax_message}\n"
+                    "💀 提示：腐败商品价值为0"
                 )
             else:
-                message = f"✅ 卖出成功！获得 {net_income:,} 金币\n{tax_message}"
+                message = (
+                    f"✅ 卖出成功！成交价 {current_price:,} 金币/个，"
+                    f"获得 {net_income:,} 金币\n{tax_message}"
+                )
 
             return {
                 "success": True,

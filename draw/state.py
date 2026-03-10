@@ -51,49 +51,25 @@ def _draw_equipment_bonuses(
     x, y = origin
     lines = []
 
-    def _coerce(value: Any) -> Optional[float]:
+    def _add_line(label: str, value: float) -> None:
         if value is None:
-            return None
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
+            return
+        if value == 1 or value == 1.0:
+            return
+        if value == 0:
+            return
+        if value < 1:
+            pct = int(round(value * 100))
+            lines.append(f"{label}-{pct}%")
+            return
+        pct = int(round((value - 1) * 100))
+        lines.append(f"{label}+{pct}%")
 
-    def _add_multiplier(label: str, value: Any) -> None:
-        val = _coerce(value)
-        if val is None:
-            return
-        if val == 1.0:
-            return
-        pct = int(round((val - 1) * 100))
-        if pct == 0:
-            return
-        sign = "+" if pct > 0 else ""
-        lines.append(f"{label}{sign}{pct}%")
-
-    def _add_delta(label: str, value: Any) -> None:
-        val = _coerce(value)
-        if val is None:
-            return
-        if val == 0.0:
-            return
-        pct = int(round(val * 100))
-        if pct == 0:
-            return
-        sign = "+" if pct > 0 else ""
-        lines.append(f"{label}{sign}{pct}%")
-
-    _add_multiplier("重量", source.get("weight_modifier"))
-    _add_multiplier("品質", source.get("bonus_fish_quality_modifier"))
-    _add_multiplier("數量", source.get("bonus_fish_quantity_modifier"))
-    _add_multiplier("金幣", source.get("bonus_coin_modifier"))
-
-    _add_delta("稀有", source.get("bonus_rare_fish_chance"))
-    _add_delta("成功", source.get("success_rate_modifier"))
-    _add_delta("稀有", source.get("rare_chance_modifier"))
-    _add_delta("垃圾", source.get("garbage_reduction_modifier"))
-    _add_multiplier("價值", source.get("value_modifier"))
-    _add_multiplier("數量", source.get("quantity_modifier"))
+    _add_line("重量", source.get("weight_modifier"))
+    _add_line("品質", source.get("bonus_fish_quality_modifier"))
+    _add_line("數量", source.get("bonus_fish_quantity_modifier"))
+    _add_line("稀有", source.get("bonus_rare_fish_chance"))
+    _add_line("金幣", source.get("bonus_coin_modifier"))
 
     if not lines:
         return
@@ -225,13 +201,6 @@ def draw_state_image(
             fill=GAME_COLORS["text_primary"],
         )
         draw.text((35, y + 55), stars, font=tiny_font, fill=color)
-        if rod.get("description"):
-            draw.text(
-                (35, y + 72),
-                normalize_display_text(rod["description"])[:18],
-                font=tiny_font,
-                fill=GAME_COLORS["text_muted"],
-            )
 
         # 耐久
         max_dur = rod.get("max_durability")
@@ -242,21 +211,21 @@ def draw_state_image(
                 GAME_COLORS["success"] if dur_pct > 0.3 else GAME_COLORS["warning"]
             )
             draw.text(
-                (35, y + 92),
+                (35, y + 75),
                 f"耐久: {cur_dur}/{max_dur}",
                 font=tiny_font,
                 fill=dur_color,
             )
         else:
             draw.text(
-                (35, y + 92),
+                (35, y + 75),
                 "♾️ 無限耐久",
                 font=tiny_font,
                 fill=GAME_COLORS["accent_blue"],
             )
         _draw_equipment_bonuses(
             draw,
-            (35, y + 110),
+            (35, y + 115),
             rod,
             tiny_font,
         )
@@ -289,16 +258,9 @@ def draw_state_image(
             fill=GAME_COLORS["text_primary"],
         )
         draw.text((280, y + 55), stars, font=tiny_font, fill=color)
-        if accessory.get("description"):
-            draw.text(
-                (280, y + 72),
-                normalize_display_text(accessory["description"])[:18],
-                font=tiny_font,
-                fill=GAME_COLORS["text_muted"],
-            )
         _draw_equipment_bonuses(
             draw,
-            (280, y + 92),
+            (280, y + 75),
             accessory,
             tiny_font,
         )
@@ -326,25 +288,18 @@ def draw_state_image(
             font=content_font,
             fill=GAME_COLORS["text_primary"],
         )
-        if bait.get("description"):
-            draw.text(
-                (500, y + 55),
-                normalize_display_text(bait["description"])[:12],
-                font=tiny_font,
-                fill=GAME_COLORS["text_muted"],
-            )
 
         duration = bait.get("duration_minutes", 0)
         if duration > 0:
             draw.text(
-                (500, y + 72),
+                (500, y + 55),
                 f"剩餘 {duration} 分鐘",
                 font=tiny_font,
                 fill=GAME_COLORS["accent_blue"],
             )
         _draw_equipment_bonuses(
             draw,
-            (500, y + 92),
+            (500, y + 75),
             bait,
             tiny_font,
         )
@@ -355,7 +310,6 @@ def draw_state_image(
             font=content_font,
             fill=GAME_COLORS["text_muted"],
         )
-
     y += 205
 
     # 3. 功能狀態

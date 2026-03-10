@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Set
 from datetime import date, datetime
 
 # 从领域模型导入所有需要的实体
@@ -36,6 +36,7 @@ from ..domain.models import (
     UserCommodity,  # 新增交易所模型导入
     RedPacket,
     RedPacketRecord,
+    UserFishStat,
 )
 
 # 定义用户成就进度的数据结构
@@ -537,13 +538,6 @@ class AbstractInventoryRepository(ABC):
     def delete_accessory_instance(self, accessory_instance_id: int) -> None:
         pass
 
-    # 更新用户鱼类数量(增减)
-    @abstractmethod
-    def update_fish_quantity(
-        self, user_id: str, fish_id: int, delta: int, quality_level: int = 0
-    ) -> None:
-        pass
-
     # 获取钓鱼区域信息
     @abstractmethod
     def get_zone_by_id(self, zone_id: int) -> FishingZone:
@@ -766,12 +760,12 @@ class AbstractMarketRepository(ABC):
     @abstractmethod
     def get_all_listings(
         self,
-        page: int = None,
-        per_page: int = None,
-        item_type: str = None,
-        min_price: int = None,
-        max_price: int = None,
-        search: str = None,
+        page: Optional[int] = None,
+        per_page: Optional[int] = None,
+        item_type: Optional[str] = None,
+        min_price: Optional[int] = None,
+        max_price: Optional[int] = None,
+        search: Optional[str] = None,
     ) -> tuple:
         pass
 
@@ -879,13 +873,11 @@ class AbstractLogRepository(ABC):
 
     # --- 用户鱼类统计（用于图鉴与个人纪录） ---
     @abstractmethod
-    def get_user_fish_stats(self, user_id: str) -> List["UserFishStat"]:
+    def get_user_fish_stats(self, user_id: str) -> List[UserFishStat]:
         pass
 
     @abstractmethod
-    def get_user_fish_stat(
-        self, user_id: str, fish_id: int
-    ) -> Optional["UserFishStat"]:
+    def get_user_fish_stat(self, user_id: str, fish_id: int) -> Optional[UserFishStat]:
         pass
 
 
@@ -913,23 +905,22 @@ class AbstractAchievementRepository(ABC):
     ) -> None:
         pass
 
-        # 授予用户一个称号
-        @abstractmethod
-        def grant_title_to_user(self, user_id: str, title_id: int) -> None:
-            pass
+    # 授予用户一个称号
+    @abstractmethod
+    def grant_title_to_user(self, user_id: str, title_id: int) -> None:
+        pass
 
-        # 移除用户的一个称号
-        @abstractmethod
-        def revoke_title_from_user(self, user_id: str, title_id: int) -> None:
-            pass
+    # 移除用户的一个称号
+    @abstractmethod
+    def revoke_title_from_user(self, user_id: str, title_id: int) -> None:
+        pass
 
-        # 获取用户拥有的称号ID列表
-        @abstractmethod
-        def get_user_titles(self, user_id: str) -> List[int]:
-            pass
+    # 获取用户拥有的称号ID列表
+    @abstractmethod
+    def get_user_titles(self, user_id: str) -> List[int]:
+        raise NotImplementedError
 
-        # 获取用户钓到的不同鱼种数量
-
+    # 获取用户钓到的不同鱼种数量
     @abstractmethod
     def get_user_unique_fish_count(self, user_id: str) -> int:
         pass

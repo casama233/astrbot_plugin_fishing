@@ -1,5 +1,6 @@
-from typing import Dict, Any, Optional
+import threading
 from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
 import random
 import math
 
@@ -38,6 +39,7 @@ class MarketService:
         self.item_template_repo = item_template_repo
         self.exchange_repo = exchange_repo
         self.config = config
+        self._transaction_lock = threading.Lock()
 
         # 确保虚拟市场用户存在（用于托管上架的装备）
         self._ensure_market_user_exists()
@@ -277,11 +279,18 @@ class MarketService:
         else:
             self.exchange_repo.delete_user_commodity(item_instance_id)
 
+        if commodity_template:
+            commodity_name = commodity_template.name
+            commodity_description = commodity_template.description
+        else:
+            commodity_name = str(item_template_id)
+            commodity_description = None
+
         return {
             "success": True,
             "item_template_id": item_template_id,
-            "item_name": commodity_template.name,
-            "item_description": commodity_template.description,
+            "item_name": commodity_name,
+            "item_description": commodity_description,
             "item_refine_level": 1,
             "expires_at": user_commodity.expires_at,
         }
@@ -391,49 +400,50 @@ class MarketService:
         if not validation_result["success"]:
             return validation_result
 
-        # 执行上架事务
-        self._execute_listing_transaction(
-            user_id, item_type, item_instance_id, quantity, quality_level
-        )
+        with self._transaction_lock:
+            # 执行上架事务
+            self._execute_listing_transaction(
+                user_id, item_type, item_instance_id, quantity, quality_level
+            )
 
-        # 扣除税费
-        seller.coins -= tax_cost
-        self.user_repo.update(seller)
+            # 扣除税费
+            seller.coins -= tax_cost
+            self.user_repo.update(seller)
 
-        # 记录税收日志
-        tax_log = TaxRecord(
-            tax_id=0,
-            user_id=user_id,
-            tax_amount=tax_cost,
-            tax_rate=tax_rate,
-            original_amount=price,
-            balance_after=seller.coins,
-            tax_type="市场交易税",
-            timestamp=datetime.now(),
-        )
-        self.log_repo.add_tax_record(tax_log)
+            # 记录税收日志
+            tax_log = TaxRecord(
+                tax_id=0,
+                user_id=user_id,
+                tax_amount=tax_cost,
+                tax_rate=tax_rate,
+                original_amount=price,
+                balance_after=seller.coins,
+                tax_type="市场交易税",
+                timestamp=datetime.now(),
+            )
+            self.log_repo.add_tax_record(tax_log)
 
-        # 创建市场条目
-        new_listing = MarketListing(
-            market_id=0,
-            user_id=user_id,
-            seller_nickname=seller.nickname,
-            item_type=item_type,
-            item_id=validation_result["item_template_id"],
-            item_instance_id=item_instance_id
-            if item_type not in ["item", "fish"]
-            else None,
-            quantity=quantity,
-            item_name=validation_result["item_name"],
-            item_description=validation_result["item_description"],
-            price=price,
-            listed_at=datetime.now(),
-            expires_at=validation_result["expires_at"],
-            refine_level=validation_result["item_refine_level"],
-            quality_level=quality_level if item_type == "fish" else 0,
-            is_anonymous=is_anonymous,
-        )
-        self.market_repo.add_listing(new_listing)
+            # 创建市场条目
+            new_listing = MarketListing(
+                market_id=0,
+                user_id=user_id,
+                seller_nickname=seller.nickname or user_id,
+                item_type=item_type,
+                item_id=validation_result["item_template_id"],
+                item_instance_id=item_instance_id
+                if item_type not in ["item", "fish"]
+                else None,
+                quantity=quantity,
+                item_name=validation_result["item_name"],
+                item_description=validation_result["item_description"],
+                price=price,
+                listed_at=datetime.now(),
+                expires_at=validation_result["expires_at"],
+                refine_level=validation_result["item_refine_level"],
+                quality_level=quality_level if item_type == "fish" else 0,
+                is_anonymous=is_anonymous,
+            )
+            self.market_repo.add_listing(new_listing)
 
         # 返回成功消息
         item_name = validation_result["item_name"]
@@ -570,7 +580,7 @@ class MarketService:
                 new_commodity = UserCommodity(
                     instance_id=0,
                     user_id=buyer_id,
-                    commodity_id=listing.item_id,
+                    commodity_id=str(listing.item_id),
                     quantity=listing.quantity,
                     purchase_price=listing.price,  # Use market price as purchase price
                     purchased_at=datetime.now(),
@@ -580,11 +590,15 @@ class MarketService:
 
             elif listing.item_type == "rod":
                 # 直接转移鱼竿实例所有权给买家（保留所有属性包括耐久度）
+                if listing.item_instance_id is None:
+                    raise ValueError("市场挂单缺少鱼竿实例ID")
                 self.inventory_repo.transfer_rod_instance_ownership(
                     listing.item_instance_id, buyer_id
                 )
             elif listing.item_type == "accessory":
                 # 直接转移饰品实例所有权给买家（保留所有属性）
+                if listing.item_instance_id is None:
+                    raise ValueError("市场挂单缺少饰品实例ID")
                 self.inventory_repo.transfer_accessory_instance_ownership(
                     listing.item_instance_id, buyer_id
                 )
@@ -635,11 +649,15 @@ class MarketService:
         """将挂单物品返还给卖家"""
         if listing.item_type == "rod":
             # 直接转移鱼竿实例所有权回卖家（保留所有属性包括耐久度）
+            if listing.item_instance_id is None:
+                raise ValueError("市场挂单缺少鱼竿实例ID")
             self.inventory_repo.transfer_rod_instance_ownership(
                 listing.item_instance_id, listing.user_id
             )
         elif listing.item_type == "accessory":
             # 直接转移饰品实例所有权回卖家（保留所有属性）
+            if listing.item_instance_id is None:
+                raise ValueError("市场挂单缺少饰品实例ID")
             self.inventory_repo.transfer_accessory_instance_ownership(
                 listing.item_instance_id, listing.user_id
             )
@@ -667,7 +685,7 @@ class MarketService:
             new_commodity = UserCommodity(
                 instance_id=0,
                 user_id=listing.user_id,
-                commodity_id=listing.item_id,
+                commodity_id=str(listing.item_id),
                 quantity=listing.quantity,
                 purchase_price=0,  # 返还时买入价重置
                 purchased_at=datetime.now(),
@@ -735,10 +753,10 @@ class MarketService:
         self,
         page: int = 1,
         per_page: int = 20,
-        item_type: str = None,
-        min_price: int = None,
-        max_price: int = None,
-        search: str = None,
+        item_type: Optional[str] = None,
+        min_price: Optional[int] = None,
+        max_price: Optional[int] = None,
+        search: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         为管理员提供分页的市场商品列表，支持筛选和搜索。

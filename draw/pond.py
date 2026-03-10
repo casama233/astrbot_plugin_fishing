@@ -164,7 +164,7 @@ def draw_pond_image(
 
             draw.text(
                 (30, y),
-                f"{rarity_stars} 稀有度 {rarity}",
+                rarity_stars,
                 font=section_font,
                 fill=rarity_color,
             )

@@ -1031,6 +1031,11 @@ class FishingService:
         pass_consumed = False
         consumed_item_name = None
         if zone.requires_pass and zone.required_item_id:
+            if user.fishing_zone_id == zone.id:
+                return {
+                    "success": True,
+                    "message": f"✅您已在 {zone.name}，无需重复消耗通行证。",
+                }
             # 获取用户道具库存
             user_items = self.inventory_repo.get_user_item_inventory(user_id)
             current_quantity = user_items.get(zone.required_item_id, 0)

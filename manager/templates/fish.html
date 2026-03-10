@@ -4,6 +4,10 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
+    <div class="alert alert-info mb-3">
+        这是鱼类模板管理。只要填好“名称、稀有度、价值、重量范围”，就能用。
+        其他字段不会影响正常使用。
+    </div>
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>鱼类管理</h2>
         <div class="d-flex gap-2 align-items-center">
@@ -80,36 +84,42 @@
                         <div class="col-md-8">
                             <label for="name" class="form-label">名称</label>
                             <input type="text" id="name" name="name" class="form-control" required>
+                            <div class="form-text">例：小鲫鱼、金鲤鱼</div>
                         </div>
                         <div class="col-md-4">
                             <label for="rarity" class="form-label">稀有度</label>
                             <input type="number" id="rarity" name="rarity" class="form-control" min="1" required>
-                            <div class="form-text">支持任意星级，6+星为超稀有等级</div>
+                            <div class="form-text">1=普通，5=稀有，6+为超稀有</div>
                         </div>
                         <div class="col-12">
-                             <label for="description" class="form-label">描述</label>
-                             <textarea id="description" name="description" class="form-control" rows="2"></textarea>
+                              <label for="description" class="form-label">描述</label>
+                              <textarea id="description" name="description" class="form-control" rows="2"></textarea>
+                              <div class="form-text">给玩家看的说明，不影响数值</div>
                         </div>
                         <div class="col-md-4">
                             <label for="base_value" class="form-label">基础价值</label>
                             <input type="number" id="base_value" name="base_value" class="form-control" required>
+                            <div class="form-text">卖鱼时的基础金币</div>
                         </div>
                         <div class="col-md-4">
                             <label for="min_weight" class="form-label">最小重量 (g)</label>
                             <input type="number" id="min_weight" name="min_weight" class="form-control" required>
+                            <div class="form-text">单位是克，例如 100</div>
                         </div>
                         <div class="col-md-4">
                             <label for="max_weight" class="form-label">最大重量 (g)</label>
                             <input type="number" id="max_weight" name="max_weight" class="form-control" required>
+                            <div class="form-text">必须 ≥ 最小重量</div>
                         </div>
                         <div class="col-md-8">
                             <label for="available_zones" class="form-label">可用区域 (选填)</label>
                             <input type="text" id="available_zones" name="available_zones" class="form-control">
-                            <div class="form-text">留空代表通用。多个区域用英文逗号分隔，例如：1,2,5</div>
+                            <div class="form-text">留空=所有区域都能钓。多个区域用英文逗号分隔：1,2,5</div>
                         </div>
-                         <div class="col-md-4">
+                          <div class="col-md-4">
                             <label for="icon_url" class="form-label">图标URL (可选)</label>
                             <input type="text" id="icon_url" name="icon_url" class="form-control">
+                            <div class="form-text">可留空</div>
                         </div>
                     </div>
                 </div>

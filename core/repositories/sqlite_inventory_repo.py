@@ -172,7 +172,7 @@ class SqliteInventoryRepository(AbstractInventoryRepository):
                 # 查询所有数量大于1的鱼及其价值
                 cursor.execute(
                     """
-                    SELECT ufi.fish_id, ufi.quantity, f.base_value, f.name
+                    SELECT ufi.fish_id, ufi.quality_level, ufi.quantity, f.base_value, f.name
                     FROM user_fish_inventory ufi
                     JOIN fish f ON ufi.fish_id = f.fish_id
                     WHERE ufi.user_id = ? AND ufi.quantity > 1
@@ -188,7 +188,9 @@ class SqliteInventoryRepository(AbstractInventoryRepository):
 
                 for item in items_to_sell:
                     sell_qty = item["quantity"] - 1
-                    sold_value += sell_qty * item["base_value"]
+                    sold_value += (
+                        sell_qty * item["base_value"] * (1 + item["quality_level"])
+                    )
 
                 # 将所有数量大于1的鱼更新为1
                 cursor.execute(

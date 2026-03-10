@@ -1119,6 +1119,12 @@ async def manage_exchange():
         return redirect(url_for("admin_bp.index"))
 
 
+@admin_bp.route("/config/help")
+@login_required
+async def config_help():
+    return await render_template("config_help.html")
+
+
 @admin_bp.route("/exchange/update_prices", methods=["POST"])
 @login_required
 async def update_exchange_prices():

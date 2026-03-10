@@ -300,9 +300,8 @@ class ShopService:
 
         success_message = f"✅ 购买成功：{item['name']} x{quantity}"
         if obtained_items:
-            unique_items = list(set(obtained_items))
             success_message += f"\n📦 获得物品：\n" + "\n".join(
-                [f"  • {item}" for item in unique_items]
+                [f"  • {item}" for item in obtained_items]
             )
 
         return {"success": True, "message": success_message}
@@ -721,14 +720,19 @@ class ShopService:
     def _give_rewards(
         self, user_id: str, rewards: List[Dict[str, Any]], quantity: int
     ) -> List[str]:
-        """发放奖励并返回获得的物品列表"""
-        obtained_items = []
+        """发放奖励并返回获得的物品列表（已聚合数量）"""
+        obtained_counts: Dict[str, int] = {}
+
+        def _add_obtained(label: str, qty: int) -> None:
+            if qty <= 0:
+                return
+            obtained_counts[label] = obtained_counts.get(label, 0) + qty
 
         for _ in range(quantity):
             for reward in rewards:
                 reward_type = reward["reward_type"]
                 reward_item_id = reward.get("reward_item_id")
-                reward_quantity = reward.get("reward_quantity", 1)
+                reward_quantity = int(reward.get("reward_quantity", 1) or 1)
                 reward_refine_level = reward.get("reward_refine_level")
 
                 if reward_type == "rod" and reward_item_id:
@@ -740,7 +744,7 @@ class ShopService:
                         refine_level=reward_refine_level or 1,
                     )
                     if rod_tpl:
-                        obtained_items.append(f"🎣 {rod_tpl.name}")
+                        _add_obtained(f"🎣 {rod_tpl.name}", 1)
 
                 elif reward_type == "accessory" and reward_item_id:
                     accessory_tpl = self.item_template_repo.get_accessory_by_id(
@@ -750,7 +754,7 @@ class ShopService:
                         user_id, reward_item_id, refine_level=reward_refine_level or 1
                     )
                     if accessory_tpl:
-                        obtained_items.append(f"💍 {accessory_tpl.name}")
+                        _add_obtained(f"💍 {accessory_tpl.name}", 1)
 
                 elif reward_type == "bait" and reward_item_id:
                     bait_tpl = self.item_template_repo.get_bait_by_id(reward_item_id)
@@ -758,7 +762,7 @@ class ShopService:
                         user_id, reward_item_id, reward_quantity
                     )
                     if bait_tpl:
-                        obtained_items.append(f"🪱 {bait_tpl.name} x{reward_quantity}")
+                        _add_obtained(f"🪱 {bait_tpl.name}", reward_quantity)
 
                 elif reward_type == "item" and reward_item_id:
                     item_tpl = self.item_template_repo.get_item_by_id(reward_item_id)
@@ -766,7 +770,7 @@ class ShopService:
                         user_id, reward_item_id, reward_quantity
                     )
                     if item_tpl:
-                        obtained_items.append(f"🎁 {item_tpl.name} x{reward_quantity}")
+                        _add_obtained(f"🎁 {item_tpl.name}", reward_quantity)
 
                 elif reward_type == "fish" and reward_item_id:
                     fish_tpl = self.item_template_repo.get_fish_by_id(reward_item_id)
@@ -779,8 +783,9 @@ class ShopService:
                         )
 
                         quality_label = " ✨高品质" if quality_level == 1 else ""
-                        obtained_items.append(
-                            f"🐠 {fish_tpl.name}{quality_label} x{reward_quantity} (放入水族箱)"
+                        _add_obtained(
+                            f"🐠 {fish_tpl.name}{quality_label} (放入水族箱)",
+                            reward_quantity,
                         )
 
                 elif reward_type == "coins":
@@ -789,9 +794,9 @@ class ShopService:
                     if user:
                         user.coins += reward_quantity
                         self.user_repo.update(user)
-                        obtained_items.append(f"💰 金币 x{reward_quantity}")
+                        _add_obtained("💰 金币", reward_quantity)
 
-        return obtained_items
+        return [f"{label} x{qty}" for label, qty in obtained_counts.items()]
 
     # ---- 兼容性方法（向后兼容旧系统） ----
     def get_shop_listings(self) -> Dict[str, Any]:

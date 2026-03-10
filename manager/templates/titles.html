@@ -11,6 +11,10 @@
 </button>
 </div>
 
+<div class="alert alert-info mb-3">
+  这是称号管理。只要填“名称”，就能保存。触发条件不填=手动授予。
+</div>
+
 <div class="table-responsive mt-4">
 <table class="table table-striped table-hover">
 <thead>
@@ -71,10 +75,12 @@ data-item-json='{{ title|tojson|safe }}'>
 <div class="col-12">
 <label for="name" class="form-label">称号名称 <span class="text-danger">*</span></label>
 <input type="text" id="name" name="name" class="form-control" required>
+<div class="form-text">例：钓鱼新人、海港之星</div>
 </div>
 <div class="col-12">
 <label for="description" class="form-label">描述</label>
 <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+<div class="form-text">给玩家看的说明</div>
 </div>
 <div class="col-12">
 <label for="display_format" class="form-label">显示格式</label>
@@ -147,4 +153,3 @@ form.addEventListener('submit', function(e) {
 });
 </script>
 {% endblock %}
-

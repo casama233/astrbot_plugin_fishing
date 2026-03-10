@@ -560,7 +560,7 @@ def draw_multi_ten_gacha_summary_image(
     draw_game_divider(draw, padding, width - padding, y)
     y += 20
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"💡 繼續抽卡：/十連 {pool_id} [次數]",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],

@@ -432,7 +432,7 @@ class MysqlInventoryRepository(AbstractInventoryRepository):
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT ufi.fish_id, ufi.quantity, f.base_value
+                    SELECT ufi.fish_id, ufi.quality_level, ufi.quantity, f.base_value
                     FROM user_fish_inventory ufi
                     JOIN fish f ON ufi.fish_id = f.fish_id
                     WHERE ufi.user_id = %s AND ufi.quantity > 1
@@ -444,7 +444,9 @@ class MysqlInventoryRepository(AbstractInventoryRepository):
                     return 0
                 for item in items_to_sell:
                     sold_qty = item["quantity"] - 1
-                    sold_value += sold_qty * item["base_value"]
+                    sold_value += (
+                        sold_qty * item["base_value"] * (1 + item["quality_level"])
+                    )
                 cursor.execute(
                     "UPDATE user_fish_inventory SET quantity = 1 WHERE user_id = %s AND quantity > 1",
                     (user_id,),

@@ -1,0 +1,108 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <h2 class="mb-3">插件配置说明（温和版）</h2>
+  <p class="text-muted">这一页用最简单的话，说明每个配置是做什么的。看一遍就够。</p>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">1. WebUI 设置</h5>
+      <p class="mb-1"><strong>webui.secret_key</strong>：后台登录用的密码。</p>
+      <p class="mb-0"><strong>webui.port</strong>：后台网页的端口。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">2. 每日税收</h5>
+      <p class="mb-1"><strong>tax.is_tax</strong>：是否开启每日税。</p>
+      <p class="mb-1"><strong>tax.threshold</strong>：超过多少金币才收税。</p>
+      <p class="mb-1"><strong>tax.step_coins</strong>：每一档的金币步长。</p>
+      <p class="mb-1"><strong>tax.step_rate</strong>：每一档提高多少税率。</p>
+      <p class="mb-1"><strong>tax.min_rate</strong>：最低税率。</p>
+      <p class="mb-1"><strong>tax.max_rate</strong>：最高税率。</p>
+      <p class="mb-0"><strong>tax.transfer_tax_rate</strong>：玩家之间转账税率。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">3. 钓鱼核心</h5>
+      <p class="mb-1"><strong>fishing.cooldown_seconds</strong>：每次钓鱼的冷却秒数。</p>
+      <p class="mb-0"><strong>fishing.quality_bonus_max_chance</strong>：高品质加成的上限概率。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">4. 偷鱼与电鱼</h5>
+      <p class="mb-1"><strong>steal.cooldown_seconds</strong>：偷鱼冷却时间。</p>
+      <p class="mb-1"><strong>electric_fish.enabled</strong>：是否开启电鱼。</p>
+      <p class="mb-1"><strong>electric_fish.cooldown_seconds</strong>：电鱼冷却。</p>
+      <p class="mb-1"><strong>electric_fish.base_success_rate</strong>：电鱼基础成功率。</p>
+      <p class="mb-0"><strong>electric_fish.failure_penalty_max_rate</strong>：失败惩罚上限。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">5. 游戏全局</h5>
+      <p class="mb-1"><strong>game.daily_reset_hour</strong>：每天几点重置（0~23）。</p>
+      <p class="mb-1"><strong>game.wheel_of_fate_daily_limit</strong>：命运轮盘每日次数。</p>
+      <p class="mb-0"><strong>game.wipe_bomb_attempts</strong>：抹除炸弹每日次数。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">6. 新用户</h5>
+      <p class="mb-0"><strong>user.initial_coins</strong>：新注册用户初始金币。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">7. 市场</h5>
+      <p class="mb-0"><strong>market.listing_tax_rate</strong>：市场挂单手续费。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">8. 鱼类出售价格</h5>
+      <p class="mb-0"><strong>sell_prices.by_rarity_1~5</strong>：不同稀有度基础卖价。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">9. 交易所</h5>
+      <p class="mb-1"><strong>exchange.update_timing</strong>：每日自动更新时间点。</p>
+      <p class="mb-1"><strong>exchange.account_fee</strong>：开通账户费用。</p>
+      <p class="mb-1"><strong>exchange.capacity</strong>：最大持仓量。</p>
+      <p class="mb-1"><strong>exchange.tax_rate</strong>：交易所盈利税率。</p>
+      <p class="mb-1"><strong>exchange.volatility</strong>：不同商品价格波动。</p>
+      <p class="mb-1"><strong>exchange.event_chance</strong>：价格事件触发概率。</p>
+      <p class="mb-1"><strong>exchange.max_change_rate</strong>：最大涨跌幅。</p>
+      <p class="mb-1"><strong>exchange.min_price</strong>：最低价格。</p>
+      <p class="mb-1"><strong>exchange.max_price</strong>：最高价格。</p>
+      <p class="mb-1"><strong>exchange.sentiment_weights</strong>：市场情绪权重。</p>
+      <p class="mb-1"><strong>exchange.merge_window_minutes</strong>：合并交易窗口。</p>
+      <p class="mb-1"><strong>exchange.initial_prices</strong>：初始价格。</p>
+      <p class="mb-0"><strong>exchange.shelf_life</strong>：保质期（天）。</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">10. MySQL 连接</h5>
+      <p class="mb-1"><strong>external_sql.enabled</strong>：必须为 true（当前已强制只用 MySQL）。</p>
+      <p class="mb-1"><strong>external_sql.backend</strong>：必须是 mysql。</p>
+      <p class="mb-1"><strong>external_sql.mysql_url</strong>：完整连接字符串。</p>
+      <p class="mb-1"><strong>external_sql.host/port/database/user/password</strong>：分拆配置。</p>
+      <p class="mb-0"><strong>external_sql.connect_timeout</strong>：连接超时秒数。</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

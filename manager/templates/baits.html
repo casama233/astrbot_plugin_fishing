@@ -8,6 +8,11 @@
     </button>
 </div>
 
+<div class="alert alert-info mb-3">
+    这是鱼饵模板管理。只要填“名称、稀有度、成本”，就能用。
+    其它加成可以慢慢调。
+</div>
+
 <div class="card border-primary">
     <div class="card-header">现有鱼饵列表</div>
     <div class="card-body">
@@ -77,22 +82,22 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required></div>
+                        <div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：万能饵、普通蚯蚓</div></div>
                         <div class="col-md-4">
                             <label>稀有度</label>
                             <input type="number" name="rarity" class="form-control" min="1" required>
-                            <div class="form-text text-muted small">支持任意星级</div>
+                            <div class="form-text text-muted small">1=普通，5=稀有</div>
                         </div>
-                        <div class="col-12"><label>描述 (给玩家看)</label><textarea name="description" class="form-control" rows="2"></textarea></div>
-                        <div class="col-12"><label>效果描述 (给玩家看)</label><textarea name="effect_description" class="form-control" rows="2"></textarea></div>
+                        <div class="col-12"><label>描述 (给玩家看)</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">描述用途</div></div>
+                        <div class="col-12"><label>效果描述 (给玩家看)</label><textarea name="effect_description" class="form-control" rows="2"></textarea><div class="form-text">玩家看到的效果提示</div></div>
                         <div class="col-12"><label>实际作用代码</label><textarea name="effect_note" class="form-control font-monospace" rows="4" placeholder="例如：success_rate_modifier=0.15&#10;duration_minutes=30"></textarea><div class="form-text">这里仍是记录用途，不会像饰品特殊效果代码块那样参与额外逻辑执行。</div></div>
 
                         <hr class="my-4">
                         <h6 class="mb-3">核心数值配置</h6>
 
-                        <div class="col-md-4"><label>持续分钟(0为一次性)</label><input type="number" name="duration_minutes" class="form-control" value="0"></div>
-                        <div class="col-md-4"><label>购买成本</label><input type="number" name="cost" class="form-control" value="0"></div>
-                        <div class="col-md-4"><label>要求鱼竿稀有度</label><input type="number" name="required_rod_rarity" class="form-control" value="0"></div>
+                        <div class="col-md-4"><label>持续分钟(0为一次性)</label><input type="number" name="duration_minutes" class="form-control" value="0"><div class="form-text">0=用一次就结束</div></div>
+                        <div class="col-md-4"><label>购买成本</label><input type="number" name="cost" class="form-control" value="0"><div class="form-text">商店购买价格</div></div>
+                        <div class="col-md-4"><label>要求鱼竿稀有度</label><input type="number" name="required_rod_rarity" class="form-control" value="0"><div class="form-text">0=不限制</div></div>
 
                         <div class="col-md-4"><label>成功率加成 (+0.1 = +10%)</label><input type="number" step="0.01" name="success_rate_modifier" class="form-control" value="0.0"></div>
                         <div class="col-md-4"><label>稀有率加成 (+0.05 = +5%)</label><input type="number" step="0.01" name="rare_chance_modifier" class="form-control" value="0.0"></div>

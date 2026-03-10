@@ -19,6 +19,11 @@
     </div>
 </div>
 
+<div class="alert alert-info mb-3">
+    这是鱼竿模板管理。必填：名称、稀有度、来源。其他字段可先不填。
+    数值默认 1.0 代表“没有加成”。
+</div>
+
 <div class="card border-primary">
     <div class="card-header">现有鱼竿列表</div>
     <div class="card-body">
@@ -81,22 +86,23 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required></div>
-                        <div class="col-md-4"><label>稀有度</label><input type="number" name="rarity" class="form-control" min="1" required></div>
-                        <div class="col-12"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+                        <div class="col-md-8"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：新手木竿、黑金竿</div></div>
+                        <div class="col-md-4"><label>稀有度</label><input type="number" name="rarity" class="form-control" min="1" required><div class="form-text">1=普通，5=稀有</div></div>
+                        <div class="col-12"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">给玩家看的说明</div></div>
                         <div class="col-md-6"><label>来源</label>
                             <select name="source" class="form-select" required>
                                 <option value="shop">商店</option>
                                 <option value="gacha">抽卡</option>
                                 <option value="event">活动</option>
                             </select>
+                            <div class="form-text">决定从哪里产出</div>
                         </div>
-                        <div class="col-md-6"><label>购买成本(可选)</label><input type="number" name="purchase_cost" class="form-control"></div>
-                        <div class="col-md-4"><label>品质加成</label><input type="number" step="0.01" name="bonus_fish_quality_modifier" class="form-control" value="1.0"></div>
-                        <div class="col-md-4"><label>数量加成</label><input type="number" step="0.01" name="bonus_fish_quantity_modifier" class="form-control" value="1.0"></div>
-                        <div class="col-md-4"><label>稀有加成</label><input type="number" step="0.01" name="bonus_rare_fish_chance" class="form-control" value="0.0"></div>
-                        <div class="col-md-6"><label>耐久度(可选)</label><input type="number" name="durability" class="form-control"></div>
-                        <div class="col-md-6"><label>图标URL(可选)</label><input type="text" name="icon_url" class="form-control"></div>
+                        <div class="col-md-6"><label>购买成本(可选)</label><input type="number" name="purchase_cost" class="form-control"><div class="form-text">留空=不可购买</div></div>
+                        <div class="col-md-4"><label>品质加成</label><input type="number" step="0.01" name="bonus_fish_quality_modifier" class="form-control" value="1.0"><div class="form-text">1.1=+10%</div></div>
+                        <div class="col-md-4"><label>数量加成</label><input type="number" step="0.01" name="bonus_fish_quantity_modifier" class="form-control" value="1.0"><div class="form-text">2.0=双倍</div></div>
+                        <div class="col-md-4"><label>稀有加成</label><input type="number" step="0.01" name="bonus_rare_fish_chance" class="form-control" value="0.0"><div class="form-text">0.05=+5%</div></div>
+                        <div class="col-md-6"><label>耐久度(可选)</label><input type="number" name="durability" class="form-control"><div class="form-text">留空=无限耐久</div></div>
+                        <div class="col-md-6"><label>图标URL(可选)</label><input type="text" name="icon_url" class="form-control"><div class="form-text">可留空</div></div>
                         <div class="col-12"><label>实际作用代码</label><textarea name="effect_note" class="form-control font-monospace" rows="4" placeholder="例如：bonus_rare_fish_chance=0.08&#10;bonus_fish_quantity_modifier=1.2"></textarea><div class="form-text">这里仍是记录用途，不会像饰品特殊效果代码块那样参与额外逻辑执行。</div></div>
                     </div>
                 </div>

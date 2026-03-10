@@ -11,17 +11,6 @@ from astrbot.core.star.filter.permission import PermissionType
 # ==========================================================
 # 导入所有仓储层 & 服务层
 # ==========================================================
-from .core.repositories.sqlite_user_repo import SqliteUserRepository
-from .core.repositories.sqlite_item_template_repo import SqliteItemTemplateRepository
-from .core.repositories.sqlite_inventory_repo import SqliteInventoryRepository
-from .core.repositories.sqlite_gacha_repo import SqliteGachaRepository
-from .core.repositories.sqlite_market_repo import SqliteMarketRepository
-from .core.repositories.sqlite_shop_repo import SqliteShopRepository
-from .core.repositories.sqlite_log_repo import SqliteLogRepository
-from .core.repositories.sqlite_achievement_repo import SqliteAchievementRepository
-from .core.repositories.sqlite_user_buff_repo import SqliteUserBuffRepository
-from .core.repositories.sqlite_exchange_repo import SqliteExchangeRepository
-from .core.repositories.sqlite_red_packet_repo import SqliteRedPacketRepository
 from .core.repositories.mysql_user_repo import MysqlUserRepository
 from .core.repositories.mysql_item_template_repo import MysqlItemTemplateRepository
 from .core.repositories.mysql_user_buff_repo import MysqlUserBuffRepository
@@ -50,8 +39,6 @@ from .core.services.exchange_service import ExchangeService
 from .core.services.sicbo_service import SicboService
 from .core.services.red_packet_service import RedPacketService
 
-from .core.database.migration import run_migrations
-from .core.database.external_sql_sync import ExternalSqlSyncManager
 from .core.database.mysql_connection_manager import MysqlConnectionManager
 
 # ==========================================================
@@ -198,22 +185,15 @@ class FishingPlugin(Star):
         }
 
         self.storage_backend = self._get_storage_backend(config)
+        if self.storage_backend != "mysql":
+            raise RuntimeError(
+                "MySQL only mode is enabled. Set external_sql.enabled=true and backend=mysql."
+            )
+        logger.info("[storage] backend=mysql (sqlite disabled)")
 
-        # 数据库初始化：MySQL 模式不再依赖 SQLite migration/sync
+        # 数据库初始化：仅使用 MySQL
         self.external_sql_sync_manager = None
-        if self.storage_backend == "sqlite":
-            run_migrations(
-                db_path,
-                os.path.join(
-                    os.path.dirname(__file__), "core", "database", "migrations"
-                ),
-            )
-            self.external_sql_sync_manager = ExternalSqlSyncManager(
-                db_path, config.get("external_sql", {})
-            )
-            self.external_sql_sync_manager.startup_sync()
-        else:
-            self._ensure_mysql_runtime_schema(config)
+        self._ensure_mysql_runtime_schema(config)
 
         self.user_repo = self._build_user_repo(config)
         self.item_template_repo = self._build_item_template_repo(config)
@@ -608,57 +588,57 @@ class FishingPlugin(Star):
     def _build_user_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlUserRepository(config.get("external_sql", {}))
-        return SqliteUserRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_buff_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlUserBuffRepository(config.get("external_sql", {}))
-        return SqliteUserBuffRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_item_template_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlItemTemplateRepository(config.get("external_sql", {}))
-        return SqliteItemTemplateRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_inventory_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlInventoryRepository(config.get("external_sql", {}))
-        return SqliteInventoryRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_exchange_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlExchangeRepository(config.get("external_sql", {}))
-        return SqliteExchangeRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_market_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlMarketRepository(config.get("external_sql", {}))
-        return SqliteMarketRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_achievement_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlAchievementRepository(config.get("external_sql", {}))
-        return SqliteAchievementRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_red_packet_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlRedPacketRepository(config.get("external_sql", {}))
-        return SqliteRedPacketRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_gacha_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlGachaRepository(config.get("external_sql", {}))
-        return SqliteGachaRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_shop_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlShopRepository(config.get("external_sql", {}))
-        return SqliteShopRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _build_log_repo(self, config: AstrBotConfig):
         if self.storage_backend == "mysql":
             return MysqlLogRepository(config.get("external_sql", {}))
-        return SqliteLogRepository(self.db_path)
+        raise RuntimeError("MySQL only mode: sqlite backend is disabled")
 
     def _normalize_subcommand(self, sub: str) -> str:
         if not sub:
