@@ -11,6 +11,10 @@
     </button>
 </div>
 
+<div class="alert alert-info mb-3">
+    这里是奖池里的奖品。数量=一次抽到给多少；权重=越大越容易抽到。
+</div>
+
 <div class="card border-primary">
     <div class="card-header">“{{ pool.name }}”中的物品列表</div>
     <div class="card-body">
@@ -117,8 +121,8 @@
                             </optgroup>
                         </select>
                     </div>
-                    <div class="mb-3"><label class="form-label">数量</label><input type="number" name="quantity" class="form-control" value="1" required></div>
-                    <div class="mb-3"><label class="form-label">权重 (数字越大越容易抽到)</label><input type="number" name="weight" class="form-control" value="10" required></div>
+                    <div class="mb-3"><label class="form-label">数量</label><input type="number" name="quantity" class="form-control" value="1" required><div class="form-text">一次抽中给多少</div></div>
+                    <div class="mb-3"><label class="form-label">权重 (数字越大越容易抽到)</label><input type="number" name="weight" class="form-control" value="10" required><div class="form-text">权重越大，出现机会越高</div></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>

@@ -218,12 +218,12 @@
     "items": {
       "update_timing": {
         "type": "string",
-        "default": "9:00, 15:00, 21:00",
-        "description": "交易所每日价格更新的时间点，格式为HH:MM（24小时制）"
+        "default": "09:00, 09:15, 09:30, 10:00, 10:30, 11:00, 11:30, 12:00, 13:00, 13:30, 14:00, 14:30, 15:00, 15:30, 16:00, 16:10",
+        "description": "交易所每日价格更新的时间点，格式为HH:MM（24小时制，逗号分隔）"
       },
       "account_fee": {
         "type": "int",
-        "default": 100000,
+        "default": 10000,
         "description": "交易所开户费用"
       },
       "capacity": {
@@ -302,17 +302,17 @@
           },
           "pessimistic": {
             "type": "float",
-            "default": 0.3,
+            "default": 0.2,
             "description": "悲观情绪概率"
           },
           "neutral": {
             "type": "float",
-            "default": 0.6,
+            "default": 0.4,
             "description": "中性情绪概率"
           },
           "optimistic": {
             "type": "float",
-            "default": 0.5,
+            "default": 0.2,
             "description": "乐观情绪概率"
           },
           "euphoric": {
@@ -439,17 +439,22 @@
           }
         }
       }
+    },
+    "notes": {
+      "description": "注意：当前程序优先读取 exchange.shelf_life_days，如未配置则回退 shelf_life。",
+      "type": "string",
+      "default": ""
     }
   },
   "external_sql": {
-    "description": "外部SQL数据库配置（当前仅建议用于迁移/人工同步，不是原生MySQL运行模式）",
+    "description": "数据库配置（当前版本仅支持 MySQL）",
     "type": "object",
     "items": {
       "backend": {
-        "description": "存储后端类型（sqlite 或 mysql）",
+        "description": "存储后端类型（必须是 mysql）",
         "type": "string",
-        "hint": "sqlite 使用本地SQLite，mysql 使用MySQL远程数据库",
-        "default": "sqlite"
+        "hint": "当前已强制只使用 MySQL",
+        "default": "mysql"
       },
       "mysql_url": {
         "description": "MySQL连接URL",
@@ -458,28 +463,28 @@
         "default": ""
       },
       "enabled": {
-        "description": "是否启用外部SQL同步桥接",
+        "description": "是否启用 MySQL",
         "type": "bool",
-        "default": false
+        "default": true
       },
       "sync_on_startup": {
-        "description": "启动时是否先做一次同步",
+        "description": "启动时是否先做一次同步（仅历史兼容，不再使用）",
         "type": "bool",
         "default": false
       },
       "startup_direction": {
-        "description": "启动时同步方向",
+        "description": "启动时同步方向（仅历史兼容，不再使用）",
         "type": "string",
         "hint": "mysql_to_sqlite 或 sqlite_to_mysql",
-        "default": "sqlite_to_mysql"
+        "default": "mysql_to_sqlite"
       },
       "fail_fast_on_startup": {
-        "description": "启动同步失败时是否阻止插件启动",
+        "description": "启动同步失败时是否阻止插件启动（仅历史兼容）",
         "type": "bool",
         "default": false
       },
       "sync_interval_seconds": {
-        "description": "周期同步间隔（秒）",
+        "description": "周期同步间隔（秒，仅历史兼容）",
         "type": "int",
         "default": 300
       },

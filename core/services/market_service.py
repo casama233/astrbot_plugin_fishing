@@ -268,17 +268,6 @@ class MarketService:
         )
         item_template_id = user_commodity.commodity_id
 
-        # 计算剩余数量
-        remaining_quantity = user_commodity.quantity - quantity
-
-        # 从用户库存中扣除
-        if remaining_quantity > 0:
-            self.exchange_repo.update_user_commodity_quantity(
-                item_instance_id, remaining_quantity
-            )
-        else:
-            self.exchange_repo.delete_user_commodity(item_instance_id)
-
         if commodity_template:
             commodity_name = commodity_template.name
             commodity_description = commodity_template.description
@@ -323,7 +312,18 @@ class MarketService:
                 user_id, item_instance_id, -quantity, quality_level
             )
         elif item_type == "commodity":
-            self.exchange_repo.delete_user_commodity(item_instance_id)
+            commodity_item = self.exchange_repo.get_user_commodity_by_instance_id(
+                item_instance_id
+            )
+            if not commodity_item or commodity_item.user_id != user_id:
+                raise ValueError("大宗商品不存在或不属于你")
+            remaining_quantity = commodity_item.quantity - quantity
+            if remaining_quantity > 0:
+                self.exchange_repo.update_user_commodity_quantity(
+                    item_instance_id, remaining_quantity
+                )
+            else:
+                self.exchange_repo.delete_user_commodity(item_instance_id)
 
     def put_item_on_sale(
         self,
@@ -401,49 +401,85 @@ class MarketService:
             return validation_result
 
         with self._transaction_lock:
-            # 执行上架事务
-            self._execute_listing_transaction(
-                user_id, item_type, item_instance_id, quantity, quality_level
-            )
+            commodity_snapshot = None
+            if item_type == "commodity":
+                commodity_snapshot = (
+                    self.exchange_repo.get_user_commodity_by_instance_id(
+                        item_instance_id
+                    )
+                )
 
-            # 扣除税费
-            seller.coins -= tax_cost
-            self.user_repo.update(seller)
+            try:
+                # 执行上架事务
+                self._execute_listing_transaction(
+                    user_id, item_type, item_instance_id, quantity, quality_level
+                )
 
-            # 记录税收日志
-            tax_log = TaxRecord(
-                tax_id=0,
-                user_id=user_id,
-                tax_amount=tax_cost,
-                tax_rate=tax_rate,
-                original_amount=price,
-                balance_after=seller.coins,
-                tax_type="市场交易税",
-                timestamp=datetime.now(),
-            )
-            self.log_repo.add_tax_record(tax_log)
+                # 扣除税费
+                seller.coins -= tax_cost
+                self.user_repo.update(seller)
 
-            # 创建市场条目
-            new_listing = MarketListing(
-                market_id=0,
-                user_id=user_id,
-                seller_nickname=seller.nickname or user_id,
-                item_type=item_type,
-                item_id=validation_result["item_template_id"],
-                item_instance_id=item_instance_id
-                if item_type not in ["item", "fish"]
-                else None,
-                quantity=quantity,
-                item_name=validation_result["item_name"],
-                item_description=validation_result["item_description"],
-                price=price,
-                listed_at=datetime.now(),
-                expires_at=validation_result["expires_at"],
-                refine_level=validation_result["item_refine_level"],
-                quality_level=quality_level if item_type == "fish" else 0,
-                is_anonymous=is_anonymous,
-            )
-            self.market_repo.add_listing(new_listing)
+                # 记录税收日志
+                tax_log = TaxRecord(
+                    tax_id=0,
+                    user_id=user_id,
+                    tax_amount=tax_cost,
+                    tax_rate=tax_rate,
+                    original_amount=price,
+                    balance_after=seller.coins,
+                    tax_type="市场交易税",
+                    timestamp=datetime.now(),
+                )
+                self.log_repo.add_tax_record(tax_log)
+
+                # 创建市场条目
+                new_listing = MarketListing(
+                    market_id=0,
+                    user_id=user_id,
+                    seller_nickname=seller.nickname or user_id,
+                    item_type=item_type,
+                    item_id=validation_result["item_template_id"],
+                    item_instance_id=item_instance_id
+                    if item_type not in ["item", "fish"]
+                    else None,
+                    quantity=quantity,
+                    item_name=validation_result["item_name"],
+                    item_description=validation_result["item_description"],
+                    price=price,
+                    listed_at=datetime.now(),
+                    expires_at=validation_result["expires_at"],
+                    refine_level=validation_result["item_refine_level"],
+                    quality_level=quality_level if item_type == "fish" else 0,
+                    is_anonymous=is_anonymous,
+                )
+                self.market_repo.add_listing(new_listing)
+            except Exception:
+                # 回滚资源变更
+                try:
+                    if item_type == "rod":
+                        if item_instance_id is not None:
+                            self.inventory_repo.transfer_rod_instance_ownership(
+                                item_instance_id, user_id
+                            )
+                    elif item_type == "accessory":
+                        if item_instance_id is not None:
+                            self.inventory_repo.transfer_accessory_instance_ownership(
+                                item_instance_id, user_id
+                            )
+                    elif item_type == "item":
+                        self.inventory_repo.update_item_quantity(
+                            user_id, item_instance_id, quantity
+                        )
+                    elif item_type == "fish":
+                        self.inventory_repo.update_fish_quantity(
+                            user_id, item_instance_id, quantity, quality_level
+                        )
+                    elif item_type == "commodity" and commodity_snapshot:
+                        if commodity_snapshot.quantity > 0:
+                            self.exchange_repo.add_user_commodity(commodity_snapshot)
+                except Exception:
+                    pass
+                raise
 
         # 返回成功消息
         item_name = validation_result["item_name"]

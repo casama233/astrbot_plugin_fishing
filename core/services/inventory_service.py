@@ -9,6 +9,7 @@ from ..repositories.abstract_repository import (
     AbstractInventoryRepository,
     AbstractUserRepository,
     AbstractItemTemplateRepository,
+    AbstractLogRepository,
 )
 from .effect_manager import EffectManager
 from ..utils import calculate_after_refine
@@ -23,9 +24,10 @@ class InventoryService:
         inventory_repo: AbstractInventoryRepository,
         user_repo: AbstractUserRepository,
         item_template_repo: AbstractItemTemplateRepository,
-        effect_manager: EffectManager,
+        effect_manager: Optional[EffectManager],
         game_mechanics_service: GameMechanicsService,
         config: Dict[str, Any],
+        log_repo: Optional[AbstractLogRepository] = None,
     ):
         self.inventory_repo = inventory_repo
         self.user_repo = user_repo
@@ -34,6 +36,7 @@ class InventoryService:
         self.game_mechanics_service = game_mechanics_service
         self.config = config
         self._transaction_lock = threading.Lock()
+        self.log_repo = log_repo
 
     # === 短码解析 ===
     def _to_base36(self, n: int) -> str:
@@ -596,6 +599,15 @@ class InventoryService:
 
         # 4. 自动消耗“钱袋”类道具（ADD_COINS），并统计获得金币
         coins_from_bags = self._auto_consume_money_bags(user)
+        if coins_from_bags > 0:
+            try:
+                self.log_repo.add_log(
+                    user.user_id,
+                    "money_bag_auto_open",
+                    f"自动开启钱袋获得 {coins_from_bags} 金币",
+                )
+            except Exception:
+                pass
 
         # 构造详细的结果消息
         if total_value == 0:

@@ -13,6 +13,11 @@
     </div>
 </div>
 
+<div class="alert alert-info mb-3">
+    新手操作：先选“奖励”，再选“消耗”，最后保存。
+    AND=都要满足；OR=二选一。
+</div>
+
 <div class="card border-primary">
     <div class="card-header">"{{ shop.name }}"中的商品列表</div>
     <div class="card-body">
@@ -141,12 +146,14 @@
                             <div class="mb-3">
                                 <label class="form-label">商品名称 *</label>
                                 <input type="text" name="name" class="form-control" required>
+                                <div class="form-text">这是商店里显示的名字</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">商品描述</label>
                                 <input type="text" name="description" class="form-control">
+                                <div class="form-text">给玩家看的说明</div>
                             </div>
                         </div>
                     </div>
@@ -193,6 +200,7 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn-outline-secondary btn-sm" id="add-reward">添加奖励</button>
+                        <div class="form-text">奖励就是玩家会拿到的东西</div>
                     </div>
                     
                     <!-- 消耗设置 -->
@@ -267,6 +275,7 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn-outline-secondary btn-sm" id="add-cost">添加消耗</button>
+                        <div class="form-text">消耗就是玩家要付出的东西</div>
                     </div>
                     
                     <div class="row">
@@ -274,7 +283,7 @@
                             <div class="mb-3">
                                 <label class="form-label">商店库存</label>
                                 <input type="number" name="stock_total" class="form-control" placeholder="留空表示无限">
-                                <div class="form-text">该商店内此商品的独立库存</div>
+                                <div class="form-text">留空=无限库存</div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -319,6 +328,7 @@
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="isActive" name="is_active" checked>
                             <label class="form-check-label" for="isActive">在商店中启用</label>
+                            <div class="form-text">不启用=玩家看不到</div>
                         </div>
                     </div>
                 </div>

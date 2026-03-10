@@ -8,6 +8,11 @@
     </button>
 </div>
 
+<div class="alert alert-info mb-3">
+    先建立奖池，再到“管理物品”里放奖品。
+    最简单：名称 + 金币消耗。
+</div>
+
 <div class="row">
     {% for pool in pools %}
     <div class="col-md-6 mb-4">
@@ -64,8 +69,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3"><label>名称</label><input type="text" name="name" class="form-control" required></div>
-                    <div class="mb-3"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+                    <div class="mb-3"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：新手池、限定池</div></div>
+                    <div class="mb-3"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">给玩家看的说明</div></div>
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="isLimitedTime" name="is_limited_time">
                         <label class="form-check-label" for="isLimitedTime">限时开放</label>
@@ -83,7 +88,7 @@
                         </select>
                     </div>
                     <div class="mb-1"><label>消耗数量</label><input type="number" name="cost_amount" class="form-control" value="0"></div>
-                    <div class="form-text text-muted">卡池消耗为单一币种：金币或高级货币。</div>
+                    <div class="form-text text-muted">每抽一次会扣多少</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>

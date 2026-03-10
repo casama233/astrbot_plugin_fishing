@@ -73,20 +73,20 @@ def draw_gacha_pool_list_image(pools: List[Any]) -> Image.Image:
 
         # 卡池信息
         draw.text(
-            (padding + 16, y + 12),
+            (padding + 20, y + 12),
             f"{idx}. ID {pid}｜{name[:20]}",
             font=body_font,
             fill=GAME_COLORS["text_primary"],
         )
         draw.text(
-            (padding + 16, y + 42),
+            (padding + 20, y + 42),
             cost_text,
             font=small_font,
             fill=GAME_COLORS["text_secondary"],
         )
         if desc:
             draw.text(
-                (padding + 16, y + 64),
+                (padding + 20, y + 64),
                 desc[:50],
                 font=small_font,
                 fill=GAME_COLORS["text_tertiary"],
@@ -99,14 +99,14 @@ def draw_gacha_pool_list_image(pools: List[Any]) -> Image.Image:
     draw_game_divider(draw, padding, width - padding, y)
     y += 16
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         "💡 查看詳情：/查看卡池 ID",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
     )
     y += 28
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         "💡 單抽 / 十連：/抽卡 ID /十連 ID [次數]",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
@@ -159,7 +159,7 @@ def draw_gacha_pool_detail_image(
     # 卡池信息區域
     pool_id = _safe_get(pool, "gacha_pool_id", "?")
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"ID：{pool_id}",
         font=body_font,
         fill=GAME_COLORS["text_primary"],
@@ -173,7 +173,7 @@ def draw_gacha_pool_detail_image(
         cost_text = f"💰 消耗：{cost_coins} 金幣 / 次"
 
     draw.text(
-        (padding + 200, y),
+        (padding + 20, y),
         cost_text,
         font=body_font,
         fill=GAME_COLORS["text_primary"],
@@ -184,7 +184,7 @@ def draw_gacha_pool_detail_image(
     desc = str(_safe_get(pool, "description") or "")
     if desc:
         draw.text(
-            (padding + 8, y),
+            (padding + 20, y),
             f"📖 {desc[:60]}",
             font=small_font,
             fill=GAME_COLORS["text_secondary"],
@@ -213,7 +213,7 @@ def draw_gacha_pool_detail_image(
         # 使用統一稀有度顏色
         rarity_color = get_rarity_color(rarity)
         draw.text(
-            (padding + 16, y + 10),  # 稍微上移
+            (padding + 20, y + 10),  # 稍微上移
             f"{stars} {name[:35]}",
             font=small_font,
             fill=rarity_color,
@@ -221,7 +221,7 @@ def draw_gacha_pool_detail_image(
 
         # 增加一條細線或更好的間隔感（這裡透過調整文字位置實現）
         draw.text(
-            (width - 220, y + 10),
+            (padding + 20, y + 10),
             f"機率：{ptext}",
             font=small_font,
             fill=GAME_COLORS["text_secondary"],
@@ -233,7 +233,7 @@ def draw_gacha_pool_detail_image(
             fill_width = int(bar_width * float(prob))
             if fill_width > 0:
                 draw.rectangle(
-                    [padding + 16, y + 40, padding + 16 + max(2, fill_width), y + 44],
+                    [padding + 20, y + 40, padding + 20 + max(2, fill_width), y + 44],
                     fill=rarity_color,
                 )
         except:
@@ -246,7 +246,7 @@ def draw_gacha_pool_detail_image(
     draw_game_divider(draw, padding, width - padding, y)
     y += 20
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"💡 抽卡：/抽卡 {pool_id} 十連：/十連 {pool_id}",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
@@ -320,7 +320,7 @@ def draw_gacha_result_image(
 
     # 卡池信息
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"卡池：{pool_name[:25]} (ID: {pool_id})",
         font=body_font,
         fill=GAME_COLORS["text_secondary"],
@@ -336,7 +336,7 @@ def draw_gacha_result_image(
     if len(rarity_parts) > 5:
         stats_text += " ..."
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"📊 {stats_text}",
         font=small_font,
         fill=GAME_COLORS["text_tertiary"],
@@ -372,7 +372,7 @@ def draw_gacha_result_image(
             # 普通物品
             stars = "⭐" * rarity
             draw.text(
-                (padding + 16, y + 14),
+                (padding + 20, y + 14),
                 f"{stars} {name[:30]}",
                 font=body_font,
                 fill=rarity_color,
@@ -383,7 +383,7 @@ def draw_gacha_result_image(
     # 如果有更多物品
     if len(items) > 20:
         draw.text(
-            (padding + 16, y),
+            (padding + 20, y),
             f"... 還有 {len(items) - 20} 件物品",
             font=small_font,
             fill=GAME_COLORS["text_muted"],
@@ -395,7 +395,7 @@ def draw_gacha_result_image(
     draw_game_divider(draw, padding, width - padding, y)
     y += 20
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"💡 繼續抽卡：/抽卡 {pool_id} | /十連 {pool_id}",
         font=small_font,
         fill=GAME_COLORS["text_secondary"],
@@ -463,7 +463,7 @@ def draw_multi_ten_gacha_summary_image(
 
     # 卡池信息
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"卡池：{pool_name[:25]} (ID: {pool_id})",
         font=body_font,
         fill=GAME_COLORS["text_secondary"],
@@ -472,7 +472,7 @@ def draw_multi_ten_gacha_summary_image(
 
     # 消耗統計
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"消耗{cost_type}：{total_cost:,}",
         font=body_font,
         fill=GAME_COLORS["accent_gold"],
@@ -480,7 +480,7 @@ def draw_multi_ten_gacha_summary_image(
     y += 28
 
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         f"獲得物品：{total_items} 件",
         font=body_font,
         fill=GAME_COLORS["text_secondary"],
@@ -492,7 +492,7 @@ def draw_multi_ten_gacha_summary_image(
 
     # 稀有度統計
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y),
         "【📊 稀有度統計】",
         font=body_font,
         fill=GAME_COLORS["text_primary"],
@@ -517,7 +517,7 @@ def draw_multi_ten_gacha_summary_image(
     # 金幣統計
     if coin_total > 0:
         draw.text(
-            (padding + 8, y),
+            (padding + 20, y),
             f"💰 金幣總計：{coin_total:,}",
             font=body_font,
             fill=GAME_COLORS["accent_gold"],
@@ -529,7 +529,7 @@ def draw_multi_ten_gacha_summary_image(
 
     # 物品詳情
     draw.text(
-        (padding + 8, y),
+        (padding + 20, y), 
         "【🎁 物品詳情】",
         font=body_font,
         fill=GAME_COLORS["text_primary"],

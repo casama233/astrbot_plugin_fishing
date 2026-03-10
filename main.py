@@ -241,6 +241,7 @@ class FishingPlugin(Star):
             None,
             self.game_mechanics_service,
             self.game_config,
+            self.log_repo,
         )
         self.shop_service = ShopService(
             self.item_template_repo,

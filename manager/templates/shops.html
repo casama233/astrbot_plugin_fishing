@@ -8,6 +8,11 @@
     </button>
 </div>
 
+<div class="alert alert-info mb-3">
+    这里是商店本体。先建商店，再去“管理商品”里放商品。
+    只想快速用：名称 + 启用即可。
+</div>
+
 <div class="row">
     {% for shop in shops %}
     <div class="col-md-6 mb-4">
@@ -87,8 +92,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3"><label>名称</label><input type="text" name="name" class="form-control" required></div>
-                    <div class="mb-3"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+                    <div class="mb-3"><label>名称</label><input type="text" name="name" class="form-control" required><div class="form-text">例：新手商店、限时商店</div></div>
+                    <div class="mb-3"><label>描述</label><textarea name="description" class="form-control" rows="2"></textarea><div class="form-text">给玩家看的说明</div></div>
                     <div class="mb-3">
                         <label>商店类型</label>
                         <select name="shop_type" class="form-select">
@@ -96,6 +101,7 @@
                             <option value="premium">高级商店</option>
                             <option value="limited">限时商店</option>
                         </select>
+                        <div class="form-text">限时=有开始/结束时间</div>
                     </div>
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="isActive" name="is_active">
@@ -112,7 +118,7 @@
                                 <input type="datetime-local" name="end_time" class="form-control">
                             </div>
                         </div>
-                        <div class="form-text">限时商店需要设置开放时间范围</div>
+                        <div class="form-text">限时商店才需要填这里</div>
                     </div>
                     
                     <div class="mb-3">
@@ -127,7 +133,7 @@
                                 <input type="time" name="daily_end_time" class="form-control" placeholder="如: 18:00">
                             </div>
                         </div>
-                        <div class="form-text">设置商店每日的营业时间段（如 09:00-18:00）</div>
+                        <div class="form-text">不填=全天营业</div>
                     </div>
                 </div>
                 <div class="modal-footer">

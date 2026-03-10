@@ -31,7 +31,10 @@
             <i class="fas fa-plus"></i> 创建新区域
         </button>
     </div>
-    <p>管理游戏中的钓鱼区域。您可以创建、编辑、删除区域，并配置每个区域的详细参数。</p>
+    <div class="alert alert-info mb-3">
+        这是钓鱼区域设置。最简单用法：填“区域ID + 名称”，其它可以先不管。
+        如果需要通行证，记得勾选并选择通行证道具。
+    </div>
 
     <div id="zones-list">
         {% for zone in zones %}

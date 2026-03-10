@@ -260,7 +260,7 @@ def draw_state_image(
         draw.text((280, y + 55), stars, font=tiny_font, fill=color)
         _draw_equipment_bonuses(
             draw,
-            (280, y + 75),
+            (280, y + 95),
             accessory,
             tiny_font,
         )

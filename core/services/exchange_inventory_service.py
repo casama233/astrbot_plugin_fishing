@@ -819,7 +819,8 @@ class ExchangeInventoryService:
         total_cost = 0
         remaining_quantity = sell_quantity
 
-        for item in commodity_items:
+        fifo_items = sorted(commodity_items, key=lambda i: i.purchased_at)
+        for item in fifo_items:
             if remaining_quantity <= 0:
                 break
 

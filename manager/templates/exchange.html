@@ -13,6 +13,11 @@
     </div>
 </div>
 
+<div class="alert alert-info mb-3">
+    这里是交易所。你只需要记住两件事：
+    1) 价格会按时间自动更新；2) 商品会过期（腐败）。
+</div>
+
 <!-- 商品参数与作用效果管理 -->
 <div class="row mb-4">
     <div class="col-12">
@@ -25,6 +30,7 @@
                     <div class="col-md-2">
                         <label class="form-label">商品ID</label>
                         <input class="form-control" name="commodity_id" placeholder="fish_bone" required>
+                        <div class="form-text">必须唯一，英文+下划线</div>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">名称</label>
@@ -37,14 +43,17 @@
                     <div class="col-md-2">
                         <label class="form-label">初始价格</label>
                         <input type="number" min="1" class="form-control" name="initial_price" value="1000" required>
+                        <div class="form-text">首次出现价格</div>
                     </div>
                     <div class="col-md-1">
                         <label class="form-label">波动率</label>
                         <input type="number" min="0.001" max="1" step="0.001" class="form-control" name="volatility" value="0.1" required>
+                        <div class="form-text">0.1=10%</div>
                     </div>
                     <div class="col-md-1">
                         <label class="form-label">保质期</label>
                         <input type="number" min="1" class="form-control" name="shelf_life_days" value="3" required>
+                        <div class="form-text">天数</div>
                     </div>
                     <div class="col-md-1 d-grid">
                         <label class="form-label">操作</label>
@@ -53,7 +62,7 @@
                     <div class="col-12">
                         <label class="form-label">实际作用代码</label>
                         <textarea class="form-control font-monospace" name="effect" rows="3" placeholder="例如：volatility=0.12&#10;shelf_life_days=7"></textarea>
-                        <div class="form-text">这里用于记录实际生效的代码/参数，不是商品描述。</div>
+                        <div class="form-text">这里只是备注，真正生效看上面字段</div>
                     </div>
                 </form>
 
