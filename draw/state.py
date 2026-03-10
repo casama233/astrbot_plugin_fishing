@@ -17,6 +17,7 @@ from .game_ui import (
 )
 from .styles import load_font
 from .text_utils import normalize_display_text
+from ..core.utils import calculate_after_refine
 
 # Safety margin to prevent content truncation
 SAFETY_MARGIN = 50
@@ -41,6 +42,72 @@ def format_time(seconds: int) -> str:
     return f"{minutes}分鐘"
 
 
+def _draw_equipment_bonuses(
+    draw: ImageDraw.ImageDraw,
+    origin: tuple[int, int],
+    source: Dict[str, Any],
+    font,
+) -> None:
+    x, y = origin
+    lines = []
+
+    def _coerce(value: Any) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _add_multiplier(label: str, value: Any) -> None:
+        val = _coerce(value)
+        if val is None:
+            return
+        if val == 1.0:
+            return
+        pct = int(round((val - 1) * 100))
+        if pct == 0:
+            return
+        sign = "+" if pct > 0 else ""
+        lines.append(f"{label}{sign}{pct}%")
+
+    def _add_delta(label: str, value: Any) -> None:
+        val = _coerce(value)
+        if val is None:
+            return
+        if val == 0.0:
+            return
+        pct = int(round(val * 100))
+        if pct == 0:
+            return
+        sign = "+" if pct > 0 else ""
+        lines.append(f"{label}{sign}{pct}%")
+
+    _add_multiplier("重量", source.get("weight_modifier"))
+    _add_multiplier("品質", source.get("bonus_fish_quality_modifier"))
+    _add_multiplier("數量", source.get("bonus_fish_quantity_modifier"))
+    _add_multiplier("金幣", source.get("bonus_coin_modifier"))
+
+    _add_delta("稀有", source.get("bonus_rare_fish_chance"))
+    _add_delta("成功", source.get("success_rate_modifier"))
+    _add_delta("稀有", source.get("rare_chance_modifier"))
+    _add_delta("垃圾", source.get("garbage_reduction_modifier"))
+    _add_multiplier("價值", source.get("value_modifier"))
+    _add_multiplier("數量", source.get("quantity_modifier"))
+
+    if not lines:
+        return
+
+    for line in lines[:2]:
+        draw.text(
+            (x, y),
+            line,
+            font=font,
+            fill=GAME_COLORS["text_muted"],
+        )
+        y += 14
+
+
 def draw_state_image(
     user_data: Dict[str, Any], data_dir: str, avatar_url: Optional[str] = None
 ) -> Image.Image:
@@ -52,9 +119,9 @@ def draw_state_image(
 
     y = header_h + 15
     y += 105  # 基本資訊卡片
-    y += 35   # 當前裝備標題
-    y += 155  # 裝備卡片
-    y += 35   # 功能狀態標題
+    y += 35  # 當前裝備標題
+    y += 205  # 裝備卡片
+    y += 35  # 功能狀態標題
     y += 145  # 狀態卡片
     calculated_height = y + footer_h + 60
     height = calculated_height + SAFETY_MARGIN
@@ -73,11 +140,12 @@ def draw_state_image(
     # 標題欄
     nickname = user_data.get("nickname", "未知用戶")
     current_title = user_data.get("current_title")
-    
+
     # 格式化用戶顯示名稱（包含稱號）
     from ..core.utils import format_user_display_name
+
     display_name = format_user_display_name(nickname, current_title)
-    
+
     draw_game_title_bar(
         draw, width, 0, header_h, f"{display_name} 的狀態", title_font, "👤"
     )
@@ -133,7 +201,7 @@ def draw_state_image(
     # 裝備卡片
     draw_game_card(
         draw,
-        (20, y, width - 20, y + 140),
+        (20, y, width - 20, y + 190),
         radius=12,
         fill=GAME_COLORS["bg_card"],
         border_color=GAME_COLORS["border"],
@@ -157,6 +225,13 @@ def draw_state_image(
             fill=GAME_COLORS["text_primary"],
         )
         draw.text((35, y + 55), stars, font=tiny_font, fill=color)
+        if rod.get("description"):
+            draw.text(
+                (35, y + 72),
+                normalize_display_text(rod["description"])[:18],
+                font=tiny_font,
+                fill=GAME_COLORS["text_muted"],
+            )
 
         # 耐久
         max_dur = rod.get("max_durability")
@@ -167,18 +242,24 @@ def draw_state_image(
                 GAME_COLORS["success"] if dur_pct > 0.3 else GAME_COLORS["warning"]
             )
             draw.text(
-                (35, y + 78),
+                (35, y + 92),
                 f"耐久: {cur_dur}/{max_dur}",
                 font=tiny_font,
                 fill=dur_color,
             )
         else:
             draw.text(
-                (35, y + 78),
+                (35, y + 92),
                 "♾️ 無限耐久",
                 font=tiny_font,
                 fill=GAME_COLORS["accent_blue"],
             )
+        _draw_equipment_bonuses(
+            draw,
+            (35, y + 110),
+            rod,
+            tiny_font,
+        )
     else:
         draw.text(
             (35, y + 32),
@@ -208,6 +289,19 @@ def draw_state_image(
             fill=GAME_COLORS["text_primary"],
         )
         draw.text((280, y + 55), stars, font=tiny_font, fill=color)
+        if accessory.get("description"):
+            draw.text(
+                (280, y + 72),
+                normalize_display_text(accessory["description"])[:18],
+                font=tiny_font,
+                fill=GAME_COLORS["text_muted"],
+            )
+        _draw_equipment_bonuses(
+            draw,
+            (280, y + 92),
+            accessory,
+            tiny_font,
+        )
     else:
         draw.text(
             (280, y + 32),
@@ -232,15 +326,28 @@ def draw_state_image(
             font=content_font,
             fill=GAME_COLORS["text_primary"],
         )
+        if bait.get("description"):
+            draw.text(
+                (500, y + 55),
+                normalize_display_text(bait["description"])[:12],
+                font=tiny_font,
+                fill=GAME_COLORS["text_muted"],
+            )
 
         duration = bait.get("duration_minutes", 0)
         if duration > 0:
             draw.text(
-                (500, y + 55),
+                (500, y + 72),
                 f"剩餘 {duration} 分鐘",
                 font=tiny_font,
                 fill=GAME_COLORS["accent_blue"],
             )
+        _draw_equipment_bonuses(
+            draw,
+            (500, y + 92),
+            bait,
+            tiny_font,
+        )
     else:
         draw.text(
             (500, y + 32),
@@ -249,7 +356,7 @@ def draw_state_image(
             fill=GAME_COLORS["text_muted"],
         )
 
-    y += 155
+    y += 205
 
     # 3. 功能狀態
     draw.text(
@@ -369,6 +476,10 @@ def get_user_state_data(
     # 获取当前装备的鱼竿
     current_rod = None
     rod_instance = inventory_repo.get_user_equipped_rod(user_id)
+    if not rod_instance and getattr(user, "equipped_rod_instance_id", None):
+        rod_instance = inventory_repo.get_user_rod_instance_by_id(
+            user_id, user.equipped_rod_instance_id
+        )
     if rod_instance:
         rod_template = item_template_repo.get_rod_by_id(rod_instance.rod_id)
         if rod_template:
@@ -391,11 +502,36 @@ def get_user_state_data(
                 "refine_level": rod_instance.refine_level,
                 "current_durability": rod_instance.current_durability,
                 "max_durability": refined_max_durability,
+                "description": rod_template.description,
+                "bonus_fish_quality_modifier": calculate_after_refine(
+                    rod_template.bonus_fish_quality_modifier,
+                    refine_level=rod_instance.refine_level,
+                    rarity=rod_template.rarity,
+                ),
+                "bonus_fish_quantity_modifier": calculate_after_refine(
+                    rod_template.bonus_fish_quantity_modifier,
+                    refine_level=rod_instance.refine_level,
+                    rarity=rod_template.rarity,
+                ),
+                "bonus_rare_fish_chance": calculate_after_refine(
+                    rod_template.bonus_rare_fish_chance,
+                    refine_level=rod_instance.refine_level,
+                    rarity=rod_template.rarity,
+                ),
+                "weight_modifier": calculate_after_refine(
+                    getattr(rod_template, "weight_modifier", 1.0),
+                    refine_level=rod_instance.refine_level,
+                    rarity=rod_template.rarity,
+                ),
             }
 
     # 获取当前装备的饰品
     current_accessory = None
     accessory_instance = inventory_repo.get_user_equipped_accessory(user_id)
+    if not accessory_instance and getattr(user, "equipped_accessory_instance_id", None):
+        accessory_instance = inventory_repo.get_user_accessory_instance_by_id(
+            user_id, user.equipped_accessory_instance_id
+        )
     if accessory_instance:
         accessory_template = item_template_repo.get_accessory_by_id(
             accessory_instance.accessory_id
@@ -405,6 +541,32 @@ def get_user_state_data(
                 "name": accessory_template.name,
                 "rarity": accessory_template.rarity,
                 "refine_level": accessory_instance.refine_level,
+                "description": accessory_template.description,
+                "bonus_fish_quality_modifier": calculate_after_refine(
+                    accessory_template.bonus_fish_quality_modifier,
+                    refine_level=accessory_instance.refine_level,
+                    rarity=accessory_template.rarity,
+                ),
+                "bonus_fish_quantity_modifier": calculate_after_refine(
+                    accessory_template.bonus_fish_quantity_modifier,
+                    refine_level=accessory_instance.refine_level,
+                    rarity=accessory_template.rarity,
+                ),
+                "bonus_rare_fish_chance": calculate_after_refine(
+                    accessory_template.bonus_rare_fish_chance,
+                    refine_level=accessory_instance.refine_level,
+                    rarity=accessory_template.rarity,
+                ),
+                "bonus_coin_modifier": calculate_after_refine(
+                    accessory_template.bonus_coin_modifier,
+                    refine_level=accessory_instance.refine_level,
+                    rarity=accessory_template.rarity,
+                ),
+                "weight_modifier": calculate_after_refine(
+                    getattr(accessory_template, "weight_modifier", 1.0),
+                    refine_level=accessory_instance.refine_level,
+                    rarity=accessory_template.rarity,
+                ),
             }
 
     # 获取当前使用的鱼饵
@@ -419,6 +581,14 @@ def get_user_state_data(
                 "name": bait_template.name,
                 "rarity": bait_template.rarity,
                 "quantity": bait_quantity,
+                "description": bait_template.description,
+                "duration_minutes": bait_template.duration_minutes,
+                "success_rate_modifier": bait_template.success_rate_modifier,
+                "rare_chance_modifier": bait_template.rare_chance_modifier,
+                "garbage_reduction_modifier": bait_template.garbage_reduction_modifier,
+                "value_modifier": bait_template.value_modifier,
+                "quantity_modifier": bait_template.quantity_modifier,
+                "weight_modifier": bait_template.weight_modifier,
             }
 
     # 获取钓鱼区域信息
@@ -471,15 +641,19 @@ def get_user_state_data(
             if title_info:
                 current_title = {
                     "id": user.current_title_id,
-                    "name": title_info.name if hasattr(title_info, "name") else str(title_info),
-                    "display_format": title_info.display_format if hasattr(title_info, "display_format") else "{name}"
+                    "name": title_info.name
+                    if hasattr(title_info, "name")
+                    else str(title_info),
+                    "display_format": title_info.display_format
+                    if hasattr(title_info, "display_format")
+                    else "{name}",
                 }
             else:
                 # 如果无法获取详细信息，至少显示称号ID
                 current_title = {
                     "id": user.current_title_id,
                     "name": f"称号#{user.current_title_id}",
-                    "display_format": "{name}"
+                    "display_format": "{name}",
                 }
         except:
             # 如果获取称号失败，忽略

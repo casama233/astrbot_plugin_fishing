@@ -849,10 +849,9 @@ class UserService:
                     rod_data.append(
                         {
                             "instance_id": instance.rod_instance_id,
-                            "display_code": getattr(
-                                instance,
-                                "display_code",
-                                f"R{self._to_base36(instance.rod_instance_id)}",
+                            "display_code": (
+                                getattr(instance, "display_code", None)
+                                or f"R{self._to_base36(instance.rod_instance_id)}"
                             ),
                             "rod_id": instance.rod_id,
                             "name": rod_template.name,
@@ -878,10 +877,9 @@ class UserService:
                     accessory_data.append(
                         {
                             "instance_id": instance.accessory_instance_id,
-                            "display_code": getattr(
-                                instance,
-                                "display_code",
-                                f"A{self._to_base36(instance.accessory_instance_id)}",
+                            "display_code": (
+                                getattr(instance, "display_code", None)
+                                or f"A{self._to_base36(instance.accessory_instance_id)}"
                             ),
                             "accessory_id": instance.accessory_id,
                             "name": accessory_template.name,

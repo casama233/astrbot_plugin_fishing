@@ -141,10 +141,9 @@ class InventoryService:
                         "name": rod_template.name,
                         "rarity": rod_template.rarity,
                         "instance_id": rod_instance.rod_instance_id,
-                        "display_code": getattr(
-                            rod_instance,
-                            "display_code",
-                            f"R{self._to_base36(rod_instance.rod_instance_id)}",
+                        "display_code": (
+                            getattr(rod_instance, "display_code", None)
+                            or f"R{self._to_base36(rod_instance.rod_instance_id)}"
                         ),
                         "description": rod_template.description,
                         "is_equipped": rod_instance.is_equipped,
@@ -225,10 +224,9 @@ class InventoryService:
                         "name": accessory_template.name,
                         "rarity": accessory_template.rarity,
                         "instance_id": accessory_instance.accessory_instance_id,
-                        "display_code": getattr(
-                            accessory_instance,
-                            "display_code",
-                            f"A{self._to_base36(accessory_instance.accessory_instance_id)}",
+                        "display_code": (
+                            getattr(accessory_instance, "display_code", None)
+                            or f"A{self._to_base36(accessory_instance.accessory_instance_id)}"
                         ),
                         "description": accessory_template.description,
                         "is_equipped": accessory_instance.is_equipped,
