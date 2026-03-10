@@ -458,7 +458,21 @@ class GameMechanicsService:
             suppression_triggered = True
 
         # 7. 在同一个 user 对象上更新所有需要修改的属性
+        # 记录擦弹前的金币数量，用于调试
+        coins_before = user.coins
         user.coins += profit
+        coins_after = user.coins
+
+        # 添加详细日志，追踪金币变化
+        log_msg = (
+            f"[擦弹DEBUG] user_id={user_id}, "
+            f"投入={contribution_amount}, 倍率={reward_multiplier:.2f}, "
+            f"奖励={reward_amount}, 盈利={profit}, "
+            f"金币变化: {coins_before} → {coins_after}"
+        )
+        logger.info(log_msg)
+        print(log_msg)  # 强制输出到控制台
+
         user.wipe_bomb_attempts_today += 1  # 增加当日计数
 
         if reward_multiplier > user.max_wipe_bomb_multiplier:
@@ -484,26 +498,14 @@ class GameMechanicsService:
         )
         self.log_repo.add_wipe_bomb_log(log_entry)
 
-        # 上传非敏感数据到服务器
-        def upload_data_async():
-            upload_data = {
-                "user_id": user_id,
-                "contribution_amount": contribution_amount,
-                "reward_multiplier": reward_multiplier,
-                "reward_amount": reward_amount,
-                "profit": profit,
-                "timestamp": log_entry.timestamp.isoformat(),
-            }
-            api_url = "http://veyu.me/api/record"
-            try:
-                response = requests.post(api_url, json=upload_data)
-                if response.status_code != 200:
-                    logger.info(f"上传数据失败: {response.text}")
-            except Exception as e:
-                logger.error(f"上传数据时发生错误: {e}")
-
-        # 启动异步线程进行数据上传，不阻塞主流程
-        self.thread_pool.submit(upload_data_async)
+        # 本地統計：記錄擦彈遊戲數據
+        # 原功能：上傳數據到 veyu.me 進行統計分析（已註釋掉）
+        # 現改為本地記錄，可通過後台查看統計
+        # 數據已在 log_repo.add_wipe_bomb_log 中記錄，未來可實現本地排行榜功能
+        logger.debug(
+            f"擦彈統計: user={user_id}, 投入={contribution_amount}, "
+            f"倍率={reward_multiplier:.2f}, 獎勵={reward_amount}, 盈利={profit}"
+        )
 
         # 10. 构建返回结果
         result = {

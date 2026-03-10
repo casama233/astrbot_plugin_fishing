@@ -427,7 +427,7 @@ class SqliteItemTemplateRepository(AbstractItemTemplateRepository):
                 "value_modifier": data.get("value_modifier", 1.0),
                 "quantity_modifier": data.get("quantity_modifier", 1.0),
                 "weight_modifier": data.get("weight_modifier", 1.0),
-                "is_consumable": 1 if "is_consumable" in data else 0,
+                "is_consumable": 1 if data.get("is_consumable", True) else 0,
             }
             cursor.execute(
                 """

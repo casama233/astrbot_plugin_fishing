@@ -120,16 +120,17 @@ def draw_gacha_pool_detail_image(
 ) -> Image.Image:
     """卡池詳情圖片 - 統一遊戲風格版"""
     width = 980
-    item_height = 50
-    title_bar_height = 60
-    info_section_height = 80
+    item_height = 60  # 稍微增加高度
+    title_bar_height = 70
+    info_section_height = 90
     footer_height = 70
     spacing = 10
     padding = 24
 
-    title_font = load_font(30)
-    body_font = load_font(20)
-    small_font = load_font(16)
+    title_font = load_font(32)
+    body_font = load_font(22)
+    small_font = load_font(18)
+    tiny_font = load_font(14)
 
     # 計算高度並添加安全邊距
     num_items = max(1, len(probabilities))
@@ -212,17 +213,32 @@ def draw_gacha_pool_detail_image(
         # 使用統一稀有度顏色
         rarity_color = get_rarity_color(rarity)
         draw.text(
-            (padding + 16, y + 14),
+            (padding + 16, y + 10),  # 稍微上移
             f"{stars} {name[:35]}",
             font=small_font,
             fill=rarity_color,
         )
+
+        # 增加一條細線或更好的間隔感（這裡透過調整文字位置實現）
         draw.text(
-            (width - 200, y + 14),
+            (width - 220, y + 10),
             f"機率：{ptext}",
             font=small_font,
             fill=GAME_COLORS["text_secondary"],
         )
+
+        # 繪製一個進度條感的小條來表示概率視覺化
+        try:
+            bar_width = width - padding * 2 - 40
+            fill_width = int(bar_width * float(prob))
+            if fill_width > 0:
+                draw.rectangle(
+                    [padding + 16, y + 40, padding + 16 + max(2, fill_width), y + 44],
+                    fill=rarity_color,
+                )
+        except:
+            pass
+
         y += item_height + spacing
 
     # 底部提示

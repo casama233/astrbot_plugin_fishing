@@ -1508,6 +1508,8 @@ async def add_title():
     name = form.get("name", "").strip()
     description = form.get("description", "").strip()
     display_format = form.get("display_format", "{name}").strip()
+    trigger_type = form.get("trigger_type", "").strip() or None
+    trigger_value = form.get("trigger_value", "").strip()
 
     if not name:
         await flash("称号名称不能为空", "danger")
@@ -1516,7 +1518,11 @@ async def add_title():
     if not description:
         description = f"自定义称号：{name}"
 
-    result = user_service.create_custom_title(name, description, display_format)
+    trigger_value_int = int(trigger_value) if trigger_value else None
+
+    result = user_service.create_custom_title(
+        name, description, display_format, trigger_type, trigger_value_int
+    )
     if result["success"]:
         await flash(result["message"], "success")
     else:
@@ -1533,6 +1539,8 @@ async def edit_title(title_id):
     name = form.get("name", "").strip()
     description = form.get("description", "").strip()
     display_format = form.get("display_format", "{name}").strip()
+    trigger_type = form.get("trigger_type", "").strip() or None
+    trigger_value = form.get("trigger_value", "").strip()
 
     if not name:
         await flash("称号名称不能为空", "danger")
@@ -1551,10 +1559,13 @@ async def edit_title(title_id):
         return redirect(url_for("admin_bp.manage_titles"))
 
     # 更新称号
+    trigger_value_int = int(trigger_value) if trigger_value else None
     title_data = {
         "name": name,
         "description": description,
         "display_format": display_format,
+        "trigger_type": trigger_type,
+        "trigger_value": trigger_value_int,
     }
     item_template_service.update_title_template(title_id, title_data)
     await flash(f"称号ID {title_id} 更新成功！", "success")

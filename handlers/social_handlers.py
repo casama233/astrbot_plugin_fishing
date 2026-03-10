@@ -4,7 +4,7 @@ import re
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api import logger
 from ..draw.rank import draw_fishing_ranking
-from ..utils import parse_target_user_id, build_tip_result
+from ..utils import parse_target_user_id, build_tip_result, sanitize_filename
 
 from typing import TYPE_CHECKING
 
@@ -70,8 +70,13 @@ async def ranking(plugin: "FishingPlugin", event: AstrMessageEvent):
             icon="🏆",
         )
         user_id_for_filename = plugin._get_effective_user_id(event)
+        unique_id = getattr(
+            event, "message_id", f"{user_id_for_filename}_{int(time.time())}"
+        )
+        safe_unique_id = sanitize_filename(str(unique_id))
         image_path = os.path.join(
-            plugin.tmp_dir, f"ranking_card_{user_id_for_filename}.png"
+            plugin.tmp_dir,
+            f"ranking_{ranking_type}_{safe_unique_id}.png",
         )
         image.save(image_path)
         yield event.image_result(image_path)
@@ -113,6 +118,7 @@ async def ranking(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         # 获取称号信息（包括 display_format）
         title_info_dict = None
+        title_name = "无称号"  # 初始化默認值
         if current_title_id := user_dict.get("current_title_id"):
             title_info = plugin.item_template_repo.get_title_by_id(current_title_id)
             if title_info:

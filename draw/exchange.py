@@ -145,9 +145,10 @@ def draw_exchange_status_image(
         lines.append((name, int(price), trend, str(desc), series, trend_color))
 
     width = 1200
-    header_h = 100
+    header_h = 140
     row_h = 100
     footer_h = 70
+    sentiment_h = 70
     title_font = load_font(36)
     body_font = load_font(22)
     small_font = load_font(16)
@@ -155,7 +156,7 @@ def draw_exchange_status_image(
     body_h = measure.textbbox((0, 0), "測", font=body_font)[3]
     row_h = max(row_h, body_h + 52)
     bottom_pad = 24
-    height = header_h + max(1, len(lines)) * row_h + footer_h + bottom_pad
+    height = header_h + sentiment_h + max(1, len(lines)) * row_h + footer_h + bottom_pad
 
     image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
@@ -171,7 +172,59 @@ def draw_exchange_status_image(
         fill=GAME_COLORS["text_secondary"],
     )
 
+    # 下次價格更新時間（如果有）
+    next_update = market_result.get("next_price_update")
+    if next_update:
+        draw.text(
+            (320, 64),
+            f"下次更新: {next_update}",
+            font=small_font,
+            fill=GAME_COLORS["text_tertiary"],
+        )
+
+    # 市場情緒區塊
     y = header_h + 10
+    market_sentiment = market_result.get("market_sentiment", "neutral")
+    price_trend = market_result.get("price_trend", "stable")
+    supply_demand = market_result.get("supply_demand", "平衡")
+
+    sentiment_emoji = {"bullish": "🚀", "bearish": "🐻", "neutral": "➖"}.get(
+        market_sentiment, "➖"
+    )
+    sentiment_name = {"bullish": "看漲", "bearish": "看跌", "neutral": "中立"}.get(
+        market_sentiment, "中立"
+    )
+    sentiment_color = {
+        "bullish": GAME_COLORS["success"],
+        "bearish": GAME_COLORS["error"],
+        "neutral": GAME_COLORS["text_muted"],
+    }.get(market_sentiment, GAME_COLORS["text_muted"])
+
+    trend_emoji = {"up": "📈", "down": "📉", "stable": "➖"}.get(price_trend, "➖")
+    trend_name = {"up": "上漲", "down": "下跌", "stable": "平穩"}.get(
+        price_trend, "平穩"
+    )
+
+    draw.text(
+        (40, y + 10),
+        f"📊 市場情緒: {sentiment_emoji} {sentiment_name}",
+        font=body_font,
+        fill=sentiment_color,
+    )
+    draw.text(
+        (340, y + 10),
+        f"📈 價格趨勢: {trend_emoji} {trend_name}",
+        font=body_font,
+        fill=GAME_COLORS["text_secondary"],
+    )
+    draw.text(
+        (640, y + 10),
+        f"⚖️ 供需狀態: {supply_demand}",
+        font=body_font,
+        fill=GAME_COLORS["text_secondary"],
+    )
+
+    y += sentiment_h + 10
 
     for name, price, trend, desc, series, trend_color in lines:
         # 商品卡片

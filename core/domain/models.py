@@ -59,6 +59,7 @@ class Rod:
     bonus_rare_fish_chance: float = 0.0
     durability: Optional[int] = None
     icon_url: Optional[str] = None
+    weight_modifier: float = 1.0
 
 
 @dataclass
@@ -76,6 +77,7 @@ class Accessory:
     bonus_coin_modifier: float = 1.0
     other_bonus_description: Optional[str] = None
     icon_url: Optional[str] = None
+    weight_modifier: float = 1.0
 
 
 @dataclass
@@ -103,6 +105,10 @@ class Title:
     name: str
     description: str
     display_format: str = "{name}"
+    trigger_type: Optional[str] = (
+        None  # 触发类型: total_fish, total_coins, unique_fish, wipe_bomb_multiplier
+    )
+    trigger_value: Optional[int] = None  # 触发值
 
 
 @dataclass
@@ -210,6 +216,7 @@ class UserRodInstance:
     refine_level: int = 1  # 精炼等级，默认为1
     current_durability: Optional[int] = None
     is_locked: bool = False  # 是否锁定保护，默认为False
+    display_code: Optional[str] = None  # 显示短码
 
 
 @dataclass
@@ -223,6 +230,7 @@ class UserAccessoryInstance:
     obtained_at: datetime
     refine_level: int = 1
     is_locked: bool = False  # 是否锁定保护，默认为False
+    display_code: Optional[str] = None  # 显示短码
 
 
 @dataclass
@@ -245,6 +253,7 @@ class User:
     fish_pond_capacity: int = 480
     aquarium_capacity: int = 50  # 水族箱容量
     fishing_zone_id: int = 1  # 默认钓鱼区域ID
+    zone_pass_expires_at: Optional[datetime] = None  # 当前区域通行证过期时间
     exchange_account_status: bool = False  # 交易所账户状态
 
     max_wipe_bomb_multiplier: float = 0.0
@@ -436,6 +445,7 @@ class FishingZone:
     # 通行证要求相关字段
     required_item_id: Optional[int] = None  # 需要的通行证道具ID
     requires_pass: bool = False  # 是否需要通行证
+    pass_duration_hours: Optional[int] = None  # 通行证可逗留时长（小时），None表示永久
     # 钓鱼消耗相关字段
     fishing_cost: int = 10  # 在该区域钓鱼消耗的金币
 

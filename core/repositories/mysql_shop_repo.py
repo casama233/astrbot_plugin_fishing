@@ -108,9 +108,15 @@ class MysqlShopRepository(AbstractShopRepository):
                         data.get("sort_order", 100),
                     ),
                 )
-                shop_id = cursor.lastrowid
             conn.commit()
-        return self.get_shop_by_id(shop_id)
+        return self.get_shop_by_name(data["name"])
+
+    def get_shop_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM shops WHERE name = %s", (name,))
+                row = cursor.fetchone()
+                return self._normalize_row(row) if row else None
 
     def update_shop(self, shop_id: int, data: Dict[str, Any]) -> None:
         fields = []

@@ -1,4 +1,5 @@
 import os
+import json
 import asyncio
 import re
 
@@ -73,8 +74,12 @@ from .handlers.exchange_handlers import ExchangeHandlers
 
 
 class FishingPlugin(Star):
-    def __init__(self, context: Context, config: AstrBotConfig):
+    def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
+        if config is None:
+            config = getattr(context, "_config", {}) or {}
+        if not hasattr(config, "get") or not config.get("external_sql"):
+            config = self._load_config_fallback() or config
         tax_config = config.get("tax", {})
         self.is_tax = tax_config.get("is_tax", True)
         self.threshold = tax_config.get("threshold", 100000)
@@ -355,6 +360,22 @@ class FishingPlugin(Star):
         self.secret_key = config.get("webui", {}).get("secret_key", "fishing-admin")
         self.port = config.get("webui", {}).get("port", 7777)
         self.impersonation_map = {}
+
+    def _load_config_fallback(self) -> dict:
+        config_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "config",
+                "astrbot_plugin_fishing_config.json",
+            )
+        )
+        try:
+            with open(config_path, "r", encoding="utf-8-sig") as f:
+                return json.load(f)
+        except Exception:
+            return {}
 
     def _get_storage_backend(self, config: AstrBotConfig) -> str:
         external_sql = config.get("external_sql", {}) or {}

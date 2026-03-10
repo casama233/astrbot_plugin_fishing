@@ -31,6 +31,7 @@
                         <th>稀有度</th>
                         <th>价值</th>
                         <th>重量范围 (g)</th>
+                        <th>可用区域</th>
                         <th>描述</th>
                         <th class="text-end">操作</th>
                     </tr>
@@ -43,6 +44,7 @@
                         <td>{{ '★' * item.rarity }}</td>
                         <td>{{ item.base_value }}</td>
                         <td>{{ item.min_weight }} - {{ item.max_weight }}</td>
+                        <td>{{ item.available_zones|join(', ') if item.available_zones else '通用' }}</td>
                         <td>{{ item.description or '无' }}</td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-info edit-btn"
@@ -100,7 +102,12 @@
                             <label for="max_weight" class="form-label">最大重量 (g)</label>
                             <input type="number" id="max_weight" name="max_weight" class="form-control" required>
                         </div>
-                         <div class="col-12">
+                        <div class="col-md-8">
+                            <label for="available_zones" class="form-label">可用区域 (选填)</label>
+                            <input type="text" id="available_zones" name="available_zones" class="form-control">
+                            <div class="form-text">留空代表通用。多个区域用英文逗号分隔，例如：1,2,5</div>
+                        </div>
+                         <div class="col-md-4">
                             <label for="icon_url" class="form-label">图标URL (可选)</label>
                             <input type="text" id="icon_url" name="icon_url" class="form-control">
                         </div>

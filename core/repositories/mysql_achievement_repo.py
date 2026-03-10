@@ -92,6 +92,15 @@ class MysqlAchievementRepository(AbstractAchievementRepository):
                 )
             conn.commit()
 
+    def get_user_titles(self, user_id: str) -> List[int]:
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT title_id FROM user_titles WHERE user_id = %s",
+                    (user_id,),
+                )
+                return [row["title_id"] for row in cursor.fetchall()]
+
     def get_user_unique_fish_count(self, user_id: str) -> int:
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:

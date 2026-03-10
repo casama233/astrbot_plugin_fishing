@@ -8,9 +8,7 @@ from ..utils import (
     parse_target_user_id,
     get_loading_tip,
     should_send_loading_tip,
-    build_tip_result,
 )
-from ..core.utils import get_now
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,6 +21,16 @@ def _build_dynamic_shortcuts(
     tips = []
     try:
         user = plugin.user_repo.get_by_id(user_id)
+
+        # 检查用户是否关闭了建议消息
+        if user and not user.show_suggestions:
+            return ""
+
+        # 检查全局配置
+        show_suggestions = plugin.game_config.get("show_suggestions", True)
+        if not show_suggestions:
+            return ""
+
         coins = user.coins if user else 0
 
         state_data = plugin.user_service.get_user_state(user_id) or {}
@@ -62,334 +70,249 @@ def _build_dynamic_shortcuts(
         fish_count = int(pond_stats.get("total_count", 0) or 0)
 
         if not has_bait:
-            tips.append("/商店")
+            tips.append("- 你目前没有鱼饵：/商店（先补基础鱼饵）")
         if not has_rod:
-            tips.append("/商店")
+            tips.append("- 你目前没有鱼竿：/商店（先买入门鱼竿）")
         if coins < 200:
-            tips.append("/簽到")
-            tips.append("/全部賣出")
+            tips.append("- 金币偏少：/签到、/全部卖出（先补流动资金）")
         if fish_count > 0:
-            tips.append("/出售稀有度 1")
-            tips.append("/全部賣出")
+            tips.append("- 鱼塘有库存：/出售稀有度 1 或 /全部卖出")
         if can_refine:
-            tips.append("/精煉 R短碼")
-            tips.append("/精煉 A短碼")
+            tips.append("- 检测到可精炼装备：/精炼 R短码 或 /精炼 A短码")
         if has_item:
-            tips.append("/使用 D短碼")
+            tips.append("- 背包有可用道具：/使用 D短码")
         if can_auto_fish:
-            tips.append("/自動釣魚")
+            tips.append("- 自动钓鱼已开启：/自动钓鱼（可随时关闭）")
         if fish_count >= 20:
-            tips.append("/市場")
-            tips.append("/保留賣出")
+            tips.append("- 鱼库存较多：/市场 上架 或 /保留卖出")
 
         scene_defaults = {
             "backpack": [
-                "/魚竿",
-                "/飾品",
-                "/魚餌",
-                "/道具",
-                "/全部賣出",
-                "/開啟全部錢袋",
-                "/釣魚",
+                "- /鱼竿 /饰品 /鱼饵 /道具：分类查看",
+                "- /使用 [短码]：装备或使用",
+                "- /开启全部钱袋：批量开袋",
+                "- /钓鱼：继续推进资源循环",
+            ],
+            "pond": [
+                "- /出售 [ID] 或 /全部卖出：变现",
+                "- /放入水族箱 [ID]：收藏珍品",
+                "- /钓鱼：继续积累",
             ],
             "rod": [
-                "/使用 R短碼",
-                "/鎖定 R短碼",
-                "/釣魚",
+                "- /使用 R短码：装备鱼竿",
+                "- /锁定 R短码：防止误出售",
+                "- /钓鱼：实战验证当前搭配",
             ],
             "accessory": [
-                "/使用 A短碼",
-                "/鎖定 A短碼",
-                "/釣魚",
+                "- /使用 A短码：装备饰品",
+                "- /锁定 A短码：防止误出售",
+                "- /钓鱼：实战验证当前搭配",
             ],
             "bait": [
-                "/使用 B短碼",
-                "/釣魚",
-                "/商店",
+                "- /使用 B短码：切换鱼饵",
+                "- /钓鱼：消耗鱼饵并产出收益",
+                "- /商店：补充鱼饵库存",
             ],
             "item": [
-                "/使用 D短碼",
-                "/開啟全部錢袋",
-                "/背包",
+                "- /使用 D短码：使用道具",
+                "- /开启全部钱袋：批量开袋",
+                "- /背包：返回总览",
             ],
         }
 
         defaults = scene_defaults.get(scene, scene_defaults["backpack"])
-        merged = []
-        for tip in tips + defaults:
-            if tip and tip not in merged:
-                merged.append(tip)
+        merged = tips + defaults
         merged = merged[:6]
-        blocks = "\n".join([f"```\n{m}\n```" for m in merged])
-        return "⌨️ 建議操作\n" + blocks + "\n" + "💡 /釣魚幫助 速查"
+        if scene == "backpack":
+            moneybag_tip = "- /开启全部钱袋：批量开袋"
+            if moneybag_tip not in merged:
+                if len(merged) >= 6:
+                    merged[-1] = moneybag_tip
+                else:
+                    merged.append(moneybag_tip)
+        return (
+            "⌨️ 智能快捷提示\n"
+            + "\n".join(merged)
+            + "\n💡 输入 /钓鱼帮助 速查 查看完整快捷表"
+        )
     except Exception:
-        fallback = [
-            "/商店",
-            "/釣魚",
-            "/背包",
-            "/開啟全部錢袋",
-            "/全部賣出",
-        ]
-        blocks = "\n".join([f"```\n{m}\n```" for m in fallback])
-        return "⌨️ 建議操作\n" + blocks
-
-
-def _format_remaining_time(expires_at) -> str:
-    if not expires_at:
-        return "永久"
-    now = get_now().replace(tzinfo=None)
-    remaining_seconds = int((expires_at - now).total_seconds())
-    if remaining_seconds <= 0:
-        return "0分鐘"
-    hours, remainder = divmod(remaining_seconds, 3600)
-    minutes = (remainder + 59) // 60
-    if hours > 0:
-        if minutes == 0:
-            return f"{hours}小時"
-        return f"{hours}小時{minutes}分鐘"
-    return f"{minutes}分鐘"
+        return (
+            "⌨️ 快捷操作\n"
+            "- /商店：补给\n"
+            "- /钓鱼：推进\n"
+            "- /背包：查看道具\n"
+            "- /开启全部钱袋（/打开所有钱袋）：批量开袋\n"
+            "- /使用 [短码]：装备或使用"
+        )
 
 
 async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
     """查看用户背包"""
     user_id = plugin._get_effective_user_id(event)
-    if user := plugin.user_repo.get_by_id(user_id):
-        try:
-            # 导入绘制函数
-            from ..draw.backpack import draw_backpack_image, get_user_backpack_data
+    user = plugin.user_repo.get_by_id(user_id)
 
-            # 获取用户背包数据（不截断，确保新获得物品都可见）
-            backpack_data = get_user_backpack_data(
-                plugin.inventory_service, user_id, max_items_per_category=0
+    if not user:
+        yield event.plain_result("❌ 找不到您的用户数据，请先使用 /注册 命令。")
+        return
+
+    try:
+        # 导入绘制函数
+        from ..draw.backpack import draw_backpack_image, get_user_backpack_data
+
+        # 获取用户背包数据
+        backpack_data = get_user_backpack_data(
+            plugin.inventory_service, user_id, max_items_per_category=50
+        )
+
+        # 检查是否有称号，并将其添加到 backpack_data
+        user_title_info = None
+        if hasattr(user, "current_title_id") and user.current_title_id:
+            title_template = plugin.item_template_repo.get_title_by_id(
+                user.current_title_id
+            )
+            if title_template:
+                user_title_info = {
+                    "name": title_template.name,
+                    "display_format": getattr(
+                        title_template, "display_format", "{name}"
+                    ),
+                }
+        backpack_data["user_title"] = user_title_info
+
+        # 设置用户昵称
+        backpack_data["nickname"] = user.nickname or user_id
+
+        # 如果物品总数超过200，先给出警告提示
+        total_items = (
+            backpack_data.get("total_rods", 0)
+            + backpack_data.get("total_accessories", 0)
+            + backpack_data.get("total_baits", 0)
+            + backpack_data.get("total_items", 0)
+        )
+
+        if total_items > 200:
+            yield event.plain_result(
+                f"⚠️ 检测到您的背包有 {total_items} 个物品！\\n"
+                "💡 物品过多可能导致图片生成较慢或失败，建议先清理背包。\\n"
+                "📝 您也可以使用「鱼竿」「饰品」「鱼饵」「道具」命令分类查看。\\n"
+                "⏳ 正在生成背包图片，请稍候..."
             )
 
-            # 设置用户昵称
-            backpack_data["nickname"] = user.nickname or user_id
-            current_title_name = None
-            if getattr(user, "current_title_id", None):
-                title_tpl = plugin.item_template_repo.get_title_by_id(
-                    user.current_title_id
+        # 生成背包图像
+        image = draw_backpack_image(backpack_data, plugin.data_dir)
+        # 保存图像到临时文件
+        image_path = os.path.join(plugin.tmp_dir, f"user_backpack_{user_id}.png")
+        image.save(image_path)
+        yield event.image_result(image_path)
+
+        shortcuts = _build_dynamic_shortcuts(plugin, user_id, "backpack")
+        if shortcuts:
+            yield event.plain_result(shortcuts)
+
+        # 如果内容被截断或过滤，额外发送提示
+        if backpack_data.get("is_truncated", False):
+            filter_info = []
+            if backpack_data.get("rods_filtered", False):
+                filter_info.append(
+                    f"鱼竿：仅显示5星以上 ({backpack_data['displayed_rods']}/{backpack_data['total_rods']})"
                 )
-                if title_tpl:
-                    current_title_name = title_tpl.name
-            if current_title_name:
-                backpack_data["current_title"] = current_title_name
-
-            # 如果物品总数超过200，先给出警告提示
-            total_items = (
-                backpack_data.get("total_rods", 0)
-                + backpack_data.get("total_accessories", 0)
-                + backpack_data.get("total_baits", 0)
-                + backpack_data.get("total_items", 0)
-            )
-
-            if total_items > 200:
+            if backpack_data.get("accessories_filtered", False):
+                filter_info.append(
+                    f"饰品：仅显示5星以上 ({backpack_data['displayed_accessories']}/{backpack_data['total_accessories']})"
+                )
+            if filter_info:
                 yield event.plain_result(
-                    f"⚠️ 检测到您的背包有 {total_items} 个物品！\n"
-                    "💡 物品过多可能导致图片生成较慢或失败，建议先清理背包。\n"
-                    "📝 您也可以使用「鱼竿」「饰品」「鱼饵」「道具」命令分类查看。\n"
-                    "⏳ 正在生成背包图片，请稍候..."
+                    "💡 为保持图片清晰，部分低星物品已折叠显示。\n"
+                    "📝 使用分类命令查看完整列表：/鱼竿 /饰品"
                 )
 
-            # 生成背包图像
-            image = draw_backpack_image(backpack_data, plugin.data_dir)
-            # 保存图像到临时文件
-            image_path = os.path.join(plugin.tmp_dir, "user_backpack.png")
-            image.save(image_path)
-            yield event.image_result(image_path)
-            tip = build_tip_result(
-                event,
-                _build_dynamic_shortcuts(plugin, user_id, "backpack"),
-                plugin=plugin,
-                user_id=user_id,
-            )
-            if tip is not None:
-                yield tip
+    except Exception as e:
+        from astrbot.api import logger
 
-            # 如果内容被截断或过滤，额外发送提示
-            if backpack_data.get("is_truncated", False):
-                filter_info = []
-                if backpack_data.get("rods_filtered", False):
-                    filter_info.append(
-                        f"鱼竿：仅显示5星以上 ({backpack_data['displayed_rods']}/{backpack_data['total_rods']})"
-                    )
-                if backpack_data.get("accessories_filtered", False):
-                    filter_info.append(
-                        f"饰品：仅显示5星以上 ({backpack_data['displayed_accessories']}/{backpack_data['total_accessories']})"
-                    )
-
-                filter_text = (
-                    "\n".join([f"• {info}" for info in filter_info])
-                    if filter_info
-                    else ""
-                )
-
-                tip = build_tip_result(
-                    event,
-                    f"💡 提示：由于物品过多，已自动过滤显示内容。\n"
-                    f"{filter_text}\n\n"
-                    "🧹 建议及时清理背包：\n"
-                    "• /出售所有鱼竿 - 快速清理鱼竿\n"
-                    "• /出售所有饰品 - 快速清理饰品\n"
-                    "• /出售 [ID] - 出售指定装备\n\n"
-                    "📝 使用分类命令查看完整列表：\n"
-                    "• /鱼竿 - 查看所有鱼竿（自动过滤）\n"
-                    "• /饰品 - 查看所有饰品（自动过滤）\n"
-                    "• /鱼饵 - 查看所有鱼饵\n"
-                    "• /道具 - 查看所有道具",
-                    plugin=plugin,
-                    user_id=user_id,
-                )
-                if tip is not None:
-                    yield tip
-        except Exception as e:
-            # 记录错误日志
-            from astrbot.api import logger
-
-            logger.error(f"生成背包图片时发生错误: {e}", exc_info=True)
-
-            # 返回错误信息
-            tip = build_tip_result(
-                event,
-                "❌ 生成背包图片时发生错误。\n\n"
-                "💡 可能的原因：\n"
-                "1. 背包物品过多导致处理超时\n"
-                "2. 内存不足\n\n"
-                "🔧 建议操作：\n"
-                "• 使用「鱼竿」「饰品」「鱼饵」「道具」命令分类查看\n"
-                "• 清理不需要的物品（出售低品质装备、使用道具等）\n"
-                "• 如果问题持续存在，请联系管理员",
-                plugin=plugin,
-                user_id=user_id,
-            )
-            if tip is not None:
-                yield tip
-    else:
-        yield event.plain_result("❌ 您还没有注册，请先使用 /注册 命令注册。")
+        logger.error(f"生成背包图片失败: {e}", exc_info=True)
+        yield event.plain_result(
+            "❌ 生成背包图片失败。\\n"
+            "💡 可能的原因是物品过多，请尝试使用 `/鱼竿` `/饰品` 等命令分类查看。"
+        )
 
 
 async def pond(plugin: "FishingPlugin", event: AstrMessageEvent):
     """查看用户鱼塘内的鱼"""
     user_id = plugin._get_effective_user_id(event)
+    user = plugin.user_repo.get_by_id(user_id)
+
     if pond_fish := plugin.inventory_service.get_user_fish_pond(user_id):
         fishes = pond_fish["fishes"]
-        user = plugin.user_repo.get_by_id(user_id)
-        # 把fishes按稀有度分组
-        fished_by_rarity = {}
-        for fish in fishes:
-            rarity = fish.get("rarity", "未知")
-            if rarity not in fished_by_rarity:
-                fished_by_rarity[rarity] = []
-            fished_by_rarity[rarity].append(fish)
-        protection_buff = plugin.buff_repo.get_active_by_user_and_type(
-            user_id, "STEAL_PROTECTION_BUFF"
-        )
-        has_guardian = protection_buff is not None
-        capacity = plugin.inventory_service.get_user_fish_pond_capacity(user_id)
+        stats = pond_fish["stats"]
 
-        # 优先图片渲染，统一卡片风格并显示短码
         try:
-            from ..draw.list_cards import draw_game_card_list_image
+            from ..draw.pond import draw_pond_image
+            import os
 
-            sections = []
-            for rarity in sorted(fished_by_rarity.keys(), reverse=True):
-                fish_list = sorted(
-                    fished_by_rarity[rarity],
-                    key=lambda f: (
-                        -(int(f.get("quality_level", 0) or 0)),
-                        -float(f.get("actual_value", f.get("base_value", 0)) or 0),
-                        str(f.get("name", "")),
-                    ),
-                )
-                rows = []
-                for fish in fish_list[:20]:
-                    fish_id = int(fish.get("fish_id", 0) or 0)
-                    quality_level = int(fish.get("quality_level", 0) or 0)
-                    fcode = (
-                        f"F{fish_id}H"
-                        if quality_level == 1 and fish_id
-                        else (f"F{fish_id}" if fish_id else "F0")
+            user_data = {
+                "nickname": user.nickname if user else user_id,
+                "current_title": None,
+            }
+
+            if user and hasattr(user, "current_title_id") and user.current_title_id:
+                try:
+                    title_info = plugin.item_template_repo.get_title_by_id(
+                        user.current_title_id
                     )
-                    quality_text = " ✨高品質" if quality_level == 1 else ""
-                    rows.append(
-                        f"{fish.get('name', '未知魚')} x{fish.get('quantity', 0)}{quality_text}  ID:{fcode}  {fish.get('actual_value', 0)}金幣/個"
-                    )
-                if rows:
-                    sections.append(
-                        {
-                            "title": f"{format_rarity_display(rarity)} 稀有度",
-                            "rows": rows,
+                    if title_info:
+                        user_data["current_title"] = {
+                            "name": title_info.name,
+                            "display_format": getattr(
+                                title_info, "display_format", "{name}"
+                            ),
                         }
-                    )
+                except Exception:
+                    pass
 
-            image = draw_game_card_list_image(
-                title="🐠 魚塘",
-                sections=sections,
-                subtitle=f"{(user.nickname if user else user_id)}  |  總魚數 {pond_fish['stats']['total_count']}  |  總價值 {pond_fish['stats']['total_value']} 金幣",
-                footer="💡 操作：/出售 F短碼 [數量]  /上架 F短碼 價格 [數量]",
-                icon="🐠",
+            capacity_info = plugin.inventory_service.get_user_fish_pond_capacity(
+                user_id
             )
-            image_path = os.path.join(plugin.tmp_dir, f"fish_pond_{user_id}.png")
+
+            image = draw_pond_image(user_data, fishes, stats, capacity_info)
+            image_path = os.path.join(plugin.tmp_dir, f"pond_{user_id}.png")
             image.save(image_path)
+
             yield event.image_result(image_path)
-            tip = build_tip_result(
-                event,
-                _build_dynamic_shortcuts(plugin, user_id, "backpack"),
-                plugin=plugin,
-                user_id=user_id,
-            )
-            if tip is not None:
-                yield tip
-            return
-        except Exception:
-            pass
 
-        # 构造输出信息（文字回退）
-        message = "【🐠 魚塘】：\n"
-        if has_guardian:
-            remaining_text = _format_remaining_time(protection_buff.expires_at)
-            message += f"🛡️ 守護海靈：有（剩餘 {remaining_text}）\n"
-        else:
-            message += "🛡️ 守護海靈：無\n"
-        if capacity.get("success"):
-            message += f"📦 容量：{capacity['current_fish_count']} / {capacity['fish_pond_capacity']} 條\n"
+            shortcuts = _build_dynamic_shortcuts(plugin, user_id, "pond")
+            if shortcuts:
+                yield event.plain_result(shortcuts)
 
-        for rarity in sorted(fished_by_rarity.keys(), reverse=True):
-            fish_list = fished_by_rarity[rarity]
-            if fish_list:
-                message += f"\n{format_rarity_display(rarity)}：\n"
-                fish_list = sorted(
-                    fish_list,
-                    key=lambda f: (
-                        -(int(f.get("quality_level", 0) or 0)),
-                        -float(f.get("actual_value", f.get("base_value", 0)) or 0),
-                        str(f.get("name", "")),
-                    ),
-                )
-                for fish in fish_list:
-                    fish_id = int(fish.get("fish_id", 0) or 0)
-                    quality_level = fish.get("quality_level", 0)
-                    # 生成带品质标识的FID
-                    if quality_level == 1:
-                        fcode = f"F{fish_id}H" if fish_id else "F0H"  # H代表✨高品质
-                    else:
-                        fcode = f"F{fish_id}" if fish_id else "F0"  # 普通品质
-                    # 顯示品質資訊
-                    quality_display = ""
-                    if quality_level == 1:
-                        quality_display = " ✨高品質"
-                    message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({fish['actual_value']}金幣/個) ID: {fcode}\n"
-        message += f"\n🐟 總魚數：{pond_fish['stats']['total_count']} 條\n"
-        message += f"💰 總價值：{pond_fish['stats']['total_value']} 金幣\n"
-        yield event.plain_result(message)
-        tip = build_tip_result(
-            event,
-            _build_dynamic_shortcuts(plugin, user_id, "backpack"),
-            plugin=plugin,
-            user_id=user_id,
-        )
-        if tip is not None:
-            yield tip
+        except Exception as e:
+            from astrbot.api import logger
+
+            logger.error(f"生成鱼塘图片时发生错误: {e}", exc_info=True)
+
+            fallback_message = "【🐠 魚塘】\n"
+            fished_by_rarity = {}
+            for fish in fishes:
+                rarity = fish.get("rarity", "未知")
+                if rarity not in fished_by_rarity:
+                    fished_by_rarity[rarity] = []
+                fished_by_rarity[rarity].append(fish)
+
+            for rarity in sorted(fished_by_rarity.keys(), reverse=True):
+                fish_list = fished_by_rarity[rarity]
+                if fish_list:
+                    fallback_message += f"\n {format_rarity_display(rarity)}：\n"
+                    for fish in fish_list:
+                        fish_id = int(fish.get("fish_id", 0) or 0)
+                        quality_level = fish.get("quality_level", 0)
+                        if quality_level == 1:
+                            fcode = f"F{fish_id}H" if fish_id else "F0H"
+                        else:
+                            fcode = f"F{fish_id}" if fish_id else "F0"
+                        quality_display = " ✨高品質" if quality_level == 1 else ""
+                        fallback_message += f" - {fish['name']}{quality_display} x {fish['quantity']} （{fish['actual_value']}金幣 / 個） ID: {fcode}\n"
+
+            fallback_message += f"\n🐟 總魚數：{stats['total_count']} 條\n"
+            fallback_message += f"💰 總價值：{stats['total_value']} 金幣\n"
+            yield event.plain_result(fallback_message)
     else:
         yield event.plain_result("🐟 您的鱼塘是空的，快去钓鱼吧！")
 
@@ -423,31 +346,13 @@ async def peek_pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                 fished_by_rarity[rarity] = []
             fished_by_rarity[rarity].append(fish)
 
-        protection_buff = plugin.buff_repo.get_active_by_user_and_type(
-            target_user_id, "STEAL_PROTECTION_BUFF"
-        )
-        has_guardian = protection_buff is not None
-
         # 构造输出信息
-        message = f"【🔍 偷看 {target_user.nickname} 的魚塘】：\n"
-        if has_guardian:
-            remaining_text = _format_remaining_time(protection_buff.expires_at)
-            message += f"🛡️ 守護海靈：有（剩餘 {remaining_text}）\n"
-        else:
-            message += "🛡️ 守護海靈：無\n"
+        message = f"【🔍 偷看 {target_user.nickname} 的鱼塘】：\n"
 
         for rarity in sorted(fished_by_rarity.keys(), reverse=True):
             fish_list = fished_by_rarity[rarity]
             if fish_list:
-                message += f"\n{format_rarity_display(rarity)}：\n"
-                fish_list = sorted(
-                    fish_list,
-                    key=lambda f: (
-                        -(int(f.get("quality_level", 0) or 0)),
-                        -float(f.get("actual_value", f.get("base_value", 0)) or 0),
-                        str(f.get("name", "")),
-                    ),
-                )
+                message += f"\n {format_rarity_display(rarity)} 稀有度 {rarity}：\n"
                 for fish in fish_list:
                     fish_id = int(fish.get("fish_id", 0) or 0)
                     quality_level = fish.get("quality_level", 0)
@@ -456,14 +361,14 @@ async def peek_pond(plugin: "FishingPlugin", event: AstrMessageEvent):
                         fcode = f"F{fish_id}H" if fish_id else "F0H"  # H代表✨高品质
                     else:
                         fcode = f"F{fish_id}" if fish_id else "F0"  # 普通品质
-                    # 顯示品質資訊
+                    # 显示品质信息
                     quality_display = ""
                     if quality_level == 1:
-                        quality_display = " ✨高品質"
+                        quality_display = " ✨高品质"
                     actual_value = fish.get("actual_value", fish.get("base_value", 0))
-                    message += f" - {fish['name']}{quality_display} x{fish['quantity']} ({actual_value}金幣/個) ID: {fcode}\n"
-        message += f"\n🐟 總魚數：{pond_fish['stats']['total_count']} 條\n"
-        message += f"💰 總價值：{pond_fish['stats']['total_value']} 金幣\n"
+                    message += f"  - {fish['name']}{quality_display} x  {fish['quantity']} （{actual_value}金币 / 个） ID: {fcode}\n"
+        message += f"\n🐟 总鱼数：{pond_fish['stats']['total_count']} 条\n"
+        message += f"💰 总价值：{pond_fish['stats']['total_value']} 金币\n"
         yield event.plain_result(message)
     else:
         yield event.plain_result(f"🐟 {target_user.nickname} 的鱼塘是空的！")
@@ -493,13 +398,7 @@ async def upgrade_pond(plugin: "FishingPlugin", event: AstrMessageEvent):
 
 
 async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
-    """查看用戶魚竿資訊"""
-    raw = event.message_str
-    for src in ["/鱼竿", "/魚竿"]:
-        if raw.strip().startswith(src):
-            raw = raw.replace(src, "/魚竿", 1)
-            break
-    event.message_str = raw
+    """查看用户鱼竿信息"""
     user_id = plugin._get_effective_user_id(event)
     rod_info = plugin.inventory_service.get_user_rod_inventory(user_id)
     if rod_info and rod_info["rods"]:
@@ -525,35 +424,12 @@ async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         displayed_count = len(rods)
 
-        # 優先圖片渲染，失敗則回退文字
-        try:
-            from ..draw.equipment import draw_equipment_image
-
-            image = draw_equipment_image("魚竿列表", rods, kind="rod")
-            image_path = os.path.join(plugin.tmp_dir, f"rod_list_{user_id}.png")
-            image.save(image_path)
-            yield event.image_result(image_path)
-            tip = build_tip_result(
-                event,
-                _build_dynamic_shortcuts(plugin, user_id, "rod"),
-                plugin=plugin,
-                user_id=user_id,
-            )
-            if tip is not None:
-                yield tip
-            return
-        except Exception:
-            pass
-
-        # 構造輸出資訊
+        # 构造输出信息,附带emoji
         if is_filtered:
-            message = (
-                f"【🎣 魚竿列表】共 {total_count} 件（顯示 {displayed_count} 件）\n"
-            )
-            message += "💡 物品過多，已自動僅顯示 5 星以上魚竿\n"
+            message = f"【🎣 鱼竿】共 {total_count} 根，仅显示高品质鱼竿 {displayed_count} 根：\n"
+            message += "💡 提示：数量过多，仅显示5星以上鱼竿\n\n"
         else:
-            message = f"【🎣 魚竿列表】共 {total_count} 件\n"
-        message += "════════════════════════════\n"
+            message = f"【🎣 鱼竿】共 {total_count} 根：\n"
 
         for rod in rods:
             message += format_accessory_or_rod(rod)
@@ -561,39 +437,24 @@ async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
                 rod.get("bonus_rare_fish_chance", 1) != 1
                 and rod.get("bonus_fish_weight", 1.0) != 1.0
             ):
-                message += f"   - 稀有魚命中加成：{to_percentage(rod['bonus_rare_fish_chance'])}\n"
-            message += f"   - 精煉等級：{rod.get('refine_level', 1)}\n"
+                message += f"   - 钓上鱼鱼类几率加成: {to_percentage(rod['bonus_rare_fish_chance'])}\n"
+            message += f"   -精炼等级: {rod.get('refine_level', 1)}\n"
 
-        # 檢查訊息長度
+        # 检查消息长度，如果太长则截断
         if len(message) > 3000:
-            message = message[:3000] + "\n\n📝 訊息過長，已截斷顯示。"
+            message = message[:3000] + "\n\n📝 消息过长已截断。"
 
-        # 如果被過濾，添加清理建議
+        # 如果被过滤，添加清理建议
         if is_filtered:
-            message += "\n\n🧹 建議及時清理低品質魚竿：\n"
-            message += "• /出售所有魚竿 - 快速清理\n"
-            message += "• /出售 [魚竿ID] - 出售指定魚竿"
+            message += "\n\n🧹 建议及时清理低品质鱼竿：\n"
+            message += "• /出售所有鱼竿 - 快速清理低品质鱼竿\n"
+            message += "• /出售 [鱼竿ID] - 出售指定鱼竿"
+
+        message += "\n\n" + _build_dynamic_shortcuts(plugin, user_id, "rod")
 
         yield event.plain_result(message)
-        tip = build_tip_result(
-            event,
-            _build_dynamic_shortcuts(plugin, user_id, "rod"),
-            plugin=plugin,
-            user_id=user_id,
-        )
-        if tip is not None:
-            yield tip
     else:
-        tip = build_tip_result(
-            event,
-            "🎣 你目前還沒有魚竿。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```",
-            plugin=plugin,
-            user_id=user_id,
-        )
-        if tip is not None:
-            yield tip
-        else:
-            yield event.plain_result("🎣 你目前還沒有魚竿。")
+        yield event.plain_result("🎣 您还没有鱼竿，快去商店购买或抽奖获得吧！")
 
 
 async def bait(plugin: "FishingPlugin", event: AstrMessageEvent):
@@ -613,15 +474,8 @@ async def bait(plugin: "FishingPlugin", event: AstrMessageEvent):
             if bait["effect_description"]:
                 message += f"   - 效果: {bait['effect_description']}\n"
             message += "\n"
+        message += _build_dynamic_shortcuts(plugin, user_id, "bait")
         yield event.plain_result(message)
-        tip = build_tip_result(
-            event,
-            _build_dynamic_shortcuts(plugin, user_id, "bait"),
-            plugin=plugin,
-            user_id=user_id,
-        )
-        if tip is not None:
-            yield tip
     else:
         yield event.plain_result("🐟 您还没有鱼饵，快去商店购买或抽奖获得吧！")
 
@@ -640,15 +494,8 @@ async def items(plugin: "FishingPlugin", event: AstrMessageEvent):
             if it.get("effect_description"):
                 message += f"   - 效果: {it['effect_description']}\n"
             message += "\n"
+        message += _build_dynamic_shortcuts(plugin, user_id, "item")
         yield event.plain_result(message)
-        tip = build_tip_result(
-            event,
-            _build_dynamic_shortcuts(plugin, user_id, "item"),
-            plugin=plugin,
-            user_id=user_id,
-        )
-        if tip is not None:
-            yield tip
     else:
         yield event.plain_result("📦 您还没有道具。")
 
@@ -706,13 +553,7 @@ async def open_all_money_bags(plugin: "FishingPlugin", event: AstrMessageEvent):
 
 
 async def accessories(plugin: "FishingPlugin", event: AstrMessageEvent):
-    """查看用戶飾品資訊"""
-    raw = event.message_str
-    for src in ["/饰品", "/飾品"]:
-        if raw.strip().startswith(src):
-            raw = raw.replace(src, "/飾品", 1)
-            break
-    event.message_str = raw
+    """查看用户饰品信息"""
     user_id = plugin._get_effective_user_id(event)
     accessories_info = plugin.inventory_service.get_user_accessory_inventory(user_id)
     if accessories_info and accessories_info["accessories"]:
@@ -740,70 +581,32 @@ async def accessories(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         displayed_count = len(accessories)
 
-        # 優先圖片渲染，失敗則回退文字
-        try:
-            from ..draw.equipment import draw_equipment_image
-
-            image = draw_equipment_image("飾品列表", accessories, kind="accessory")
-            image_path = os.path.join(plugin.tmp_dir, f"accessory_list_{user_id}.png")
-            image.save(image_path)
-            yield event.image_result(image_path)
-            tip = build_tip_result(
-                event,
-                _build_dynamic_shortcuts(plugin, user_id, "accessory"),
-                plugin=plugin,
-                user_id=user_id,
-            )
-            if tip is not None:
-                yield tip
-            return
-        except Exception:
-            pass
-
-        # 構造輸出資訊
+        # 构造输出信息,附带emoji
         if is_filtered:
-            message = (
-                f"【💍 飾品列表】共 {total_count} 件（顯示 {displayed_count} 件）\n"
-            )
-            message += "💡 物品過多，已自動僅顯示 5 星以上飾品\n"
+            message = f"【💍 饰品】共 {total_count} 个，仅显示高品质饰品 {displayed_count} 个：\n"
+            message += "💡 提示：数量过多，仅显示5星以上饰品\n\n"
         else:
-            message = f"【💍 飾品列表】共 {total_count} 件\n"
-        message += "════════════════════════════\n"
+            message = f"【💍 饰品】共 {total_count} 个：\n"
 
         for accessory in accessories:
             message += format_accessory_or_rod(accessory)
-            message += f"   - 精煉等級：{accessory.get('refine_level', 1)}\n"
+            message += f"   -精炼等级: {accessory.get('refine_level', 1)}\n"
 
-        # 檢查訊息長度
+        # 检查消息长度，如果太长则截断
         if len(message) > 3000:
-            message = message[:3000] + "\n\n📝 訊息過長，已截斷顯示。"
+            message = message[:3000] + "\n\n📝 消息过长已截断。"
 
-        # 如果被過濾，添加清理建議
+        # 如果被过滤，添加清理建议
         if is_filtered:
-            message += "\n\n🧹 建議及時清理低品質飾品：\n"
-            message += "• /出售所有飾品 - 快速清理\n"
-            message += "• /出售 [飾品ID] - 出售指定飾品"
+            message += "\n\n🧹 建议及时清理低品质饰品：\n"
+            message += "• /出售所有饰品 - 快速清理低品质饰品\n"
+            message += "• /出售 [饰品ID] - 出售指定饰品"
+
+        message += "\n\n" + _build_dynamic_shortcuts(plugin, user_id, "accessory")
 
         yield event.plain_result(message)
-        tip = build_tip_result(
-            event,
-            _build_dynamic_shortcuts(plugin, user_id, "accessory"),
-            plugin=plugin,
-            user_id=user_id,
-        )
-        if tip is not None:
-            yield tip
     else:
-        tip = build_tip_result(
-            event,
-            "💍 你目前還沒有飾品。\n\n⌨️ 建議下一步\n```\n/商店\n```\n```\n/抽卡\n```",
-            plugin=plugin,
-            user_id=user_id,
-        )
-        if tip is not None:
-            yield tip
-        else:
-            yield event.plain_result("💍 你目前還沒有飾品。")
+        yield event.plain_result("💍 您还没有饰品，快去商店购买或抽奖获得吧！")
 
 
 async def refine_help(plugin: "FishingPlugin", event: AstrMessageEvent):
@@ -986,49 +789,29 @@ async def use_equipment(
             yield event.plain_result("❌ 出错啦！请稍后再试。")
 
     elif target_type == "item":
-        # 道具類物品（簡單數字ID）
+        # 道具类物品（简单数字ID）
         try:
             item_id = int(token[1:])
         except Exception:
-            yield event.plain_result("❌ 無效的道具ID，請檢查後重試。")
+            yield event.plain_result("❌ 无效的道具ID，请检查后重试。")
             return
 
-        # 處理數量參數和目標用戶參數
+        # 处理数量参数
         quantity = 1
-        target_user_id = None
-
-        # 解析參數：可能是數量、@用戶、或用戶ID
-        if len(args) > 2:
-            from ..utils import parse_amount, parse_target_user_id
-
-            third_arg = args[2].strip()
-
-            # 优先按数量解析，避免纯数字目标参数把数量误判成用户ID
-            try:
-                quantity = parse_amount(third_arg)
-                if quantity <= 0:
-                    yield event.plain_result("❌ 數量必須是正整數。")
-                    return
-
-                if len(args) > 3:
-                    target_id, _ = parse_target_user_id(event, args, 3)
-                    if target_id:
-                        target_user_id = target_id
-            except Exception:
-                target_id, _ = parse_target_user_id(event, args, 2)
-                if target_id:
-                    target_user_id = target_id
+        if len(args) > 2 and args[2].isdigit():
+            quantity = int(args[2])
+            if quantity <= 0:
+                yield event.plain_result("❌ 数量必须是正整数。")
+                return
 
         # 使用道具
-        if result := plugin.inventory_service.use_item(
-            user_id, int(item_id), quantity, target_user_id=target_user_id
-        ):
+        if result := plugin.inventory_service.use_item(user_id, int(item_id), quantity):
             if result["success"]:
                 yield event.plain_result(result["message"])
             else:
-                yield event.plain_result(f"{result['message']}")
+                yield event.plain_result(f"❌ 使用道具失败：{result['message']}")
         else:
-            yield event.plain_result("❌ 出錯啦！請稍後再試。")
+            yield event.plain_result("❌ 出错啦！请稍后再试。")
 
     elif target_type == "bait":
         # 鱼饵类物品（简单数字ID）
@@ -1215,14 +998,7 @@ async def sell_equipment(
             if result["success"]:
                 yield event.plain_result(result["message"])
                 if should_send_loading_tip(plugin.game_config):
-                    tip = build_tip_result(
-                        event,
-                        get_loading_tip("inventory"),
-                        plugin=plugin,
-                        user_id=user_id,
-                    )
-                    if tip is not None:
-                        yield tip
+                    yield event.plain_result(get_loading_tip("inventory"))
             else:
                 yield event.plain_result(f"❌ 出售失败：{result['message']}")
         else:
@@ -1249,14 +1025,7 @@ async def sell_equipment(
         if result["success"]:
             yield event.plain_result(result["message"])
             if should_send_loading_tip(plugin.game_config):
-                tip = build_tip_result(
-                    event,
-                    get_loading_tip("inventory"),
-                    plugin=plugin,
-                    user_id=user_id,
-                )
-                if tip is not None:
-                    yield tip
+                yield event.plain_result(get_loading_tip("inventory"))
         else:
             yield event.plain_result(f"❌ 出售失败：{result['message']}")
     else:

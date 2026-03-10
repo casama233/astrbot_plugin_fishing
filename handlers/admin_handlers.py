@@ -19,8 +19,8 @@ async def modify_coins(plugin: "FishingPlugin", event: AstrMessageEvent):
     """修改用户金币"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return
@@ -49,8 +49,8 @@ async def modify_premium(plugin: "FishingPlugin", event: AstrMessageEvent):
     """修改用户高级货币"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return
@@ -80,8 +80,8 @@ async def reward_premium(plugin: "FishingPlugin", event: AstrMessageEvent):
     """奖励用户高级货币"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return
@@ -111,8 +111,8 @@ async def deduct_premium(plugin: "FishingPlugin", event: AstrMessageEvent):
     """扣除用户高级货币"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return
@@ -277,8 +277,8 @@ async def reward_coins(plugin: "FishingPlugin", event: AstrMessageEvent):
     """奖励用户金币"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return
@@ -314,8 +314,8 @@ async def deduct_coins(plugin: "FishingPlugin", event: AstrMessageEvent):
     """扣除用户金币"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return
@@ -436,8 +436,8 @@ async def impersonate_start(plugin: "FishingPlugin", event: AstrMessageEvent):
         yield event.plain_result(f"您当前正在代理用户: {nickname} ({target_user_id})")
         return
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(
             f"用法: /代理上线 <目标用户ID> 或 /代理上线 @用户\n{error_msg}"
@@ -594,8 +594,8 @@ async def grant_title(plugin: "FishingPlugin", event: AstrMessageEvent):
     """授予用户称号"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return
@@ -617,8 +617,8 @@ async def revoke_title(plugin: "FishingPlugin", event: AstrMessageEvent):
     """移除用户称号"""
     args = event.message_str.split(" ")
 
-    # 解析目标用户ID（支持@和用户ID两种方式）
-    target_user_id, error_msg = parse_target_user_id(event, args, 1)
+    # 解析目标用户ID（支持@和用户ID两种方式，管理员命令允许给自己操作）
+    target_user_id, error_msg = parse_target_user_id(event, args, 1, allow_self=True)
     if error_msg:
         yield event.plain_result(error_msg)
         return

@@ -95,9 +95,9 @@
 <!-- 当前价格卡片 -->
 <div class="row mb-4">
     {% if market_status.success %}
-        {% for commodity_id, price in market_status.prices.items() %}
-        <div class="col-md-4">
-            <div class="card {% if commodity_id == 'fish_roe' %}bg-warning{% elif commodity_id == 'dried_fish' %}bg-primary{% else %}bg-success{% endif %} text-white">
+{% for commodity_id, price in market_status.prices.items() %}
+<div class="col-md-4">
+<div class="card {% if commodity_id == 'fish_roe' %}bg-warning{% elif commodity_id == 'dried_fish' %}bg-primary{% elif commodity_id == 'fish_bone' %}bg-success{% elif commodity_id == 'fish_scale' %}bg-info{% elif commodity_id == 'fish_sauce' %}bg-danger{% else %}bg-secondary{% endif %} text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -105,15 +105,21 @@
                             <h2 class="card-text">{{ "{:,}".format(price|default(0)) }} 金币</h2>
                             <small class="card-text">{{ market_status.commodities[commodity_id].description }}</small>
                         </div>
-                        <div class="align-self-center">
-                            {% if commodity_id == 'fish_roe' %}
-                                <i class="fas fa-egg fa-2x"></i>
-                            {% elif commodity_id == 'dried_fish' %}
-                                <i class="fas fa-fish fa-2x"></i>
-                            {% else %}
-                                <i class="fas fa-tint fa-2x"></i>
-                            {% endif %}
-                        </div>
+<div class="align-self-center">
+{% if commodity_id == 'fish_roe' %}
+<i class="fas fa-egg fa-2x"></i>
+{% elif commodity_id == 'dried_fish' %}
+<i class="fas fa-fish fa-2x"></i>
+{% elif commodity_id == 'fish_bone' %}
+<i class="fas fa-bone fa-2x"></i>
+{% elif commodity_id == 'fish_scale' %}
+<i class="fas fa-gem fa-2x"></i>
+{% elif commodity_id == 'fish_sauce' %}
+<i class="fas fa-flask fa-2x"></i>
+{% else %}
+<i class="fas fa-tint fa-2x"></i>
+{% endif %}
+</div>
                     </div>
                 </div>
             </div>
@@ -250,19 +256,19 @@ const priceChart = new Chart(ctx, {
         ],
         datasets: [
             {% if price_history.success and price_history.history %}
-                {% for commodity_id, history in price_history.history.items() %}
-                {
-                    label: '{{ market_status.commodities[commodity_id].name|default("未知商品") }}',
-                    data: [
-                        {% for price in history %}
-                            {{ price|default(0) }}{% if not loop.last %},{% endif %}
-                        {% endfor %}
-                    ],
-                    borderColor: '{% if commodity_id == "fish_roe" %}#ffc107{% elif commodity_id == "dried_fish" %}#007bff{% else %}#28a745{% endif %}',
-                    backgroundColor: '{% if commodity_id == "fish_roe" %}rgba(255, 193, 7, 0.1){% elif commodity_id == "dried_fish" %}rgba(0, 123, 255, 0.1){% else %}rgba(40, 167, 69, 0.1){% endif %}',
-                    tension: 0.4
-                }{% if not loop.last %},{% endif %}
-                {% endfor %}
+{% for commodity_id, history in price_history.history.items() %}
+{
+    label: '{{ market_status.commodities[commodity_id].name|default("未知商品") }}',
+    data: [
+        {% for price in history %}
+        {{ price|default(0) }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ],
+    borderColor: '{% if commodity_id == "fish_roe" %}#ffc107{% elif commodity_id == "dried_fish" %}#007bff{% elif commodity_id == "fish_bone" %}#28a745{% elif commodity_id == "fish_scale" %}#17a2b8{% elif commodity_id == "fish_sauce" %}#dc3545{% else %}#6c757d{% endif %}',
+    backgroundColor: '{% if commodity_id == "fish_roe" %}rgba(255, 193, 7, 0.1){% elif commodity_id == "dried_fish" %}rgba(0, 123, 255, 0.1){% elif commodity_id == "fish_bone" %}rgba(40, 167, 69, 0.1){% elif commodity_id == "fish_scale" %}rgba(23, 162, 184, 0.1){% elif commodity_id == "fish_sauce" %}rgba(220, 53, 69, 0.1){% else %}rgba(108, 117, 125, 0.1){% endif %}',
+    tension: 0.4
+}{% if not loop.last %},{% endif %}
+{% endfor %}
             {% endif %}
         ]
     },

@@ -156,6 +156,20 @@ class FishingService:
                 "message": f"该钓鱼区域已于 {zone.available_until.strftime('%Y-%m-%d %H:%M')} 关闭，已自动传送回{first_zone_name}",
             }
 
+        # 检查通行证是否过期
+        if zone.requires_pass and user.zone_pass_expires_at:
+            if now > user.zone_pass_expires_at:
+                # 通行证已过期，传送回初始区域
+                user.fishing_zone_id = 1
+                user.zone_pass_expires_at = None
+                self.user_repo.update(user)
+                first_zone = self.inventory_repo.get_zone_by_id(1)
+                first_zone_name = first_zone.name if first_zone else "初始区域"
+                return {
+                    "success": False,
+                    "message": f"[At:{user_id}] 🔑 通行证已过期，已自动传送回{first_zone_name}。如需继续前往 {zone.name}，请重新使用通行证进入。",
+                }
+
         fishing_cost = zone.fishing_cost
         if not user.can_afford(fishing_cost):
             return {
@@ -1052,9 +1066,17 @@ class FishingService:
             )
             pass_consumed = True
 
-            # 记录日志
-            self.log_repo.add_log(user_id, "zone_entry", f"使用通行证进入 {zone.name}")
+        # 记录日志
+        self.log_repo.add_log(user_id, "zone_entry", f"使用通行证进入 {zone.name}")
 
+        # 设置通行证过期时间
+        from datetime import timedelta
+
+        if zone.pass_duration_hours is not None:
+            user.zone_pass_expires_at = now + timedelta(hours=zone.pass_duration_hours)
+        else:
+            # None 表示永久通行
+            user.zone_pass_expires_at = None
         user.fishing_zone_id = zone.id
         self.user_repo.update(user)
 

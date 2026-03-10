@@ -105,6 +105,9 @@ class MysqlUserRepository(AbstractUserRepository):
             show_suggestions=bool(row["show_suggestions"])
             if "show_suggestions" in row_keys
             else True,
+            zone_pass_expires_at=self._parse_datetime(row["zone_pass_expires_at"])
+            if "zone_pass_expires_at" in row_keys
+            else None,
         )
 
     def get_by_id(self, user_id: str) -> Optional[User]:

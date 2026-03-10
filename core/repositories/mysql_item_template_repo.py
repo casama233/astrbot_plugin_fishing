@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 
 from ..database.mysql_connection_manager import MysqlConnectionManager
@@ -225,22 +226,44 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
                         data.get("icon_url"),
                     ),
                 )
-                fish_id = cursor.lastrowid
             conn.commit()
-        fish = self.get_fish_by_id(int(fish_id)) if fish_id is not None else None
+        fish = self.get_fish_by_name(str(data.get("name")))
         if fish is None:
             raise RuntimeError("Failed to create fish template")
         return fish
 
+    def get_fish_by_name(self, name: str) -> Optional[Fish]:
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM fish WHERE name = %s", (name,))
+                return self._row_to_fish(cursor.fetchone())
+
     def update_fish_template(self, fish_id: int, data: Dict[str, Any]) -> None:
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
+                # Handle available_zones: convert comma-separated string to JSON array string
+                zones_str = data.get("available_zones", "").strip()
+                if zones_str:
+                    try:
+                        # Ensure all elements are integers
+                        zones_list = [
+                            int(z.strip())
+                            for z in zones_str.split(",")
+                            if z.strip().isdigit()
+                        ]
+                        available_zones = json.dumps(zones_list) if zones_list else None
+                    except (ValueError, TypeError):
+                        available_zones = None  # Or handle error appropriately
+                else:
+                    available_zones = None
+
                 cursor.execute(
                     """
                     UPDATE fish SET
                         name = %s, description = %s, rarity = %s,
                         base_value = %s, min_weight = %s,
-                        max_weight = %s, icon_url = %s
+                        max_weight = %s, icon_url = %s,
+                        available_zones = %s
                     WHERE fish_id = %s
                     """,
                     (
@@ -251,6 +274,7 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
                         data.get("min_weight"),
                         data.get("max_weight"),
                         data.get("icon_url"),
+                        available_zones,
                         fish_id,
                     ),
                 )
@@ -385,6 +409,14 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
         return bait
 
     def update_bait_template(self, bait_id: int, data: Dict[str, Any]) -> None:
+        existing = self.get_bait_by_id(bait_id)
+        if existing is None:
+            raise RuntimeError(f"Bait template not found: {bait_id}")
+        is_consumable = (
+            data.get("is_consumable")
+            if "is_consumable" in data
+            else getattr(existing, "is_consumable", True)
+        )
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
@@ -399,20 +431,25 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
                     WHERE bait_id = %s
                     """,
                     (
-                        data.get("name"),
-                        data.get("description"),
-                        data.get("rarity", 1),
-                        data.get("effect_description"),
-                        data.get("duration_minutes", 0),
-                        data.get("cost", 0),
-                        data.get("required_rod_rarity", 0),
-                        data.get("success_rate_modifier", 0.0),
-                        data.get("rare_chance_modifier", 0.0),
-                        data.get("garbage_reduction_modifier", 0.0),
-                        data.get("value_modifier", 1.0),
-                        data.get("quantity_modifier", 1.0),
-                        data.get("weight_modifier", 1.0),
-                        1 if data.get("is_consumable") else 0,
+                        data.get("name", existing.name),
+                        data.get("description", existing.description),
+                        data.get("rarity", existing.rarity),
+                        data.get("effect_description", existing.effect_description),
+                        data.get("duration_minutes", existing.duration_minutes),
+                        data.get("cost", existing.cost),
+                        data.get("required_rod_rarity", existing.required_rod_rarity),
+                        data.get(
+                            "success_rate_modifier", existing.success_rate_modifier
+                        ),
+                        data.get("rare_chance_modifier", existing.rare_chance_modifier),
+                        data.get(
+                            "garbage_reduction_modifier",
+                            existing.garbage_reduction_modifier,
+                        ),
+                        data.get("value_modifier", existing.value_modifier),
+                        data.get("quantity_modifier", existing.quantity_modifier),
+                        data.get("weight_modifier", existing.weight_modifier),
+                        1 if is_consumable else 0,
                         bait_id,
                     ),
                 )
@@ -557,20 +594,18 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    "INSERT INTO titles (title_id, name, description, display_format) VALUES (%s, %s, %s, %s)",
+                    "INSERT INTO titles (title_id, name, description, display_format, trigger_type, trigger_value) VALUES (%s, %s, %s, %s, %s, %s)",
                     (
                         data.get("title_id"),
                         data.get("name"),
                         data.get("description"),
                         data.get("display_format"),
+                        data.get("trigger_type"),
+                        data.get("trigger_value"),
                     ),
                 )
             conn.commit()
-        title = (
-            self.get_title_by_id(int(data.get("title_id")))
-            if data.get("title_id") is not None
-            else None
-        )
+        title = self.get_title_by_name(str(data.get("name")))
         if title is None:
             raise RuntimeError("Failed to create title template")
         return title
@@ -579,11 +614,13 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    "UPDATE titles SET name = %s, description = %s, display_format = %s WHERE title_id = %s",
+                    "UPDATE titles SET name = %s, description = %s, display_format = %s, trigger_type = %s, trigger_value = %s WHERE title_id = %s",
                     (
                         data.get("name"),
                         data.get("description"),
                         data.get("display_format"),
+                        data.get("trigger_type"),
+                        data.get("trigger_value"),
                         title_id,
                     ),
                 )

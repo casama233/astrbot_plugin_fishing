@@ -317,6 +317,60 @@ class AchievementService:
                     completed_at=datetime.now(),
                 )
 
+        # 检查动态称号触发条件
+        self._check_dynamic_title_triggers(user_id, user_context)
+
+    def _check_dynamic_title_triggers(self, user_id: str, user_context: UserContext):
+        """检查动态称号触发条件并自动授予称号。"""
+        # 获取所有带触发条件的称号
+        all_titles = self.item_template_repo.get_all_titles()
+        trigger_titles = [t for t in all_titles if t.trigger_type and t.trigger_value]
+
+        if not trigger_titles:
+            return
+
+        # 获取用户已有的称号
+        user_title_ids = self.achievement_repo.get_user_titles(user_id)
+        user_title_ids_set = set(user_title_ids)
+
+        for title in trigger_titles:
+            # 如果用户已有此称号，跳过
+            if title.title_id in user_title_ids_set:
+                continue
+
+            # 检查触发条件
+            if title.trigger_type and title.trigger_value is not None:
+                triggered = self._check_trigger_condition(
+                    user_context, title.trigger_type, title.trigger_value
+                )
+
+                if triggered:
+                    # 授予称号
+                    self.achievement_repo.grant_title_to_user(user_id, title.title_id)
+                    logger.info(
+                        f"用户 {user_id} 达成称号触发条件，自动授予称号: {title.name} (ID: {title.title_id})"
+                    )
+
+    def _check_trigger_condition(
+        self, user_context: UserContext, trigger_type: str, trigger_value: int
+    ) -> bool:
+        """检查触发条件是否满足。"""
+        user = user_context.user
+
+        if trigger_type == "total_fish":
+            return user.total_fishing_count >= trigger_value
+        elif trigger_type == "total_coins":
+            return user.total_coins_earned >= trigger_value
+        elif trigger_type == "unique_fish":
+            return user_context.unique_fish_count >= trigger_value
+        elif trigger_type == "wipe_bomb_multiplier":
+            return user.max_wipe_bomb_multiplier >= trigger_value
+        elif trigger_type == "total_weight":
+            return (user.total_weight_caught or 0) >= trigger_value
+        else:
+            logger.warning(f"未知的称号触发类型: {trigger_type}")
+            return False
+
     # --- 成就相关的API接口 ---
 
     def get_user_achievements(self, user_id: str) -> Dict[str, Any]:

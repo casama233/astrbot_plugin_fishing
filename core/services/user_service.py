@@ -350,10 +350,22 @@ class UserService:
         return {"success": True, "message": f"✅ 成功移除用户称号 '{title_name}'"}
 
     def create_custom_title(
-        self, name: str, description: str, display_format: str = "{name}"
+        self,
+        name: str,
+        description: str,
+        display_format: str = "{name}",
+        trigger_type: Optional[str] = None,
+        trigger_value: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         创建自定义称号。
+
+        Args:
+            name: 称号名称
+            description: 称号描述
+            display_format: 显示格式
+            trigger_type: 触发类型 (total_fish, total_coins, unique_fish, wipe_bomb_multiplier)
+            trigger_value: 触发值
         """
         # 检查称号名称是否已存在
         existing_title = self.item_template_repo.get_title_by_name(name)
@@ -372,6 +384,8 @@ class UserService:
             "name": name,
             "description": description,
             "display_format": display_format,
+            "trigger_type": trigger_type,
+            "trigger_value": trigger_value,
         }
 
         self.item_template_repo.add_title_template(title_data)
@@ -394,6 +408,8 @@ class UserService:
                     "name": title.name,
                     "description": title.description,
                     "display_format": title.display_format,
+                    "trigger_type": title.trigger_type,
+                    "trigger_value": title.trigger_value,
                 }
             )
         return {"success": True, "titles": titles_data}

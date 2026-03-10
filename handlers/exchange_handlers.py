@@ -41,7 +41,7 @@ class ExchangeHandlers:
         return parts
 
     def _normalize_exchange_subcommand(self, command: str) -> str:
-        cmd = (command or "").strip().lower()
+        cmd = (command or "").strip().lstrip("/").lower()
         alias_map = {
             "开户": "open",
             "開戶": "open",

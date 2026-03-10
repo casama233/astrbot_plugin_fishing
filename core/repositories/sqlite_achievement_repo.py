@@ -7,6 +7,7 @@ from datetime import datetime
 from .abstract_repository import AbstractAchievementRepository, UserAchievementProgress
 from ..domain.models import Achievement
 
+
 class SqliteAchievementRepository(AbstractAchievementRepository):
     """成就数据仓储的SQLite实现"""
 
@@ -40,70 +41,104 @@ class SqliteAchievementRepository(AbstractAchievementRepository):
         """获取指定用户的所有成就进度"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT achievement_id, current_progress, completed_at
                 FROM user_achievement_progress
                 WHERE user_id = ?
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             rows = cursor.fetchall()
             progress = {}
             for row in rows:
                 achievement_id = row["achievement_id"]
                 progress[achievement_id] = {
                     "progress": row["current_progress"],
-                    "completed_at": row["completed_at"]
+                    "completed_at": row["completed_at"],
                 }
             return progress
 
-    def update_user_progress(self, user_id: str, achievement_id: int, progress: int,
-                             completed_at: Optional[datetime]) -> None:
+    def update_user_progress(
+        self,
+        user_id: str,
+        achievement_id: int,
+        progress: int,
+        completed_at: Optional[datetime],
+    ) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
             # 1. 检查记录是否已存在
             cursor.execute(
                 "SELECT completed_at FROM user_achievement_progress WHERE user_id = ? AND achievement_id = ?",
-                (user_id, achievement_id))
+                (user_id, achievement_id),
+            )
             record = cursor.fetchone()
 
             if record:
                 # 2. 如果记录存在，则执行 UPDATE
                 # 仅当记录中原来的 completed_at 为空时，才更新它，确保完成时间只记录一次
                 db_completed_at = record["completed_at"]
-                final_completed_at = db_completed_at if db_completed_at else completed_at
+                final_completed_at = (
+                    db_completed_at if db_completed_at else completed_at
+                )
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE user_achievement_progress
                     SET current_progress = ?, completed_at = ?
                     WHERE user_id = ? AND achievement_id = ?
-                """, (progress, final_completed_at, user_id, achievement_id))
+                """,
+                    (progress, final_completed_at, user_id, achievement_id),
+                )
             else:
                 # 3. 如果记录不存在，则执行 INSERT
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO user_achievement_progress (user_id, achievement_id, current_progress, completed_at)
                     VALUES (?, ?, ?, ?)
-                """, (user_id, achievement_id, progress, completed_at))
+                """,
+                    (user_id, achievement_id, progress, completed_at),
+                )
 
             conn.commit()
 
     def grant_title_to_user(self, user_id: str, title_id: int) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT OR IGNORE INTO user_titles (user_id, title_id, unlocked_at) VALUES (?, ?, ?)", (user_id, title_id, datetime.now()))
+            cursor.execute(
+                "INSERT OR IGNORE INTO user_titles (user_id, title_id, unlocked_at) VALUES (?, ?, ?)",
+                (user_id, title_id, datetime.now()),
+            )
             conn.commit()
 
     def revoke_title_from_user(self, user_id: str, title_id: int) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM user_titles WHERE user_id = ? AND title_id = ?", (user_id, title_id))
+            cursor.execute(
+                "DELETE FROM user_titles WHERE user_id = ? AND title_id = ?",
+                (user_id, title_id),
+            )
             conn.commit()
+
+    def get_user_titles(self, user_id: str) -> List[int]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT title_id FROM user_titles WHERE user_id = ?", (user_id,)
+            )
+            return [row[0] for row in cursor.fetchall()]
 
     # --- 新增的成就检查方法实现 ---
 
     def get_user_unique_fish_count(self, user_id: str) -> int:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(DISTINCT fish_id) FROM user_fish_inventory WHERE user_id = ?", (user_id,))
+            cursor.execute(
+                "SELECT COUNT(DISTINCT fish_id) FROM user_fish_inventory WHERE user_id = ?",
+                (user_id,),
+            )
             result = cursor.fetchone()
             return result[0] if result else 0
 
@@ -111,24 +146,33 @@ class SqliteAchievementRepository(AbstractAchievementRepository):
         with self._get_connection() as conn:
             cursor = conn.cursor()
             # 垃圾定义：稀有度为1且基础价值<=2
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT SUM(ufi.quantity) FROM user_fish_inventory ufi
                 JOIN fish f ON ufi.fish_id = f.fish_id
                 WHERE ufi.user_id = ? AND f.rarity = 1 AND f.base_value <= 2
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             result = cursor.fetchone()
             return result[0] if result and result[0] is not None else 0
 
     def has_caught_heavy_fish(self, user_id: str, weight: int) -> bool:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM fishing_records WHERE user_id = ? AND weight >= ? LIMIT 1", (user_id, weight))
+            cursor.execute(
+                "SELECT 1 FROM fishing_records WHERE user_id = ? AND weight >= ? LIMIT 1",
+                (user_id, weight),
+            )
             return cursor.fetchone() is not None
 
     def has_wipe_bomb_multiplier(self, user_id: str, multiplier: float) -> bool:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM wipe_bomb_log WHERE user_id = ? AND reward_multiplier >= ? LIMIT 1", (user_id, multiplier))
+            cursor.execute(
+                "SELECT 1 FROM wipe_bomb_log WHERE user_id = ? AND reward_multiplier >= ? LIMIT 1",
+                (user_id, multiplier),
+            )
             return cursor.fetchone() is not None
 
     def has_item_of_rarity(self, user_id: str, item_type: str, rarity: int) -> bool:
@@ -154,9 +198,12 @@ class SqliteAchievementRepository(AbstractAchievementRepository):
     def get_user_caught_fish_names(self, user_id: str) -> Set[str]:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT DISTINCT f.name FROM user_fish_inventory ufi
                 JOIN fish f ON ufi.fish_id = f.fish_id
                 WHERE ufi.user_id = ?
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             return {row["name"] for row in cursor.fetchall()}

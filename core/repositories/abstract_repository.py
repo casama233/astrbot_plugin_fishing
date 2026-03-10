@@ -913,17 +913,23 @@ class AbstractAchievementRepository(ABC):
     ) -> None:
         pass
 
-    # 授予用户一个称号
-    @abstractmethod
-    def grant_title_to_user(self, user_id: str, title_id: int) -> None:
-        pass
+        # 授予用户一个称号
+        @abstractmethod
+        def grant_title_to_user(self, user_id: str, title_id: int) -> None:
+            pass
 
-    # 移除用户的一个称号
-    @abstractmethod
-    def revoke_title_from_user(self, user_id: str, title_id: int) -> None:
-        pass
+        # 移除用户的一个称号
+        @abstractmethod
+        def revoke_title_from_user(self, user_id: str, title_id: int) -> None:
+            pass
 
-    # 获取用户钓到的不同鱼种数量
+        # 获取用户拥有的称号ID列表
+        @abstractmethod
+        def get_user_titles(self, user_id: str) -> List[int]:
+            pass
+
+        # 获取用户钓到的不同鱼种数量
+
     @abstractmethod
     def get_user_unique_fish_count(self, user_id: str) -> int:
         pass

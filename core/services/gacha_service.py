@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
 
 from astrbot.api import logger
+
 # 导入仓储接口和领域模型
 from ..repositories.abstract_repository import (
     AbstractGachaRepository,
@@ -10,7 +11,7 @@ from ..repositories.abstract_repository import (
     AbstractInventoryRepository,
     AbstractItemTemplateRepository,
     AbstractLogRepository,
-    AbstractAchievementRepository
+    AbstractAchievementRepository,
 )
 from ..domain.models import GachaPool, GachaPoolItem, GachaRecord
 from ..utils import get_now
@@ -26,7 +27,7 @@ def _perform_single_weighted_draw(pool: GachaPool) -> GachaPoolItem:
         current_weight += item.weight
         if rand_val <= current_weight:
             return item
-    return None # 理论上不会发生
+    return None  # 理论上不会发生
 
 
 class GachaService:
@@ -39,7 +40,7 @@ class GachaService:
         inventory_repo: AbstractInventoryRepository,
         item_template_repo: AbstractItemTemplateRepository,
         log_repo: AbstractLogRepository,
-        achievement_repo: AbstractAchievementRepository
+        achievement_repo: AbstractAchievementRepository,
     ):
         self.gacha_repo = gacha_repo
         self.user_repo = user_repo
@@ -98,17 +99,21 @@ class GachaService:
             elif item.item_type == "titles":
                 item_name = self.item_template_repo.get_title_by_id(item.item_id).name
 
-            probabilities.append({
-                "item_type": item.item_type,
-                "item_id": item.item_id,
-                "item_name": item_name,
-                "item_rarity": item_rarity if item.item_type != "titles" else 0,
-                "weight": item.weight,
-                "probability": 1.0 + round(probability, 4)
-            })
+            probabilities.append(
+                {
+                    "item_type": item.item_type,
+                    "item_id": item.item_id,
+                    "item_name": item_name,
+                    "item_rarity": item_rarity if item.item_type != "titles" else 0,
+                    "weight": item.weight,
+                    "probability": probability,
+                }
+            )
         return {"success": True, "pool": pool, "probabilities": probabilities}
 
-    def perform_draw(self, user_id: str, pool_id: int, num_draws: int = 1) -> Dict[str, Any]:
+    def perform_draw(
+        self, user_id: str, pool_id: int, num_draws: int = 1
+    ) -> Dict[str, Any]:
         """
         实现单抽和十连抽的核心逻辑。
 
@@ -162,7 +167,10 @@ class GachaService:
                     now = get_now()
                     if now > dt:
                         display_time = f"{dt.year}/{dt.month:02d}/{dt.day:02d} {dt.hour:02d}:{dt.minute:02d}"
-                        return {"success": False, "message": f"该卡池已结束开放（截止: {display_time}），无法抽卡"}
+                        return {
+                            "success": False,
+                            "message": f"该卡池已结束开放（截止: {display_time}），无法抽卡",
+                        }
         except Exception:
             # 解析失败时不中断抽卡流程
             pass
@@ -174,10 +182,16 @@ class GachaService:
 
         if use_premium_currency:
             if user.premium_currency < total_premium_cost:
-                return {"success": False, "message": f"高级货币不足，需要 {total_premium_cost} 点高级货币"}
+                return {
+                    "success": False,
+                    "message": f"高级货币不足，需要 {total_premium_cost} 点高级货币",
+                }
         else:
             if not user.can_afford(total_coin_cost):
-                return {"success": False, "message": f"金币不足，需要 {total_coin_cost} 金币"}
+                return {
+                    "success": False,
+                    "message": f"金币不足，需要 {total_coin_cost} 金币",
+                }
 
         # 1. 执行抽卡
         draw_results = []
@@ -203,49 +217,60 @@ class GachaService:
             # 将抽奖结果 => 转换为用户可见的奖励格式
             if item.item_type == "rod":
                 get_rod = self.item_template_repo.get_rod_by_id(item.item_id)
-                granted_rewards.append({
-                    "type": "rod",
-                    "id": item.item_id,
-                    "name": get_rod.name,
-                    "rarity": get_rod.rarity
-                })
+                granted_rewards.append(
+                    {
+                        "type": "rod",
+                        "id": item.item_id,
+                        "name": get_rod.name,
+                        "rarity": get_rod.rarity,
+                    }
+                )
             elif item.item_type == "accessory":
-                get_accessory = self.item_template_repo.get_accessory_by_id(item.item_id)
-                granted_rewards.append({
-                    "type": "accessory",
-                    "id": item.item_id,
-                    "name": get_accessory.name,
-                    "rarity": get_accessory.rarity
-                })
+                get_accessory = self.item_template_repo.get_accessory_by_id(
+                    item.item_id
+                )
+                granted_rewards.append(
+                    {
+                        "type": "accessory",
+                        "id": item.item_id,
+                        "name": get_accessory.name,
+                        "rarity": get_accessory.rarity,
+                    }
+                )
             elif item.item_type == "bait":
                 get_bait = self.item_template_repo.get_bait_by_id(item.item_id)
-                granted_rewards.append({
-                    "type": "bait",
-                    "id": item.item_id,
-                    "name": get_bait.name,
-                    "rarity": get_bait.rarity,
-                    "quantity": item.quantity
-                })
+                granted_rewards.append(
+                    {
+                        "type": "bait",
+                        "id": item.item_id,
+                        "name": get_bait.name,
+                        "rarity": get_bait.rarity,
+                        "quantity": item.quantity,
+                    }
+                )
             elif item.item_type == "item":
                 get_item = self.item_template_repo.get_by_id(item.item_id)
-                granted_rewards.append({
-                    "type": "item",
-                    "id": item.item_id,
-                    "name": get_item.name,
-                    "rarity": get_item.rarity,
-                    "quantity": item.quantity,
-                })
+                granted_rewards.append(
+                    {
+                        "type": "item",
+                        "id": item.item_id,
+                        "name": get_item.name,
+                        "rarity": get_item.rarity,
+                        "quantity": item.quantity,
+                    }
+                )
             elif item.item_type == "coins":
-                granted_rewards.append({
-                    "type": "coins",
-                    "quantity": item.quantity
-                })
+                granted_rewards.append({"type": "coins", "quantity": item.quantity})
             elif item.item_type == "titles":
-                granted_rewards.append({
-                    "type": "title",
-                    "id": item.item_id,
-                    "name": self.item_template_repo.get_title_by_id(item.item_id).name
-                })
+                granted_rewards.append(
+                    {
+                        "type": "title",
+                        "id": item.item_id,
+                        "name": self.item_template_repo.get_title_by_id(
+                            item.item_id
+                        ).name,
+                    }
+                )
 
         return {"success": True, "results": granted_rewards}
 
@@ -264,7 +289,9 @@ class GachaService:
             self.inventory_repo.add_accessory_instance(user_id, item.item_id)
             template = self.item_template_repo.get_accessory_by_id(item.item_id)
         elif item.item_type == "bait":
-            self.inventory_repo.update_bait_quantity(user_id, item.item_id, item.quantity)
+            self.inventory_repo.update_bait_quantity(
+                user_id, item.item_id, item.quantity
+            )
             template = self.item_template_repo.get_bait_by_id(item.item_id)
         elif item.item_type == "item":
             self.inventory_repo.update_item_quantity(
@@ -287,7 +314,7 @@ class GachaService:
 
         # 记录日志
         log_entry = GachaRecord(
-            record_id=0, # DB自增
+            record_id=0,  # DB自增
             user_id=user_id,
             gacha_pool_id=item.gacha_pool_id,
             item_type=item.item_type,
@@ -295,7 +322,7 @@ class GachaService:
             item_name=item_name,
             quantity=item.quantity,
             rarity=item_rarity,
-            timestamp=get_now()
+            timestamp=get_now(),
         )
         self.log_repo.add_gacha_record(log_entry)
 

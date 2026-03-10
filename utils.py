@@ -559,7 +559,7 @@ def safe_get_file_path(handler_instance, filename: str) -> str:
 
 
 def parse_target_user_id(
-    event, args: list, arg_index: int = 1
+    event, args: list, arg_index: int = 1, allow_self: bool = False
 ) -> Tuple[Optional[str], Optional[str]]:
     """解析目标用户ID，支持用户ID和@两种方式
 
@@ -567,6 +567,7 @@ def parse_target_user_id(
         event: 消息事件对象，需要包含 message_obj 属性
         args: 命令参数列表
         arg_index: 用户ID参数在args中的索引位置
+        allow_self: 是否允许目标用户为发送者自己（默认False，用于管理员命令时设为True）
 
     Returns:
         tuple: (target_user_id, error_message)
@@ -581,6 +582,9 @@ def parse_target_user_id(
         # 使用用户ID方式
         target_id, error = parse_target_user_id(event, ["/修改金币", "123456789", "1000"], 1)
         # 结果: target_id="123456789", error=None
+
+        # 管理员命令允许给自己操作
+        target_id, error = parse_target_user_id(event, args, 1, allow_self=True)
     """
     sender_id = str(event.get_sender_id()) if hasattr(event, "get_sender_id") else None
     message_obj = getattr(event, "message_obj", None)
@@ -593,7 +597,8 @@ def parse_target_user_id(
         if self_id and u == self_id:
             return False
         # Discord 中有时会附带对消息发送者本人的 At，作为目标用户应排除
-        if sender_id and u == sender_id:
+        # 但管理员命令可能需要给自己操作，此时 allow_self=True
+        if not allow_self and sender_id and u == sender_id:
             return False
         return True
 

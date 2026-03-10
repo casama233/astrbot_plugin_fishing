@@ -62,6 +62,7 @@ class MysqlInventoryRepository(AbstractInventoryRepository):
             refine_level=row.get("refine_level", 1),
             current_durability=row.get("current_durability"),
             is_locked=bool(row.get("is_locked", 0)),
+            display_code=row.get("display_code"),
         )
 
     def _row_to_accessory_instance(self, row) -> Optional[UserAccessoryInstance]:
@@ -75,6 +76,7 @@ class MysqlInventoryRepository(AbstractInventoryRepository):
             obtained_at=row["obtained_at"],
             refine_level=row.get("refine_level", 1),
             is_locked=bool(row.get("is_locked", 0)),
+            display_code=row.get("display_code"),
         )
 
     def get_fish_inventory(self, user_id: str) -> List[UserFishInventoryItem]:
@@ -556,17 +558,35 @@ class MysqlInventoryRepository(AbstractInventoryRepository):
                     (user_id, rod_id, durability, now, refine_level),
                 )
                 instance_id = cursor.lastrowid
-            conn.commit()
-        return UserRodInstance(
-            rod_instance_id=int(instance_id),
-            user_id=user_id,
-            rod_id=rod_id,
-            is_equipped=False,
-            obtained_at=now,
-            current_durability=durability,
-            refine_level=refine_level,
-            is_locked=False,
-        )
+                display_code = self._to_base36(instance_id, "R")
+                cursor.execute(
+                    "UPDATE user_rods SET display_code = %s WHERE rod_instance_id = %s",
+                    (display_code, instance_id),
+                )
+                conn.commit()
+            return UserRodInstance(
+                rod_instance_id=int(instance_id),
+                user_id=user_id,
+                rod_id=rod_id,
+                is_equipped=False,
+                obtained_at=now,
+                current_durability=durability,
+                refine_level=refine_level,
+                is_locked=False,
+                display_code=display_code,
+            )
+
+    def _to_base36(self, n: int, prefix: str = "") -> str:
+        if n < 0:
+            raise ValueError("n must be non-negative")
+        if n == 0:
+            return f"{prefix}0"
+        digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        out = []
+        while n:
+            n, rem = divmod(n, 36)
+            out.append(digits[rem])
+        return f"{prefix}{''.join(reversed(out))}"
 
     def delete_rod_instance(self, rod_instance_id: int) -> None:
         with self._connection_manager.get_connection() as conn:
@@ -707,16 +727,22 @@ class MysqlInventoryRepository(AbstractInventoryRepository):
                     (user_id, accessory_id, now, refine_level),
                 )
                 instance_id = cursor.lastrowid
-            conn.commit()
-        return UserAccessoryInstance(
-            accessory_instance_id=int(instance_id),
-            user_id=user_id,
-            accessory_id=accessory_id,
-            is_equipped=False,
-            obtained_at=now,
-            refine_level=refine_level,
-            is_locked=False,
-        )
+                display_code = self._to_base36(instance_id, "A")
+                cursor.execute(
+                    "UPDATE user_accessories SET display_code = %s WHERE accessory_instance_id = %s",
+                    (display_code, instance_id),
+                )
+                conn.commit()
+            return UserAccessoryInstance(
+                accessory_instance_id=int(instance_id),
+                user_id=user_id,
+                accessory_id=accessory_id,
+                is_equipped=False,
+                obtained_at=now,
+                refine_level=refine_level,
+                is_locked=False,
+                display_code=display_code,
+            )
 
     def delete_accessory_instance(self, accessory_instance_id: int) -> None:
         with self._connection_manager.get_connection() as conn:
