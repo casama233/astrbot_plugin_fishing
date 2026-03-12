@@ -16,13 +16,61 @@ class MysqlItemTemplateRepository(AbstractItemTemplateRepository):
         return Fish(**row) if row else None
 
     def _row_to_rod(self, row) -> Optional[Rod]:
-        return Rod(**row) if row else None
+        if not row:
+            return None
+        return Rod(
+            rod_id=row["rod_id"],
+            name=row["name"],
+            rarity=row["rarity"],
+            source=row["source"],
+            description=row.get("description"),
+            purchase_cost=row.get("purchase_cost"),
+            bonus_fish_quality_modifier=row.get("bonus_fish_quality_modifier", 1.0),
+            bonus_fish_quantity_modifier=row.get("bonus_fish_quantity_modifier", 1.0),
+            bonus_rare_fish_chance=row.get("bonus_rare_fish_chance", 0.0),
+            durability=row.get("durability"),
+            icon_url=row.get("icon_url"),
+            weight_modifier=row.get("weight_modifier", 1.0),
+        )
 
     def _row_to_bait(self, row) -> Optional[Bait]:
-        return Bait(**row) if row else None
+        if not row:
+            return None
+        return Bait(
+            bait_id=row["bait_id"],
+            name=row["name"],
+            rarity=row["rarity"],
+            description=row.get("description"),
+            effect_description=row.get("effect_description"),
+            duration_minutes=row.get("duration_minutes", 0),
+            cost=row.get("cost", 0),
+            required_rod_rarity=row.get("required_rod_rarity", 0),
+            success_rate_modifier=row.get("success_rate_modifier", 0.0),
+            rare_chance_modifier=row.get("rare_chance_modifier", 0.0),
+            garbage_reduction_modifier=row.get("garbage_reduction_modifier", 0.0),
+            value_modifier=row.get("value_modifier", 1.0),
+            quantity_modifier=row.get("quantity_modifier", 1.0),
+            weight_modifier=row.get("weight_modifier", 1.0),
+            is_consumable=row.get("is_consumable", True),
+        )
 
     def _row_to_accessory(self, row) -> Optional[Accessory]:
-        return Accessory(**row) if row else None
+        if not row:
+            return None
+        return Accessory(
+            accessory_id=row["accessory_id"],
+            name=row["name"],
+            rarity=row["rarity"],
+            slot_type=row.get("slot_type", "general"),
+            description=row.get("description"),
+            bonus_fish_quality_modifier=row.get("bonus_fish_quality_modifier", 1.0),
+            bonus_fish_quantity_modifier=row.get("bonus_fish_quantity_modifier", 1.0),
+            bonus_rare_fish_chance=row.get("bonus_rare_fish_chance", 0.0),
+            bonus_coin_modifier=row.get("bonus_coin_modifier", 1.0),
+            other_bonus_description=row.get("other_bonus_description"),
+            icon_url=row.get("icon_url"),
+            weight_modifier=row.get("weight_modifier", 1.0),
+        )
 
     def _row_to_title(self, row) -> Optional[Title]:
         return Title(**row) if row else None
