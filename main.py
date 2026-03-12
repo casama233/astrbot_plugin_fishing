@@ -1034,15 +1034,14 @@ class FishingPlugin(Star):
         async for r in common_handlers.fishing_log(self, event):
             yield r
 
-
-@filter.command(
-    "钓鱼帮助",
-    alias=["釣魚幫助", "钓鱼菜单", "釣魚菜單", "菜单", "菜單", "帮助", "幫助"],
-)
-async def cmd_fishing_help_cn(self, event: AstrMessageEvent):
-    """查看钓鱼帮助菜单"""
-    async for r in common_handlers.fishing_help(self, event):
-        yield r
+    @filter.command(
+        "钓鱼帮助",
+        alias=["釣魚幫助", "钓鱼菜单", "釣魚菜單", "菜单", "菜單", "帮助", "幫助"],
+    )
+    async def cmd_fishing_help_cn(self, event: AstrMessageEvent):
+        """查看钓鱼帮助菜单"""
+        async for r in common_handlers.fishing_help(self, event):
+            yield r
 
     @filter.command("状态", alias=["狀態", "我的状态", "我的狀態"])
     async def cmd_status_cn(self, event: AstrMessageEvent):
