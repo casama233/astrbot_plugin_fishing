@@ -352,38 +352,25 @@ class FishingService:
             if random_bait_id:
                 user.current_bait_id = random_bait_id
 
-if user.current_bait_id is not None:
-    bait_template = self.item_template_repo.get_bait_by_id(user.current_bait_id)
-    # logger.info(f"鱼饵信息: {bait_template}")
-    if bait_template:
-        quantity_modifier *= bait_template.quantity_modifier
-        rare_chance += bait_template.rare_chance_modifier
-        base_success_rate += bait_template.success_rate_modifier
-        garbage_reduction_modifier = bait_template.garbage_reduction_modifier
-        weight_modifier *= bait_template.weight_modifier
-        # value_modifier 是倍率型参数（1.15 = +15%）
-        # 转为增量叠加，避免 1.0 被当作额外效果
-        coins_chance += max(0.0, bait_template.value_modifier - 1.0)
+        if user.current_bait_id is not None:
+            bait_template = self.item_template_repo.get_bait_by_id(user.current_bait_id)
+            # logger.info(f"鱼饵信息: {bait_template}")
+            if bait_template:
+                quantity_modifier *= bait_template.quantity_modifier
+                rare_chance += bait_template.rare_chance_modifier
+                base_success_rate += bait_template.success_rate_modifier
+                garbage_reduction_modifier = bait_template.garbage_reduction_modifier
+                weight_modifier *= bait_template.weight_modifier
+                # value_modifier 是倍率型参数（1.15 = +15%）
+                # 转为增量叠加，避免 1.0 被当作额外效果
+                coins_chance += max(0.0, bait_template.value_modifier - 1.0)
 
-        # 应用鱼饵特殊效果代码
-        bait_effects = get_bait_effects(bait_template.bait_id)
-        if bait_effects:
-            base_success_rate += get_effect_number(bait_effects, "fishing_success_bonus", 0.0)
-            rare_chance += get_effect_number(bait_effects, "fishing_rare_bonus", 0.0)
-            coins_chance += get_effect_number(bait_effects, "fishing_coin_bonus", 0.0)
-            quality_modifier *= get_effect_multiplier(bait_effects, "fishing_quality_multiplier", 1.0)
-            quantity_modifier *= get_effect_multiplier(bait_effects, "fishing_quantity_multiplier", 1.0)
-            weight_modifier *= get_effect_multiplier(bait_effects, "fishing_weight_multiplier", 1.0)
-            if garbage_reduction_modifier is not None:
-                garbage_reduction_modifier += get_effect_number(bait_effects, "garbage_reduction", 0.0)
-            logger.debug(f"鱼饵特殊效果加成: {bait_effects}")
-
-# 限制价值倾向加成上限，防止极端配置导致收益爆炸
-coins_chance = min(coins_chance, 0.8)
-logger.debug(
-    f"使用鱼饵加成后： base_success_rate={base_success_rate}, quality_modifier={quality_modifier}, quantity_modifier={quantity_modifier}, rare_chance={rare_chance}, coins_chance={coins_chance}"
-)
-# 3. 判断是否成功钓到
+        # 限制价值倾向加成上限，防止极端配置导致收益爆炸
+        coins_chance = min(coins_chance, 0.8)
+        logger.debug(
+            f"使用鱼饵加成后： base_success_rate={base_success_rate}, quality_modifier={quality_modifier}, quantity_modifier={quantity_modifier}, rare_chance={rare_chance}, coins_chance={coins_chance}"
+        )
+        # 3. 判断是否成功钓到
         if random.random() >= base_success_rate:
             # 失败逻辑
             user.last_fishing_time = get_now()
@@ -940,19 +927,22 @@ logger.debug(
     def _get_fish_template(self, rarity: int, zone: FishingZone, coins_chance: float):
         """根据稀有度和区域配置获取鱼类模板"""
 
-        zone_id = zone.id if zone else None
+        # 检查 FishingZone 对象是否有 'specific_fish_ids' 属性
         specific_fish_ids = getattr(zone, "specific_fish_ids", [])
 
         if specific_fish_ids:
+            # 如果是区域限定鱼，那么就在限定的鱼里面抽
             fish_list = [
                 self.item_template_repo.get_fish_by_id(fish_id)
                 for fish_id in specific_fish_ids
             ]
             fish_list = [fish for fish in fish_list if fish and fish.rarity == rarity]
         else:
-            fish_list = self.item_template_repo.get_fishes_by_rarity(rarity, zone_id)
+            # 否则就在全局鱼里面抽
+            fish_list = self.item_template_repo.get_fishes_by_rarity(rarity)
 
         if not fish_list:
+            # 区域限定模式下，优先保证“只在本区域鱼池内”抽取
             if specific_fish_ids:
                 zone_fish_list = [
                     self.item_template_repo.get_fish_by_id(fish_id)
@@ -962,9 +952,11 @@ logger.debug(
                 if zone_fish_list:
                     return get_fish_template(zone_fish_list, coins_chance)
 
+            # 非限定模式或限定鱼池异常为空时，回退到全局随机
             try:
-                return self.item_template_repo.get_random_fish(rarity, zone_id)
+                return self.item_template_repo.get_random_fish(rarity)
             except TypeError:
+                # 兼容旧版仓储实现：get_random_fish(self)
                 return self.item_template_repo.get_random_fish()
 
         return get_fish_template(fish_list, coins_chance)
