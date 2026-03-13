@@ -17,9 +17,6 @@ from ..domain.models import WipeBombLog, User
 from ...core.utils import get_now, get_today
 from .special_accessory_effects import get_accessory_effects, get_effect_multiplier
 
-if TYPE_CHECKING:
-    from ..repositories.sqlite_user_repo import SqliteUserRepository
-
 
 def weighted_random_choice(
     choices: list[tuple[any, any, float]],

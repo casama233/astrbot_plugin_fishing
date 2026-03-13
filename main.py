@@ -22,6 +22,7 @@ from .core.repositories.mysql_inventory_repo import MysqlInventoryRepository
 from .core.repositories.mysql_achievement_repo import MysqlAchievementRepository
 from .core.repositories.mysql_market_repo import MysqlMarketRepository
 from .core.repositories.mysql_red_packet_repo import MysqlRedPacketRepository
+from .core.repositories.mysql_tutorial_repo import MysqlTutorialRepository
 
 from .core.services.data_setup_service import DataSetupService
 from .core.services.item_template_service import ItemTemplateService
@@ -38,6 +39,7 @@ from .core.services.fishing_zone_service import FishingZoneService
 from .core.services.exchange_service import ExchangeService
 from .core.services.sicbo_service import SicboService
 from .core.services.red_packet_service import RedPacketService
+from .core.services.tutorial_service import TutorialService
 
 from .core.database.mysql_connection_manager import MysqlConnectionManager
 
@@ -55,6 +57,8 @@ from .handlers import (
     aquarium_handlers,
     sicbo_handlers,
     red_packet_handlers,
+    tutorial_handlers,
+    unified_handlers,
 )
 from .handlers.fishing_handlers import FishingHandlers
 from .handlers.exchange_handlers import ExchangeHandlers
@@ -67,6 +71,13 @@ class FishingPlugin(Star):
             config = getattr(context, "_config", {}) or {}
         if not hasattr(config, "get") or not config.get("external_sql"):
             config = self._load_config_fallback() or config
+
+        # 調試日誌
+        logger.info(f"[FishingPlugin] config type: {type(config)}")
+        logger.info(
+            f"[FishingPlugin] external_sql from config: {config.get('external_sql', 'NOT FOUND')}"
+        )
+
         tax_config = config.get("tax", {})
         self.is_tax = tax_config.get("is_tax", True)
         self.threshold = tax_config.get("threshold", 100000)
@@ -187,7 +198,17 @@ class FishingPlugin(Star):
         self.storage_backend = self._get_storage_backend(config)
         if self.storage_backend != "mysql":
             raise RuntimeError(
-                "MySQL only mode is enabled. Set external_sql.enabled=true and backend=mysql."
+                "【配置錯誤】插件當前只支持 MySQL 數據庫。\n\n"
+                "請在 AstrBot 管理面板 → 插件配置 → astrbot_plugin_fishing → external_sql 中設置：\n\n"
+                "方法1 - 使用 mysql_url (推薦):\n"
+                '  mysql_url: "mysql://username:password@localhost:3306/fishing_db"\n\n'
+                "方法2 - 使用單獨欄位:\n"
+                "  host: localhost\n"
+                "  port: 3306\n"
+                "  user: your_username\n"
+                "  password: your_password\n"
+                "  database: fishing_db\n\n"
+                "同時確保 backend: mysql 且 enabled: true"
             )
         logger.info("[storage] backend=mysql (sqlite disabled)")
 
@@ -195,6 +216,7 @@ class FishingPlugin(Star):
         self.external_sql_sync_manager = None
         self._ensure_mysql_runtime_schema(config)
 
+        # 初始化仓储层
         self.user_repo = self._build_user_repo(config)
         self.item_template_repo = self._build_item_template_repo(config)
         self.inventory_repo = self._build_inventory_repo(config)
@@ -217,6 +239,7 @@ class FishingPlugin(Star):
             self.buff_repo,
             self.game_config,
         )
+
         self.gacha_service = GachaService(
             self.gacha_repo,
             self.user_repo,
@@ -296,6 +319,11 @@ class FishingPlugin(Star):
         self.red_packet_repo = self._build_red_packet_repo(config)
         self.red_packet_service = RedPacketService(self.red_packet_repo, self.user_repo)
 
+        self.tutorial_repo = MysqlTutorialRepository(config)
+        self.tutorial_service = TutorialService(
+            self.tutorial_repo, self.user_repo, self.inventory_repo
+        )
+
         self.exchange_handlers = ExchangeHandlers(self)
         self.fishing_handlers = FishingHandlers(self)
 
@@ -314,6 +342,12 @@ class FishingPlugin(Star):
         self.inventory_service.effect_manager = self.effect_manager
         self.item_template_service = ItemTemplateService(
             self.item_template_repo, self.gacha_repo
+        )
+
+        # 在所有服务初始化完成后，再初始化教程仓库和服务
+        self.tutorial_repo = MysqlTutorialRepository(config)
+        self.tutorial_service = TutorialService(
+            self.tutorial_repo, self.user_repo, self.inventory_repo
         )
 
         self.fishing_service.start_auto_fishing_task()
@@ -343,20 +377,36 @@ class FishingPlugin(Star):
         self.impersonation_map = {}
 
     def _load_config_fallback(self) -> dict:
-        config_path = os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__),
-                "..",
-                "..",
-                "config",
-                "astrbot_plugin_fishing_config.json",
-            )
-        )
-        try:
-            with open(config_path, "r", encoding="utf-8-sig") as f:
-                return json.load(f)
-        except Exception:
-            return {}
+        config_paths = [
+            os.path.abspath(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "..",
+                    "..",
+                    "config",
+                    "astrbot_plugin_fishing_config.json",
+                )
+            ),
+            "/opt/1panel/apps/astrbot/astrbot/data/config/astrbot_plugin_fishing_config.json",
+            "/AstrBot/data/config/astrbot_plugin_fishing_config.json",
+        ]
+
+        for config_path in config_paths:
+            try:
+                if os.path.exists(config_path):
+                    with open(config_path, "r", encoding="utf-8-sig") as f:
+                        data = json.load(f)
+                        logger.info(
+                            f"[FishingPlugin] Loaded config from: {config_path}"
+                        )
+                        return data
+            except Exception as e:
+                logger.warning(
+                    f"[FishingPlugin] Failed to load config from {config_path}: {e}"
+                )
+
+        logger.error("[FishingPlugin] No config file found in any location")
+        return {}
 
     def _get_storage_backend(self, config: AstrBotConfig) -> str:
         external_sql = config.get("external_sql", {}) or {}
@@ -1053,12 +1103,6 @@ class FishingPlugin(Star):
     async def cmd_bag_cn(self, event: AstrMessageEvent):
         """查看我的所有物品"""
         async for r in inventory_handlers.user_backpack(self, event):
-            yield r
-
-    @filter.command("鱼塘", alias=["魚塘"])
-    async def cmd_pond_cn(self, event: AstrMessageEvent):
-        """查看鱼塘中的所有鱼"""
-        async for r in inventory_handlers.pond(self, event):
             yield r
 
     @filter.command("偷看鱼塘", alias=["偷看魚塘", "查看鱼塘", "查看魚塘", "偷看"])
@@ -2012,6 +2056,60 @@ class FishingPlugin(Star):
             return
 
         async for r in handler(self, event):
+            yield r
+
+    @filter.command(
+        "賣出",
+        alias=["卖出", "sell"],
+    )
+    async def cmd_unified_sell(self, event: AstrMessageEvent):
+        """統一賣出入口"""
+        async for r in unified_handlers.unified_sell(self, event):
+            yield r
+
+    @filter.command(
+        "魚塘",
+        alias=["鱼塘", "pond"],
+    )
+    async def cmd_unified_fish_pond(self, event: AstrMessageEvent):
+        """統一魚塘入口"""
+        async for r in unified_handlers.unified_fish_pond(self, event):
+            yield r
+
+    @filter.command(
+        "裝備",
+        alias=["装备", "equip"],
+    )
+    async def cmd_unified_equipment(self, event: AstrMessageEvent):
+        """統一裝備入口"""
+        async for r in unified_handlers.unified_equipment(self, event):
+            yield r
+
+    @filter.command(
+        "快",
+        alias=["快捷", "quick"],
+    )
+    async def cmd_quick_action(self, event: AstrMessageEvent):
+        """快捷操作入口"""
+        async for r in unified_handlers.quick_action(self, event):
+            yield r
+
+    @filter.command(
+        "教程",
+        alias=[
+            "新手教程",
+            "新手引導",
+            "新手引导",
+            "引導",
+            "引导",
+            "任務",
+            "任务",
+            "tutorial",
+        ],
+    )
+    async def cmd_tutorial_cn(self, event: AstrMessageEvent):
+        """新手引導教程"""
+        async for r in tutorial_handlers.tutorial_dispatch(self, event):
             yield r
 
     async def terminate(self):

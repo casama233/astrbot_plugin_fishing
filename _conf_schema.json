@@ -446,83 +446,62 @@
       "default": ""
     }
   },
-  "external_sql": {
-    "description": "数据库配置（当前版本仅支持 MySQL）",
+"external_sql": {
+    "description": "【必填】数据库配置 - 当前版本强制使用 MySQL。配置方式二選一：1) 填寫 mysql_url；2) 填寫 host+user+password+database",
     "type": "object",
     "items": {
-      "backend": {
-        "description": "存储后端类型（必须是 mysql）",
-        "type": "string",
-        "hint": "当前已强制只使用 MySQL",
-        "default": "mysql"
-      },
-      "mysql_url": {
-        "description": "MySQL连接URL",
-        "type": "string",
-        "hint": "格式: mysql://user:password@host:3306/database",
-        "default": ""
-      },
-      "enabled": {
-        "description": "是否启用 MySQL",
-        "type": "bool",
-        "default": true
-      },
-      "sync_on_startup": {
-        "description": "启动时是否先做一次同步（仅历史兼容，不再使用）",
-        "type": "bool",
-        "default": false
-      },
-      "startup_direction": {
-        "description": "启动时同步方向（仅历史兼容，不再使用）",
-        "type": "string",
-        "hint": "mysql_to_sqlite 或 sqlite_to_mysql",
-        "default": "mysql_to_sqlite"
-      },
-      "fail_fast_on_startup": {
-        "description": "启动同步失败时是否阻止插件启动（仅历史兼容）",
-        "type": "bool",
-        "default": false
-      },
-      "sync_interval_seconds": {
-        "description": "周期同步间隔（秒，仅历史兼容）",
-        "type": "int",
-        "default": 300
-      },
-      "host": {
-        "description": "MySQL主机地址",
-        "type": "string",
-        "default": ""
-      },
-      "port": {
-        "description": "MySQL端口",
-        "type": "int",
-        "default": 3306
-      },
-      "database": {
-        "description": "数据库名称",
-        "type": "string",
-        "default": ""
-      },
-      "user": {
-        "description": "数据库用户名",
-        "type": "string",
-        "default": ""
-      },
-      "password": {
-        "description": "数据库密码",
-        "type": "string",
-        "default": ""
-      },
-      "charset": {
-        "description": "字符集",
-        "type": "string",
-        "default": "utf8mb4"
-      },
-      "connect_timeout": {
-        "description": "连接超时秒数",
-        "type": "int",
-        "default": 10
-      }
+        "backend": {
+            "description": "存储后端类型（必須是 mysql）",
+            "type": "string",
+            "hint": "当前已强制只使用 MySQL",
+            "default": "mysql"
+        },
+        "mysql_url": {
+            "description": "MySQL连接URL（推薦使用，與下方欄位二選一即可）",
+            "type": "string",
+            "hint": "格式: mysql://user:password@host:3306/database 或 mysql+pymysql://user:password@host:3306/database",
+            "default": ""
+        },
+        "enabled": {
+            "description": "是否启用 MySQL",
+            "type": "bool",
+            "default": true
+        },
+        "host": {
+            "description": "【必填 - 如未使用 mysql_url】MySQL主机地址，例如: localhost 或 127.0.0.1",
+            "type": "string",
+            "default": ""
+        },
+        "port": {
+            "description": "MySQL端口",
+            "type": "int",
+            "default": 3306
+        },
+        "database": {
+            "description": "【必填 - 如未使用 mysql_url】数据库名称，例如: fishing_db",
+            "type": "string",
+            "default": ""
+        },
+        "user": {
+            "description": "【必填 - 如未使用 mysql_url】数据库用户名",
+            "type": "string",
+            "default": ""
+        },
+        "password": {
+            "description": "【必填 - 如未使用 mysql_url】数据库密码",
+            "type": "string",
+            "default": ""
+        },
+        "charset": {
+            "description": "字符集",
+            "type": "string",
+            "default": "utf8mb4"
+        },
+        "connect_timeout": {
+            "description": "连接超时秒数",
+            "type": "int",
+            "default": 10
+        }
     }
-  }
+}
 }

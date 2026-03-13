@@ -50,7 +50,26 @@ class MysqlConnectionManager:
         user = str(self.config.get("user", "")).strip()
         database = str(self.config.get("database", "")).strip()
         if not host or not user or not database:
-            raise ValueError("MySQL backend missing host/user/database or mysql_url")
+            raise ValueError(
+                "MySQL backend missing host/user/database or mysql_url.\n"
+                "請在配置文件中設置 MySQL 連接信息，例如:\n"
+                "\n"
+                "方法1 - 使用 mysql_url:\n"
+                '  "external_sql": {\n'
+                '    "backend": "mysql",\n'
+                '    "mysql_url": "mysql://username:password@localhost:3306/fishing_db"\n'
+                "  }\n"
+                "\n"
+                "方法2 - 使用單獨欄位:\n"
+                '  "external_sql": {\n'
+                '    "backend": "mysql",\n'
+                '    "host": "localhost",\n'
+                '    "port": 3306,\n'
+                '    "user": "username",\n'
+                '    "password": "password",\n'
+                '    "database": "fishing_db"\n'
+                "  }"
+            )
 
         return {
             "host": host,

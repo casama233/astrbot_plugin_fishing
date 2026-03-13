@@ -45,7 +45,7 @@ class MysqlExchangeRepository(AbstractExchangeRepository):
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    "INSERT INTO exchange_prices (date, time, commodity_id, price, update_type, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                    "INSERT IGNORE INTO exchange_prices (date, time, commodity_id, price, update_type, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
                     (
                         price.date,
                         price.time,
@@ -55,7 +55,7 @@ class MysqlExchangeRepository(AbstractExchangeRepository):
                         price.created_at,
                     ),
                 )
-            conn.commit()
+                conn.commit()
 
     def delete_prices_for_date(self, date: str) -> None:
         with self._connection_manager.get_connection() as conn:

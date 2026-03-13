@@ -53,10 +53,12 @@ def draw_equipment_image(
     body_font = load_font(20)
     small_font = load_font(16)
     tiny_font = load_font(14)
-    
+
     # 計算高度並添加安全邊距
     num_items = max(1, len(entries))
-    calculated_height = title_bar_height + padding + (card_h + 10) * num_items + footer_h + padding
+    calculated_height = (
+        title_bar_height + padding + (card_h + 10) * num_items + footer_h + padding
+    )
     height = calculated_height + SAFETY_MARGIN
 
     # 使用統一遊戲風格背景
@@ -66,7 +68,7 @@ def draw_equipment_image(
     # 繪製標題欄
     icon = "🎣" if kind == "rod" else "💍"
     y = padding
-    draw_game_title_bar(draw, 0, y, width, title_bar_height, f"{icon} {title}", title_font)
+    draw_game_title_bar(draw, width, y, title_bar_height, title, title_font, icon)
     y += title_bar_height + padding
 
     # 繪製裝備列表
@@ -85,22 +87,17 @@ def draw_equipment_image(
         br = e.get("bonus_rare_fish_chance", 1)
 
         # 使用統一卡片樣式
-        draw_game_card(draw, padding, y, width - padding * 2, card_h)
-        
+        draw_game_card(draw, (padding, y, width - padding, y + card_h))
+
         # 裝備名稱和星級
         draw.text(
-            (padding + 16, y + 10), 
-            f"{i}. {name}", 
-            font=body_font, 
-            fill=GAME_COLORS["text_primary"]
+            (padding + 16, y + 10),
+            f"{i}. {name}",
+            font=body_font,
+            fill=GAME_COLORS["text_primary"],
         )
-        draw.text(
-            (padding + 16, y + 36), 
-            rarity, 
-            font=small_font, 
-            fill=rarity_color
-        )
-        
+        draw.text((padding + 16, y + 36), rarity, font=small_font, fill=rarity_color)
+
         # 短碼、精煉、狀態
         draw.text(
             (padding + 16, y + 60),
@@ -108,7 +105,7 @@ def draw_equipment_image(
             font=tiny_font,
             fill=GAME_COLORS["text_secondary"],
         )
-        
+
         # 屬性加成
         draw.text(
             (padding + 16, y + 82),
@@ -121,7 +118,7 @@ def draw_equipment_image(
 
     # 底部提示
     y = height - footer_h - padding - SAFETY_MARGIN
-    draw_game_divider(draw, padding, y, width - padding * 2)
+    draw_game_divider(draw, padding, width - padding, y)
     y += 20
     if kind == "rod":
         draw.text(

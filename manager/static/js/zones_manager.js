@@ -213,15 +213,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     <input type="hidden" name="specific_fish_ids" id="specific_fish_ids_input">
                 </div>
 
-                <!-- Pass Requirement -->
-                <div class="mb-3">
-                     <label class="form-label">通行证要求</label>
-                     <div class="row">
-                         <div class="col-md-6">
-                             <div class="form-check form-switch">
-                                 <input class="form-check-input" type="checkbox" name="requires_pass" id="requires_pass" ${zone?.requires_pass ? 'checked' : ''}>
-                                 <label class="form-check-label" for="requires_pass">需要通行证</label>
-                             </div>
+<!-- Pass Requirement -->
+<div class="mb-3">
+<label class="form-label">通行证要求</label>
+<div class="row">
+<div class="col-md-4">
+<div class="form-check form-switch">
+<input class="form-check-input" type="checkbox" name="requires_pass" id="requires_pass" ${zone?.requires_pass ? \'checked\' : \'\'}>
+<label class="form-check-label" for="requires_pass">需要通行证</label>
+</div>
+</div>
+<div class="col-md-4">
+<select class="form-control" name="required_item_id" ${!zone?.requires_pass ? \'disabled\' : \'\'}>
+<option value="">选择通行证道具</option>
+${itemOptions}
+</select>
+<div class="form-text">勾选后才需要选择道具</div>
+</div>
+<div class="col-md-4">
+<input type="number" class="form-control" name="pass_duration_hours" value="${zone?.pass_duration_hours ?? \'\'}" min="1" placeholder="留空=永久" ${!zone?.requires_pass ? \'disabled\' : \'\'}>
+<div class="form-text">有效时长(小时)，留空表示永久有效</div>
+</div>
+</div>
+</div>
                          </div>
                          <div class="col-md-6">
                               <select class="form-control" name="required_item_id" ${!zone?.requires_pass ? 'disabled' : ''}>
@@ -567,13 +581,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Pass requirement toggle
-        const passToggle = form.querySelector('#requires_pass');
-        if (passToggle) {
-            passToggle.addEventListener('change', e => {
-                form.querySelector('select[name="required_item_id"]').disabled = !e.target.checked;
-            });
-        }
+// Pass requirement toggle
+const passToggle = form.querySelector(\'#requires_pass\');
+const passDurationInput = form.querySelector(\'input[name="pass_duration_hours"]\');
+if (passToggle) {
+passToggle.addEventListener(\'change\', e => {
+form.querySelector(\'select[name="required_item_id"]\').disabled = !e.target.checked;
+if (passDurationInput) passDurationInput.disabled = !e.target.checked;
+});
+}
         
         // Limited time toggle
         const timeToggle = form.querySelector('input[name="limit_time"]');
@@ -619,11 +635,12 @@ document.addEventListener('DOMContentLoaded', function() {
                  rarity_distribution: rarityDistribution,
                  allow_global_fallback: form.querySelector('#allow_global_fallback')?.checked ?? true
              };
-            payload.specific_fish_ids = Array.from(selectedSet);
-            payload.requires_pass = form.querySelector('input[name="requires_pass"]').checked;
-            payload.required_item_id = payload.requires_pass ? (parseInt(payload.required_item_id) || null) : null;
-            
-            // API call
+payload.specific_fish_ids = Array.from(selectedSet);
+payload.requires_pass = form.querySelector('input[name="requires_pass"]').checked;
+payload.required_item_id = payload.requires_pass ? (parseInt(payload.required_item_id) || null) : null;
+payload.pass_duration_hours = payload.requires_pass ? (parseInt(payload.pass_duration_hours) || null) : null;
+
+// API call
             const url = zoneId ? `/admin/api/zones/${zoneId}` : '/admin/api/zones';
             const method = zoneId ? 'PUT' : 'POST';
             

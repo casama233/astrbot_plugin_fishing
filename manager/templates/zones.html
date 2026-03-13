@@ -66,17 +66,22 @@
                         {{ '开启' if zone.configs.allow_global_fallback is not defined or zone.configs.allow_global_fallback else '关闭' }}
                     </span>
                 </p>
-                {% if zone.requires_pass and zone.required_item_id %}
-                <p><strong>通行证要求:</strong> 
-                    <span class="badge bg-warning">
-                        {% for item in all_items if item.item_id == zone.required_item_id %}
-                            {{ item.name }}
-                        {% endfor %}
-                    </span>
-                </p>
-                {% else %}
-                <p><strong>通行证要求:</strong> <span class="badge bg-success">无需通行证</span></p>
-                {% endif %}
+{% if zone.requires_pass and zone.required_item_id %}
+<p><strong>通行证要求:</strong>
+<span class="badge bg-warning">
+{% for item in all_items if item.item_id == zone.required_item_id %}
+{{ item.name }}
+{% endfor %}
+</span>
+{% if zone.pass_duration_hours %}
+<span class="badge bg-info ms-1">{{ zone.pass_duration_hours }}小时有效</span>
+{% else %}
+<span class="badge bg-success ms-1">永久有效</span>
+{% endif %}
+</p>
+{% else %}
+<p><strong>通行证要求:</strong> <span class="badge bg-success">无需通行证</span></p>
+{% endif %}
                 <div><strong>限定鱼类 ({{ zone.specific_fish_ids|length }}):</strong>
                     {% if zone.specific_fish_ids|length > 0 %}
                         {% if zone.specific_fish_ids|length <= 5 %}

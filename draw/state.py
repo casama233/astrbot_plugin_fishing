@@ -321,7 +321,7 @@ def draw_state_image(
     # 狀態卡片
     draw_game_card(
         draw,
-        (20, y, width - 20, y + 130),
+        (20, y, width - 20, y + 145),
         radius=12,
         fill=GAME_COLORS["bg_card"],
         border_color=GAME_COLORS["border"],
@@ -380,6 +380,35 @@ def draw_state_image(
         font=content_font,
         fill=GAME_COLORS["text_secondary"],
     )
+
+    # 通行證過期時間
+    zone_pass_expires = user_data.get("zone_pass_expires_at")
+    if zone_pass_expires:
+        from ..core.utils import get_now
+
+        now = get_now()
+        if zone_pass_expires.year >= 9999:
+            pass_text = "🎫 通行證: 永久"
+            pass_color = GAME_COLORS["accent_gold"]
+        elif zone_pass_expires > now:
+            remaining = zone_pass_expires - now
+            total_seconds = int(remaining.total_seconds())
+            if total_seconds < 3600:
+                minutes = total_seconds // 60
+                pass_text = f"🎫 通行證: {minutes}分鐘"
+            elif total_seconds < 86400:
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                pass_text = f"🎫 通行證: {hours}時{minutes}分"
+            else:
+                days = total_seconds // 86400
+                hours = (total_seconds % 86400) // 3600
+                pass_text = f"🎫 通行證: {days}天{hours}時"
+            pass_color = GAME_COLORS["success"]
+        else:
+            pass_text = "🎫 通行證: 已過期"
+            pass_color = GAME_COLORS["error"]
+        draw.text((35, y + 96), pass_text, font=content_font, fill=pass_color)
 
     y += 145
 
@@ -715,4 +744,5 @@ def get_user_state_data(
         "wipe_bomb_remaining": wipe_bomb_remaining,
         "pond_info": pond_info,
         "wof_remaining_plays": wof_remaining_plays,
+        "zone_pass_expires_at": user.zone_pass_expires_at,
     }

@@ -61,6 +61,8 @@ class Rod:
     durability: Optional[int] = None
     icon_url: Optional[str] = None
     weight_modifier: float = 1.0
+    # 兼容舊數據／配置中可能存在的套裝效果代碼
+    set_bonus_code: Optional[str] = None
 
 
 @dataclass
@@ -79,6 +81,8 @@ class Accessory:
     other_bonus_description: Optional[str] = None
     icon_url: Optional[str] = None
     weight_modifier: float = 1.0
+    # 兼容舊數據／配置中可能存在的效果代碼
+    effect_code: Optional[str] = None
 
 
 @dataclass
@@ -630,14 +634,14 @@ class RedPacket:
     packet_id: int
     sender_id: str
     group_id: str
-    packet_type: str  # 'normal' 普通红包, 'lucky' 拼手气红包, 'password' 口令红包
+    packet_type: str
     total_amount: int
     total_count: int
     remaining_amount: int
     remaining_count: int
-    password: Optional[str] = None  # 口令红包的口令
-    created_at: datetime = None
-    expires_at: datetime = None
+    password: Optional[str] = None
+    created_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
     is_expired: bool = False
 
 
@@ -649,4 +653,91 @@ class RedPacketRecord:
     packet_id: int
     user_id: str
     amount: int
-    claimed_at: datetime = None
+    claimed_at: Optional[datetime] = None
+
+
+# ---------------------------------
+# 新手引導系統 (Tutorial System)
+# ---------------------------------
+
+
+@dataclass
+class TutorialTask:
+    """新手引導任務"""
+
+    task_id: int
+    sequence: int  # 任務順序
+    category: str  # 分類：core, economy, equipment, social
+    title: str  # 任務標題
+    description: str  # 任務描述
+    target_type: str  # 目標類型：command, fish_count, coins, item_count 等
+    target_value: int = 1  # 目標值
+    target_command: Optional[str] = None  # 目標指令（用於 command 類型）
+    reward_coins: int = 0  # 金幣獎勵
+    reward_premium: int = 0  # 高級貨幣獎勵
+    reward_item_id: Optional[int] = None  # 物品獎勵 ID
+    reward_item_quantity: int = 0  # 物品獎勵數量
+    hint: Optional[str] = None  # 提示文字
+    is_active: bool = True
+
+
+@dataclass
+class UserTutorialProgress:
+    """用戶教程進度"""
+
+    progress_id: int
+    user_id: str
+    task_id: int
+    current_progress: int = 0  # 當前進度
+    is_completed: bool = False  # 是否完成
+    completed_at: Optional[datetime] = None  # 完成時間
+    reward_claimed: bool = False  # 是否已領取獎勵
+    reward_claimed_at: Optional[datetime] = None  # 領取時間
+
+
+# ---------------------------------
+# 公會系統 (Guild System)
+# ---------------------------------
+
+
+@dataclass
+class Guild:
+    """公會"""
+
+    guild_id: int
+    name: str
+    leader_id: str  # 會長 user_id
+    description: Optional[str] = None
+    emblem: Optional[str] = None  # 公會徽章
+    level: int = 1
+    exp: int = 0
+    member_count: int = 1
+    max_members: int = 30
+    total_fish_caught: int = 0  # 公會總漁獲
+    total_coins_earned: int = 0  # 公會總收入
+    created_at: Optional[datetime] = None
+    is_active: bool = True
+
+
+@dataclass
+class GuildMember:
+    """公會成員"""
+
+    membership_id: int
+    guild_id: int
+    user_id: str
+    role: str = "member"  # leader, officer, member
+    contribution: int = 0  # 貢獻值
+    joined_at: Optional[datetime] = None
+    last_contribution_at: Optional[datetime] = None
+
+
+@dataclass
+class GuildBuff:
+    """公會增益"""
+
+    buff_id: int
+    guild_id: int
+    buff_type: str  # fishing_speed, rare_chance, coin_bonus 等
+    buff_value: float = 0.0
+    expires_at: Optional[datetime] = None

@@ -144,7 +144,30 @@
 
 修复了 `metadata.yaml` 中 `repo` 为空导致的插件更新失败问题。
 
-## 9. 当前结论
+## 9. 2026-03-13 额外修复
+
+### 9.1 handlers/__init__.py 修复
+
+- 修复了 `handlers/__init__.py` 为空的问题，导致模块导入不可靠
+- 添加了所有 handler 模块的导入：`admin_handlers`, `common_handlers`, `inventory_handlers`, `fishing_handlers`, `market_handlers`, `social_handlers`, `gacha_handlers`, `aquarium_handlers`, `sicbo_handlers`, `red_packet_handlers`, `exchange_handlers`
+
+### 9.2 命令别名重复修复
+
+修复了 `main.py` 中多个命令的重复别名问题：
+
+- `/簽到` - 移除重複的 `["簽到", "簽到"]`
+- `/偷魚` - 移除重複的 `["偷魚", "偷魚", "偷鱼"]`
+- `/電魚` - 移除重複的 `["電魚", "電鱼", "电魚"]`
+- `/驅靈` - 移除重複的 `["驅靈", "驅灵", "驱靈"]`
+- `/魚類圖鑑` - 移除多個冗餘別名
+
+### 9.3 命令参考文档
+
+- 新增 `docs/COMMAND_REFERENCE.md`，包含完整的指令總覽
+- 涵蓋所有 45+ 指令及其 200+ 別名
+- 按功能分類：用戶註冊、背包管理、水族箱、經濟市場、交易所、抽卡、骰寶、社交、紅包、管理員
+
+## 10. 当前结论
 
 当前项目已完成：
 
@@ -153,6 +176,9 @@
 - 交易所扩展补齐
 - Web 管理增强
 - 文档体系重构与去隐私化
+- Handler 模块导入修复
+- 命令别名去重
+- 完整命令参考文档
 
 后续建议继续推进：
 

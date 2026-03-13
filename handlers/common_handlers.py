@@ -17,6 +17,55 @@ if TYPE_CHECKING:
     from ..main import FishingPlugin
 
 
+def extract_command_table() -> list[dict]:
+    """
+    解析 main.py 中通過 @filter.command 聲明的所有指令。
+    用於幫助生成指令索引、批量測試等場景。
+    """
+    main_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "main.py")
+    )
+    commands = []
+    try:
+        with open(main_path, "r", encoding="utf-8") as f:
+            src = f.read()
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.AsyncFunctionDef):
+                continue
+            for dec in node.decorator_list:
+                if not (
+                    isinstance(dec, ast.Call)
+                    and isinstance(dec.func, ast.Attribute)
+                    and dec.func.attr == "command"
+                ):
+                    continue
+                if not dec.args or not isinstance(dec.args[0], ast.Constant):
+                    continue
+                cmd = str(dec.args[0].value)
+                aliases = []
+                for kw in dec.keywords:
+                    if kw.arg == "alias" and isinstance(
+                        kw.value, (ast.List, ast.Tuple)
+                    ):
+                        for e in kw.value.elts:
+                            if isinstance(e, ast.Constant):
+                                aliases.append(str(e.value))
+                seen = set()
+                uniq_aliases = []
+                for a in aliases:
+                    if a not in seen:
+                        seen.add(a)
+                        uniq_aliases.append(a)
+                commands.append(
+                    {"line": node.lineno, "command": cmd, "aliases": uniq_aliases}
+                )
+        commands.sort(key=lambda x: x["line"])
+    except Exception as e:
+        logger.error(f"解析指令清單失敗: {e}")
+    return commands
+
+
 async def register_user(self: "FishingPlugin", event: AstrMessageEvent):
     """註冊用戶命令"""
     user_id = self._get_effective_user_id(event)
@@ -283,50 +332,6 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             chunks.append(current.rstrip())
         return chunks
 
-    def _extract_command_table():
-        main_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "main.py")
-        )
-        commands = []
-        try:
-            with open(main_path, "r", encoding="utf-8") as f:
-                src = f.read()
-            tree = ast.parse(src)
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.AsyncFunctionDef):
-                    continue
-                for dec in node.decorator_list:
-                    if not (
-                        isinstance(dec, ast.Call)
-                        and isinstance(dec.func, ast.Attribute)
-                        and dec.func.attr == "command"
-                    ):
-                        continue
-                    if not dec.args or not isinstance(dec.args[0], ast.Constant):
-                        continue
-                    cmd = str(dec.args[0].value)
-                    aliases = []
-                    for kw in dec.keywords:
-                        if kw.arg == "alias" and isinstance(
-                            kw.value, (ast.List, ast.Tuple)
-                        ):
-                            for e in kw.value.elts:
-                                if isinstance(e, ast.Constant):
-                                    aliases.append(str(e.value))
-                    seen = set()
-                    uniq_aliases = []
-                    for a in aliases:
-                        if a not in seen:
-                            seen.add(a)
-                            uniq_aliases.append(a)
-                    commands.append(
-                        {"line": node.lineno, "command": cmd, "aliases": uniq_aliases}
-                    )
-            commands.sort(key=lambda x: x["line"])
-        except Exception as e:
-            logger.error(f"解析指令清單失敗: {e}")
-        return commands
-
     def _fmt_cmd(c):
         funny_descs = {
             "注册": "領取釣魚執照，開啟肝帝之路",
@@ -368,7 +373,7 @@ async def fishing_help(self: "FishingPlugin", event: AstrMessageEvent):
             )
         return f"- /{c['command']}：{desc}" if desc else f"- /{c['command']}"
 
-    commands = _extract_command_table()
+    commands = extract_command_table()
 
     category_rules = {
         "core": {

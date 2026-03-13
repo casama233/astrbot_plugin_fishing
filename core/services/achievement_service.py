@@ -367,6 +367,8 @@ class AchievementService:
             return user.max_wipe_bomb_multiplier >= trigger_value
         elif trigger_type == "total_weight":
             return (user.total_weight_caught or 0) >= trigger_value
+        elif trigger_type == "set_bonus":
+            return False
         else:
             logger.warning(f"未知的称号触发类型: {trigger_type}")
             return False

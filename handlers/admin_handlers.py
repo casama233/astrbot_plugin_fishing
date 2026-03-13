@@ -8,11 +8,56 @@ from astrbot.core.star.filter.permission import PermissionType
 from astrbot.api.message_components import At, Node, Plain
 
 from ..utils import parse_target_user_id, _is_port_available, parse_amount
+from .common_handlers import extract_command_table
 from ..manager.server import create_app
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..main import FishingPlugin
+
+
+async def self_check_commands(plugin: "FishingPlugin", event: AstrMessageEvent):
+    """
+    管理員自檢：掃描所有已註冊的 /釣魚 插件指令。
+
+    - 從 main.py 解析 @filter.command 聲明的全部指令與別名
+    - 簡要統計指令總數、帶別名的數量
+    - 輸出部分示例，並在日誌詳細列出完整清單
+    """
+    commands = extract_command_table()
+    if not commands:
+        yield event.plain_result("❌ 未能從 main.py 解析出指令清單，請查看日誌。")
+        return
+
+    total = len(commands)
+    with_alias = sum(1 for c in commands if c.get("aliases"))
+
+    # 日誌中打印完整清單，方便排查
+    logger.info("[fish_admin.selfcheck] 解析到的指令清單：")
+    for c in commands:
+        logger.info(
+            f"  line {c.get('line')}: /{c.get('command')} "
+            f"aliases={c.get('aliases') or []}"
+        )
+
+    # 構造給管理員看的摘要
+    lines = [
+        "✅ 釣魚插件指令自檢（靜態掃描 main.py）",
+        f"- 指令總數：{total}",
+        f"- 其中帶別名的指令：{with_alias}",
+        "",
+        "部分指令示例：",
+    ]
+    preview = commands[:15]
+    for c in preview:
+        name = c["command"]
+        aliases = c.get("aliases") or []
+        alias_str = f"（別名：{', '.join(aliases)}）" if aliases else ""
+        lines.append(f"- /{name}{alias_str}")
+    if total > len(preview):
+        lines.append(f"... 另有 {total - len(preview)} 條，詳見日誌輸出。")
+
+    yield event.plain_result("\n".join(lines))
 
 
 async def modify_coins(plugin: "FishingPlugin", event: AstrMessageEvent):

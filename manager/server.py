@@ -1247,33 +1247,15 @@ async def upsert_exchange_commodity():
         exchange_service = current_app.config["EXCHANGE_SERVICE"]
         exchange_repo = exchange_service.exchange_repo
 
-        # 写入 commodities（MySQL/SQLite 兼容）
-        if hasattr(exchange_repo, "_connection_manager"):
-            with exchange_repo._connection_manager.get_connection() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO commodities (commodity_id, name, description)
-                        VALUES (%s, %s, %s)
-                        ON DUPLICATE KEY UPDATE
-                          name = VALUES(name),
-                          description = VALUES(description)
-                        """,
-                        (commodity_id, name, description),
-                    )
-                conn.commit()
-        else:
-            import sqlite3
-
-            with sqlite3.connect(exchange_repo.db_path) as conn:
-                cursor = conn.cursor()
+        with exchange_repo._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
                 cursor.execute(
                     """
                     INSERT INTO commodities (commodity_id, name, description)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(commodity_id) DO UPDATE SET
-                      name = excluded.name,
-                      description = excluded.description
+                    VALUES (%s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                    name = VALUES(name),
+                    description = VALUES(description)
                     """,
                     (commodity_id, name, description),
                 )

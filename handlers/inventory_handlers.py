@@ -424,35 +424,141 @@ async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         displayed_count = len(rods)
 
-        # 构造输出信息,附带emoji
-        if is_filtered:
-            message = f"【🎣 鱼竿】共 {total_count} 根，仅显示高品质鱼竿 {displayed_count} 根：\n"
-            message += "💡 提示：数量过多，仅显示5星以上鱼竿\n\n"
-        else:
-            message = f"【🎣 鱼竿】共 {total_count} 根：\n"
+        # 優先生成圖片列表，失敗時回退文字列表
+        try:
+            from ..draw.equipment import draw_equipment_image
+            import os
 
-        for rod in rods:
-            message += format_accessory_or_rod(rod)
-            if (
-                rod.get("bonus_rare_fish_chance", 1) != 1
-                and rod.get("bonus_fish_weight", 1.0) != 1.0
-            ):
-                message += f"   - 钓上鱼鱼类几率加成: {to_percentage(rod['bonus_rare_fish_chance'])}\n"
-            message += f"   -精炼等级: {rod.get('refine_level', 1)}\n"
+            # Ensure each rod has the required fields for drawing
+            processed_rods = []
+            for rod in rods:
+                processed_rod = {
+                    "display_code": rod.get("display_code")
+                    or f"ID{rod.get('instance_id', '?')}",
+                    "name": rod.get("name", "未知裝備"),
+                    "rarity": rod.get("rarity", 1),
+                    "is_equipped": rod.get("is_equipped", False),
+                    "is_locked": rod.get("is_locked", False),
+                    "bonus_fish_quality_modifier": rod.get(
+                        "bonus_fish_quality_modifier", 1
+                    ),
+                    "bonus_fish_quantity_modifier": rod.get(
+                        "bonus_fish_quantity_modifier", 1
+                    ),
+                    "bonus_rare_fish_chance": rod.get("bonus_rare_fish_chance", 1),
+                    "refine_level": rod.get("refine_level", 1),
+                }
+                processed_rods.append(processed_rod)
 
-        # 检查消息长度，如果太长则截断
-        if len(message) > 3000:
-            message = message[:3000] + "\n\n📝 消息过长已截断。"
+            if is_filtered:
+                title = f"鱼竿（共 {total_count} 根，高品质展示 {displayed_count} 根）"
+            else:
+                title = f"鱼竿（共 {total_count} 根）"
 
-        # 如果被过滤，添加清理建议
-        if is_filtered:
-            message += "\n\n🧹 建议及时清理低品质鱼竿：\n"
-            message += "• /出售所有鱼竿 - 快速清理低品质鱼竿\n"
-            message += "• /出售 [鱼竿ID] - 出售指定鱼竿"
+            image = draw_equipment_image(title, processed_rods, kind="rod")
+            image_path = os.path.join(plugin.tmp_dir, f"rods_{user_id}.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
 
-        message += "\n\n" + _build_dynamic_shortcuts(plugin, user_id, "rod")
+            shortcuts = _build_dynamic_shortcuts(plugin, user_id, "rod")
+            if shortcuts:
+                yield event.plain_result(shortcuts)
+            return
+        except Exception:
+            # 回退為文字版列表
+            if is_filtered:
+                message = f"【🎣 鱼竿】共 {total_count} 根，仅显示高品质鱼竿 {displayed_count} 根：\n"
+                message += "💡 提示：数量过多，仅显示5星以上鱼竿\n\n"
+            else:
+                message = f"【🎣 鱼竿】共 {total_count} 根：\n"
 
-        yield event.plain_result(message)
+            for rod in rods:
+                message += format_accessory_or_rod(rod)
+                if (
+                    rod.get("bonus_rare_fish_chance", 1) != 1
+                    and rod.get("bonus_fish_weight", 1.0) != 1.0
+                ):
+                    message += (
+                        f"   - 钓上鱼鱼类几率加成: "
+                        f"{to_percentage(rod['bonus_rare_fish_chance'])}\n"
+                    )
+                message += f"   -精炼等级: {rod.get('refine_level', 1)}\n"
+
+            # 检查消息长度，如果太长则截断
+            if len(message) > 3000:
+                message = message[:3000] + "\n\n📝 消息过长已截断。"
+
+            # 如果被过滤，添加清理建议
+            if is_filtered:
+                message += "\n\n🧹 建议及时清理低品质鱼竿：\n"
+                message += "• /出售所有鱼竿 - 快速清理低品质鱼竿\n"
+                message += "• /出售 [鱼竿ID] - 出售指定鱼竿"
+
+            message += "\n\n" + _build_dynamic_shortcuts(plugin, user_id, "rod")
+
+            yield event.plain_result(message)
+        except Exception:
+            # 回退為文字版列表
+            if is_filtered:
+                message = f"【🎣 鱼竿】共 {total_count} 根，仅显示高品质鱼竿 {displayed_count} 根：\n"
+                message += "💡 提示：数量过多，仅显示5星以上鱼竿\n\n"
+            else:
+                message = f"【🎣 鱼竿】共 {total_count} 根：\n"
+
+            for rod in rods:
+                message += format_accessory_or_rod(rod)
+                if (
+                    rod.get("bonus_rare_fish_chance", 1) != 1
+                    and rod.get("bonus_fish_weight", 1.0) != 1.0
+                ):
+                    message += (
+                        f"   - 钓上鱼鱼类几率加成: "
+                        f"{to_percentage(rod['bonus_rare_fish_chance'])}\n"
+                    )
+                message += f"   -精炼等级: {rod.get('refine_level', 1)}\n"
+
+            # 检查消息长度，如果太长则截断
+            if len(message) > 3000:
+                message = message[:3000] + "\n\n📝 消息过长已截断。"
+
+            # 如果被过滤，添加清理建议
+            if is_filtered:
+                message += "\n\n🧹 建议及时清理低品质鱼竿：\n"
+                message += "• /出售所有鱼竿 - 快速清理低品质鱼竿\n"
+                message += "• /出售 [鱼竿ID] - 出售指定鱼竿"
+        except Exception:
+            # 回退為文字版列表
+            if is_filtered:
+                message = f"【🎣 鱼竿】共 {total_count} 根，仅显示高品质鱼竿 {displayed_count} 根：\n"
+                message += "💡 提示：数量过多，仅显示5星以上鱼竿\n\n"
+            else:
+                message = f"【🎣 鱼竿】共 {total_count} 根：\n"
+
+            for rod in rods:
+                message += format_accessory_or_rod(rod)
+                if (
+                    rod.get("bonus_rare_fish_chance", 1) != 1
+                    and rod.get("bonus_fish_weight", 1.0) != 1.0
+                ):
+                    message += (
+                        f"   - 钓上鱼鱼类几率加成: "
+                        f"{to_percentage(rod['bonus_rare_fish_chance'])}\n"
+                    )
+                message += f"   -精炼等级: {rod.get('refine_level', 1)}\n"
+
+            # 检查消息长度，如果太长则截断
+            if len(message) > 3000:
+                message = message[:3000] + "\n\n📝 消息过长已截断。"
+
+            # 如果被过滤，添加清理建议
+            if is_filtered:
+                message += "\n\n🧹 建议及时清理低品质鱼竿：\n"
+                message += "• /出售所有鱼竿 - 快速清理低品质鱼竿\n"
+                message += "• /出售 [鱼竿ID] - 出售指定鱼竿"
+
+            message += "\n\n" + _build_dynamic_shortcuts(plugin, user_id, "rod")
+
+            yield event.plain_result(message)
     else:
         yield event.plain_result("🎣 您还没有鱼竿，快去商店购买或抽奖获得吧！")
 
@@ -581,30 +687,76 @@ async def accessories(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         displayed_count = len(accessories)
 
-        # 构造输出信息,附带emoji
-        if is_filtered:
-            message = f"【💍 饰品】共 {total_count} 个，仅显示高品质饰品 {displayed_count} 个：\n"
-            message += "💡 提示：数量过多，仅显示5星以上饰品\n\n"
-        else:
-            message = f"【💍 饰品】共 {total_count} 个：\n"
+        # 優先生成圖片列表，失敗時回退文字列表
+        try:
+            from ..draw.equipment import draw_equipment_image
+            import os
 
-        for accessory in accessories:
-            message += format_accessory_or_rod(accessory)
-            message += f"   -精炼等级: {accessory.get('refine_level', 1)}\n"
+            # Ensure each accessory has the required fields for drawing
+            processed_accessories = []
+            for accessory in accessories:
+                processed_accessory = {
+                    "display_code": accessory.get("display_code")
+                    or f"ID{accessory.get('instance_id', '?')}",
+                    "name": accessory.get("name", "未知裝備"),
+                    "rarity": accessory.get("rarity", 1),
+                    "is_equipped": accessory.get("is_equipped", False),
+                    "is_locked": accessory.get("is_locked", False),
+                    "bonus_fish_quality_modifier": accessory.get(
+                        "bonus_fish_quality_modifier", 1
+                    ),
+                    "bonus_fish_quantity_modifier": accessory.get(
+                        "bonus_fish_quantity_modifier", 1
+                    ),
+                    "bonus_rare_fish_chance": accessory.get(
+                        "bonus_rare_fish_chance", 1
+                    ),
+                    "refine_level": accessory.get("refine_level", 1),
+                }
+                processed_accessories.append(processed_accessory)
 
-        # 检查消息长度，如果太长则截断
-        if len(message) > 3000:
-            message = message[:3000] + "\n\n📝 消息过长已截断。"
+            if is_filtered:
+                title = f"饰品（共 {total_count} 个，高品质展示 {displayed_count} 个）"
+            else:
+                title = f"饰品（共 {total_count} 个）"
 
-        # 如果被过滤，添加清理建议
-        if is_filtered:
-            message += "\n\n🧹 建议及时清理低品质饰品：\n"
-            message += "• /出售所有饰品 - 快速清理低品质饰品\n"
-            message += "• /出售 [饰品ID] - 出售指定饰品"
+            image = draw_equipment_image(title, processed_accessories, kind="accessory")
+            image_path = os.path.join(plugin.tmp_dir, f"accessories_{user_id}.png")
+            image.save(image_path)
+            yield event.image_result(image_path)
 
-        message += "\n\n" + _build_dynamic_shortcuts(plugin, user_id, "accessory")
+            shortcuts = _build_dynamic_shortcuts(plugin, user_id, "accessory")
+            if shortcuts:
+                yield event.plain_result(shortcuts)
+            return
+        except Exception:
+            # 回退為文字版列表
+            if is_filtered:
+                message = (
+                    f"【💍 饰品】共 {total_count} 个，"
+                    f"仅显示高品质饰品 {displayed_count} 个：\n"
+                )
+                message += "💡 提示：数量过多，仅显示5星以上饰品\n\n"
+            else:
+                message = f"【💍 饰品】共 {total_count} 个：\n"
 
-        yield event.plain_result(message)
+            for accessory in accessories:
+                message += format_accessory_or_rod(accessory)
+                message += f"   -精炼等级: {accessory.get('refine_level', 1)}\n"
+
+            # 检查消息長度，如果太長則截斷
+            if len(message) > 3000:
+                message = message[:3000] + "\n\n📝 消息過長已截斷。"
+
+            # 如果被過濾，添加清理建議
+            if is_filtered:
+                message += "\n\n🧹 建議及時清理低品質飾品：\n"
+                message += "• /出售所有飾品 - 快速清理低品質飾品\n"
+                message += "• /出售 [飾品ID] - 出售指定飾品"
+
+            message += "\n\n" + _build_dynamic_shortcuts(plugin, user_id, "accessory")
+
+            yield event.plain_result(message)
     else:
         yield event.plain_result("💍 您还没有饰品，快去商店购买或抽奖获得吧！")
 

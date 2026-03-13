@@ -624,11 +624,15 @@ class FishingService:
             },
         }
 
-        # 添加装备损坏消息
-        if equipment_broken_messages:
-            result["equipment_broken_messages"] = equipment_broken_messages
+# 添加装备损坏消息
+if equipment_broken_messages:
+result["equipment_broken_messages"] = equipment_broken_messages
 
-        return result
+# 添加通行证过期警告
+if pass_warning:
+result["pass_warning"] = pass_warning
+
+return result
 
     def get_user_pokedex(self, user_id: str) -> Dict[str, Any]:
         """获取用户的图鉴信息。"""
