@@ -24,6 +24,12 @@ from ..utils import (
     get_last_reset_time,
     calculate_after_refine,
 )
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .tutorial_service import TutorialService
+    from .guild_service import GuildService
+
 from .special_accessory_effects import (
     get_accessory_effects,
     get_effect_multiplier,
@@ -64,16 +70,24 @@ class FishingService:
         self.last_tax_reset_time = get_last_reset_time(self.daily_reset_hour)
         self.tax_execution_lock = threading.Lock()  # 防止税收并发执行的锁
         self.tax_start_lock = threading.Lock()  # 防止重复创建税收线程的锁
-        self.rare_fish_reset_lock = threading.Lock()  # 防止稀有鱼重置并发执行的锁
-        # 可选的消息通知回调：签名 (target: str, message: str) -> None，用于消息通知
+        self.rare_fish_reset_lock = threading.Lock()
         self._notifier = None
-        # 通知目标可配置，默认群聊。可由 config['notifications']['relocation_target'] 覆盖
+        self._tutorial_service = None
+        self._guild_service = None
         notifications_cfg = (
             self.config.get("notifications", {})
             if isinstance(self.config, dict)
             else {}
         )
         self._notification_target = notifications_cfg.get("relocation_target", "group")
+
+    def set_guild_service(self, guild_service: "GuildService"):
+        """設置公會服務"""
+        self._guild_service = guild_service
+
+    def set_tutorial_service(self, tutorial_service: "TutorialService"):
+        """設置教程服務"""
+        self._tutorial_service = tutorial_service
 
     def register_notifier(self, notifier, default_target: Optional[str] = None):
         """
@@ -365,6 +379,21 @@ class FishingService:
                 # 转为增量叠加，避免 1.0 被当作额外效果
                 coins_chance += max(0.0, bait_template.value_modifier - 1.0)
 
+        # 應用公會 Buff 加成
+        if self._guild_service:
+            try:
+                guild_buffs = self._guild_service.get_user_buffs(user_id)
+                if guild_buffs:
+                    if "rare_chance" in guild_buffs:
+                        rare_chance += guild_buffs["rare_chance"]
+                    if "coin_bonus" in guild_buffs:
+                        coins_chance += guild_buffs["coin_bonus"]
+                    if "fishing_speed" in guild_buffs:
+                        base_success_rate += guild_buffs["fishing_speed"] * 0.1
+                    logger.debug(f"公會 Buff 加成：{guild_buffs}")
+            except Exception as e:
+                logger.warning(f"獲取公會 Buff 失敗: {e}")
+
         # 限制价值倾向加成上限，防止极端配置导致收益爆炸
         coins_chance = min(coins_chance, 0.8)
         logger.debug(
@@ -609,30 +638,27 @@ class FishingService:
         )
         self.log_repo.add_fishing_record(record)
 
-        # 7. 构建成功返回结果
+        if self._tutorial_service:
+            self._tutorial_service.check_fish_count_progress(
+                user.user_id, user.total_fishing_count
+            )
+
         result = {
             "success": True,
             "fish": {
                 "name": fish_template.name,
                 "rarity": fish_template.rarity,
                 "weight": weight,
-                "value": value * 2 if quality_level == 1 else value,  # 高品质鱼双倍价值
-                "quality_level": quality_level,  # 添加品质等级
-                "quality_label": "✨高品质"
-                if quality_level == 1
-                else "普通",  # 添加品质标签
+                "value": value * 2 if quality_level == 1 else value,
+                "quality_level": quality_level,
+                "quality_label": "✨高品质" if quality_level == 1 else "普通",
             },
         }
 
-# 添加装备损坏消息
-if equipment_broken_messages:
-result["equipment_broken_messages"] = equipment_broken_messages
+        if equipment_broken_messages:
+            result["equipment_broken_messages"] = equipment_broken_messages
 
-# 添加通行证过期警告
-if pass_warning:
-result["pass_warning"] = pass_warning
-
-return result
+        return result
 
     def get_user_pokedex(self, user_id: str) -> Dict[str, Any]:
         """获取用户的图鉴信息。"""

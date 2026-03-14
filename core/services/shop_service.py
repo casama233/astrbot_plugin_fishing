@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import copy
 import math
 import random
+import threading
 
 # 导入仓储接口
 from ..repositories.abstract_repository import (
@@ -30,6 +31,7 @@ class ShopService:
         self.user_repo = user_repo
         self.shop_repo = shop_repo
         self.config = config or {}
+        self._transaction_lock = threading.Lock()
 
     def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
         """解析时间字符串为 datetime 对象"""
@@ -161,6 +163,13 @@ class ShopService:
         if quantity <= 0:
             return {"success": False, "message": "数量必须大于0"}
 
+        with self._transaction_lock:
+            return self._execute_purchase(user_id, item_id, quantity, shop_id)
+
+    def _execute_purchase(
+        self, user_id: str, item_id: int, quantity: int, shop_id: int
+    ) -> Dict[str, Any]:
+        """執行購買邏輯（內部方法，已由交易鎖保護）"""
         # 获取商品信息
         item = self.shop_repo.get_shop_item_by_id(item_id)
         if not item:
@@ -179,12 +188,6 @@ class ShopService:
         if not shop:
             return {"success": False, "message": "商店不存在"}
 
-        # 验证请求的 shop_id 是否匹配商品的实际 shop_id
-        # args[1] 传入的原始数字可能是用户指定的 shop_id，但在 purchase_item 签名里目前只接了 item_id
-        # 我们需要在调用层校验，或者在这里增加校验逻辑。
-        # 考虑到目前 handle 层解析出了 shop_id，但调用 service 时没传，我们先让它支持校验。
-        pass
-
         shop_error = self._check_shop_availability(shop)
         if shop_error:
             return {"success": False, "message": shop_error}
@@ -194,7 +197,7 @@ class ShopService:
         if not user:
             return {"success": False, "message": "用户不存在"}
 
-        # 库存检查
+        # 库存检查（使用原子操作）
         if item.get("stock_total") is not None:
             available_stock = item["stock_total"] - item.get("stock_sold", 0)
             if available_stock < quantity:
@@ -280,9 +283,10 @@ class ShopService:
         or_solution = self._find_payable_combination(or_choices, resources_after_and)
 
         if or_solution is None:
+            error_msg = self._generate_payment_error_message(or_choices)
             return {
                 "success": False,
-                "message": "支付条件不足，无法找到满足所有选项的物品组合",
+                "message": error_msg,
             }
 
         # 5. 合并最终成本
@@ -290,21 +294,67 @@ class ShopService:
         for cost_part in or_solution:
             self._merge_costs(final_total_costs, cost_part)
 
-        # 6. 执行真实的交易
+        # 6. 原子库存更新（防止超卖）
+        if item.get("stock_total") is not None:
+            if not self.shop_repo.increase_item_sold_atomic(item_id, quantity):
+                return {"success": False, "message": "库存不足（并发冲突），请重试"}
+
+        # 7. 执行真实的交易
         self._deduct_costs(user, final_total_costs)
         rewards = self.shop_repo.get_item_rewards(item_id)
         obtained_items = self._give_rewards(user_id, rewards, quantity)
 
-        self.shop_repo.increase_item_sold(item_id, quantity)
         self.shop_repo.add_purchase_record(user_id, item_id, quantity)
 
         success_message = f"✅ 购买成功：{item['name']} x{quantity}"
         if obtained_items:
             success_message += f"\n📦 获得物品：\n" + "\n".join(
-                [f"  • {item}" for item in obtained_items]
+                [f" • {item}" for item in obtained_items]
             )
 
         return {"success": True, "message": success_message}
+
+    def _generate_payment_error_message(self, or_choices: List[List[Dict]]) -> str:
+        """生成更友好的支付错误消息"""
+        if not or_choices:
+            return "支付条件不足"
+
+        missing = []
+        for i, group in enumerate(or_choices):
+            options_desc = []
+            for opt in group:
+                if "coins" in opt and opt["coins"] > 0:
+                    options_desc.append(f"{opt['coins']} 金币")
+                if "premium" in opt and opt["premium"] > 0:
+                    options_desc.append(f"{opt['premium']} 高级货币")
+                if "fish" in opt:
+                    for fish_id, info in opt["fish"].items():
+                        name = self._get_fish_name(int(fish_id))
+                        if isinstance(info, dict):
+                            qty = info.get("quantity", 0)
+                        else:
+                            qty = info
+                        options_desc.append(f"{name} x{qty}")
+                if "items" in opt:
+                    for item_id, qty in opt["items"].items():
+                        name = self._get_item_name(int(item_id))
+                        options_desc.append(f"{name} x{qty}")
+            if options_desc:
+                missing.append(f"选项{i + 1}: {' 或 '.join(options_desc)}")
+
+        if missing:
+            return f"支付条件不足，需要满足以下任一组合：\n" + "\n".join(missing)
+        return "支付条件不足"
+
+    def _get_fish_name(self, fish_id: int) -> str:
+        """获取鱼的名称"""
+        fish_tpl = self.item_template_repo.get_fish_by_id(fish_id)
+        return fish_tpl.name if fish_tpl else f"鱼#{fish_id}"
+
+    def _get_item_name(self, item_id: int) -> str:
+        """获取道具的名称"""
+        item_tpl = self.item_template_repo.get_item_by_id(item_id)
+        return item_tpl.name if item_tpl else f"道具#{item_id}"
 
     def _merge_costs(self, base_costs: Dict, new_costs: Dict) -> None:
         """辅助函数：将 new_costs 合并到 base_costs 中，能处理带品质的鱼类成本。"""

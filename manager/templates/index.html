@@ -2,179 +2,317 @@
 
 {% block content %}
 <div class="p-5 mb-4 bg-light rounded-3 shadow-sm border">
-    <div class="container-fluid py-2">
-        <h1 class="display-5 fw-bold text-primary"><i class="fas fa-tachometer-alt me-2"></i>钓鱼后台仪表盘</h1>
-        <p class="col-md-8 fs-4 text-muted">欢迎回来！在这里可以直观、便捷地管理你的钓鱼游戏世界。</p>
-    </div>
+<div class="container-fluid py-2">
+<h1 class="display-5 fw-bold text-primary"><i class="fas fa-tachometer-alt me-2"></i>钓鱼后台仪表盘</h1>
+<p class="col-md-8 fs-4 text-muted">欢迎回来！在这里可以直观、便捷地管理你的钓鱼游戏世界。</p>
+</div>
+</div>
+
+<div class="row mb-4">
+<div class="col-md-3">
+<div class="card text-center">
+<div class="card-body">
+<h6 class="text-muted">總玩家數</h6>
+<h3 id="statTotalUsers" class="text-primary">-</h3>
+</div>
+</div>
+</div>
+<div class="col-md-3">
+<div class="card text-center">
+<div class="card-body">
+<h6 class="text-muted">流通金幣</h6>
+<h3 id="statTotalCoins" class="text-warning">-</h3>
+</div>
+</div>
+</div>
+<div class="col-md-3">
+<div class="card text-center">
+<div class="card-body">
+<h6 class="text-muted">活躍公會</h6>
+<h3 id="statGuilds" class="text-info">-</h3>
+</div>
+</div>
+</div>
+<div class="col-md-3">
+<div class="card text-center">
+<div class="card-body">
+<h6 class="text-muted">今日交易額</h6>
+<h3 id="statTodayVolume" class="text-success">-</h3>
+</div>
+</div>
+</div>
 </div>
 
 <div class="mb-4">
-    <h3 class="border-bottom pb-2 mb-3"><i class="fas fa-database me-2"></i>游戏数据管理</h3>
-    <div class="row g-4">
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_fish') }}" class="dashboard-card">
-                <div class="card h-100 border-primary">
-                    <div class="card-body text-center">
-                        <i class="fas fa-water fa-3x text-primary mb-3"></i>
-                        <h5 class="card-title">鱼类管理</h5>
-                        <p class="card-text small text-muted">管理所有鱼种数据</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_rods') }}" class="dashboard-card">
-                <div class="card h-100 border-info">
-                    <div class="card-body text-center">
-                        <i class="fas fa-gavel fa-3x text-info mb-3"></i>
-                        <h5 class="card-title">鱼竿管理</h5>
-                        <p class="card-text small text-muted">配置鱼竿属性与来源</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_baits') }}" class="dashboard-card">
-                <div class="card h-100 border-warning">
-                    <div class="card-body text-center">
-                        <i class="fas fa-bug fa-3x text-warning mb-3"></i>
-                        <h5 class="card-title">鱼饵管理</h5>
-                        <p class="card-text small text-muted">定义鱼饵效果</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_accessories') }}" class="dashboard-card">
-                <div class="card h-100 border-danger">
-                    <div class="card-body text-center">
-                        <i class="fas fa-gem fa-3x text-danger mb-3"></i>
-                        <h5 class="card-title">饰品管理</h5>
-                        <p class="card-text small text-muted">创建强大的饰品</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_items') }}" class="dashboard-card">
-                <div class="card h-100 border-secondary">
-                    <div class="card-body text-center">
-                        <i class="fas fa-box-open fa-3x text-secondary mb-3"></i>
-                        <h5 class="card-title">道具管理</h5>
-                        <p class="card-text small text-muted">管理背包道具</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_zones') }}" class="dashboard-card">
-                <div class="card h-100" style="border-color: #e83e8c;">
-                    <div class="card-body text-center">
-                        <i class="fas fa-map-marker-alt fa-3x mb-3" style="color: #e83e8c;"></i>
-                        <h5 class="card-title">钓鱼区域</h5>
-                        <p class="card-text small text-muted">配置区域与稀有度</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_titles') }}" class="dashboard-card">
-                <div class="card h-100" style="border-color: #ffc107;">
-                    <div class="card-body text-center">
-                        <i class="fas fa-trophy fa-3x text-warning mb-3"></i>
-                        <h5 class="card-title">称号管理</h5>
-                        <p class="card-text small text-muted">管理特殊身份标识</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
+<h3 class="border-bottom pb-2 mb-3"><i class="fas fa-database me-2"></i>游戏数据管理</h3>
+<div class="row g-4">
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_fish') }}" class="dashboard-card">
+<div class="card h-100 border-primary">
+<div class="card-body text-center">
+<i class="fas fa-water fa-3x text-primary mb-3"></i>
+<h5 class="card-title">鱼类管理</h5>
+<p class="card-text small text-muted">管理所有鱼种数据</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_rods') }}" class="dashboard-card">
+<div class="card h-100 border-info">
+<div class="card-body text-center">
+<i class="fas fa-gavel fa-3x text-info mb-3"></i>
+<h5 class="card-title">鱼竿管理</h5>
+<p class="card-text small text-muted">配置鱼竿属性与来源</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_baits') }}" class="dashboard-card">
+<div class="card h-100 border-warning">
+<div class="card-body text-center">
+<i class="fas fa-bug fa-3x text-warning mb-3"></i>
+<h5 class="card-title">鱼饵管理</h5>
+<p class="card-text small text-muted">定义鱼饵效果</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_accessories') }}" class="dashboard-card">
+<div class="card h-100 border-danger">
+<div class="card-body text-center">
+<i class="fas fa-gem fa-3x text-danger mb-3"></i>
+<h5 class="card-title">饰品管理</h5>
+<p class="card-text small text-muted">创建强大的饰品</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_items') }}" class="dashboard-card">
+<div class="card h-100 border-secondary">
+<div class="card-body text-center">
+<i class="fas fa-box-open fa-3x text-secondary mb-3"></i>
+<h5 class="card-title">道具管理</h5>
+<p class="card-text small text-muted">管理背包道具</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_zones') }}" class="dashboard-card">
+<div class="card h-100" style="border-color: #e83e8c;">
+<div class="card-body text-center">
+<i class="fas fa-map-marker-alt fa-3x mb-3" style="color: #e83e8c;"></i>
+<h5 class="card-title">钓鱼区域</h5>
+<p class="card-text small text-muted">配置区域与稀有度</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_titles') }}" class="dashboard-card">
+<div class="card h-100" style="border-color: #ffc107;">
+<div class="card-body text-center">
+<i class="fas fa-trophy fa-3x text-warning mb-3"></i>
+<h5 class="card-title">称号管理</h5>
+<p class="card-text small text-muted">管理特殊身份标识</p>
+</div>
+</div>
+</a>
+</div>
+</div>
 </div>
 
 <div class="mb-4">
-    <h3 class="border-bottom pb-2 mb-3"><i class="fas fa-coins me-2"></i>经济系统管理</h3>
-    <div class="row g-4">
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_shops') }}" class="dashboard-card">
-                <div class="card h-100 border-success">
-                    <div class="card-body text-center">
-                        <i class="fas fa-shopping-cart fa-3x text-success mb-3"></i>
-                        <h5 class="card-title">商店管理</h5>
-                        <p class="card-text small text-muted">配置商品与价格</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_market') }}" class="dashboard-card">
-                <div class="card h-100" style="border-color: #6f42c1;">
-                    <div class="card-body text-center">
-                        <i class="fas fa-store fa-3x mb-3" style="color: #6f42c1;"></i>
-                        <h5 class="card-title">市场管理</h5>
-                        <p class="card-text small text-muted">监控玩家交易</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_exchange') }}" class="dashboard-card">
-                <div class="card h-100 border-info">
-                    <div class="card-body text-center">
-                        <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
-                        <h5 class="card-title">交易所管理</h5>
-                        <p class="card-text small text-muted">大宗商品交易监控</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_gacha') }}" class="dashboard-card">
-                <div class="card h-100 border-success">
-                    <div class="card-body text-center">
-                        <i class="fas fa-dice fa-3x text-success mb-3"></i>
-                        <h5 class="card-title">抽卡管理</h5>
-                        <p class="card-text small text-muted">奖池与权重配置</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
+<h3 class="border-bottom pb-2 mb-3"><i class="fas fa-coins me-2"></i>经济系统管理</h3>
+<div class="row g-4">
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_shops') }}" class="dashboard-card">
+<div class="card h-100 border-success">
+<div class="card-body text-center">
+<i class="fas fa-shopping-cart fa-3x text-success mb-3"></i>
+<h5 class="card-title">商店管理</h5>
+<p class="card-text small text-muted">配置商品与价格</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_market') }}" class="dashboard-card">
+<div class="card h-100" style="border-color: #6f42c1;">
+<div class="card-body text-center">
+<i class="fas fa-store fa-3x mb-3" style="color: #6f42c1;"></i>
+<h5 class="card-title">市场管理</h5>
+<p class="card-text small text-muted">监控玩家交易</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_exchange') }}" class="dashboard-card">
+<div class="card h-100 border-info">
+<div class="card-body text-center">
+<i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+<h5 class="card-title">交易所管理</h5>
+<p class="card-text small text-muted">大宗商品交易监控</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_gacha') }}" class="dashboard-card">
+<div class="card h-100 border-success">
+<div class="card-body text-center">
+<i class="fas fa-dice fa-3x text-success mb-3"></i>
+<h5 class="card-title">抽卡管理</h5>
+<p class="card-text small text-muted">奖池与权重配置</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_redpackets') }}" class="dashboard-card">
+<div class="card h-100 border-danger">
+<div class="card-body text-center">
+<i class="fas fa-envelope-open-dollar fa-3x text-danger mb-3"></i>
+<h5 class="card-title">紅包管理</h5>
+<p class="card-text small text-muted">紅包發放與追蹤</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_sicbo') }}" class="dashboard-card">
+<div class="card h-100 border-warning">
+<div class="card-body text-center">
+<i class="fas fa-dice-three fa-3x text-warning mb-3"></i>
+<h5 class="card-title">骰寶管理</h5>
+<p class="card-text small text-muted">賭場監控與配置</p>
+</div>
+</div>
+</a>
+</div>
+</div>
 </div>
 
 <div class="mb-4">
-    <h3 class="border-bottom pb-2 mb-3"><i class="fas fa-cogs me-2"></i>系统与用户</h3>
-    <div class="row g-4">
-        <div class="col-lg-3 col-md-6">
-            <a href="{{ url_for('admin_bp.manage_users') }}" class="dashboard-card">
-                <div class="card h-100 border-dark">
-                    <div class="card-body text-center">
-                        <i class="fas fa-users fa-3x text-dark mb-3"></i>
-                        <h5 class="card-title">用户管理</h5>
-                        <p class="card-text small text-muted">查看与管理所有用户</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6">
-             <a href="https://github.com/Soulter/astrbot_plugin_fishing" target="_blank" class="dashboard-card">
-                <div class="card h-100 bg-dark text-white">
-                     <div class="card-body text-center">
-                        <i class="fab fa-github fa-3x mb-3"></i>
-                        <h5 class="card-title">项目源码</h5>
-                        <p class="card-text small">前往 GitHub 仓库</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
+<h3 class="border-bottom pb-2 mb-3"><i class="fas fa-users-cog me-2"></i>社交系統管理</h3>
+<div class="row g-4">
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_guilds') }}" class="dashboard-card">
+<div class="card h-100 border-primary">
+<div class="card-body text-center">
+<i class="fas fa-users fa-3x text-primary mb-3"></i>
+<h5 class="card-title">公會管理</h5>
+<p class="card-text small text-muted">查看與管理公會</p>
 </div>
-        </div>
-        <div class="col-md-5">
-            <i class="fas fa-trophy fa-10x text-center text-secondary d-block mx-auto" style="opacity: 0.5;"></i>
-        </div>
-    </div>
-
-    <hr class="featurette-divider">
-
 </div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_achievements') }}" class="dashboard-card">
+<div class="card h-100 border-warning">
+<div class="card-body text-center">
+<i class="fas fa-medal fa-3x text-warning mb-3"></i>
+<h5 class="card-title">成就管理</h5>
+<p class="card-text small text-muted">成就進度與授予</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_passes') }}" class="dashboard-card">
+<div class="card h-100 border-info">
+<div class="card-body text-center">
+<i class="fas fa-ticket-alt fa-3x text-info mb-3"></i>
+<h5 class="card-title">通行證管理</h5>
+<p class="card-text small text-muted">區域通行證發放</p>
+</div>
+</div>
+</a>
+</div>
+</div>
+</div>
+
+<div class="mb-4">
+<h3 class="border-bottom pb-2 mb-3"><i class="fas fa-cogs me-2"></i>系统与用户</h3>
+<div class="row g-4">
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_users') }}" class="dashboard-card">
+<div class="card h-100 border-dark">
+<div class="card-body text-center">
+<i class="fas fa-user-cog fa-3x text-dark mb-3"></i>
+<h5 class="card-title">用户管理</h5>
+<p class="card-text small text-muted">查看与管理所有用户</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="{{ url_for('admin_bp.manage_logs') }}" class="dashboard-card">
+<div class="card h-100 border-secondary">
+<div class="card-body text-center">
+<i class="fas fa-scroll fa-3x text-secondary mb-3"></i>
+<h5 class="card-title">操作日誌</h5>
+<p class="card-text small text-muted">追蹤所有操作記錄</p>
+</div>
+</div>
+</a>
+</div>
+<div class="col-lg-3 col-md-6">
+<a href="https://github.com/Soulter/astrbot_plugin_fishing" target="_blank" class="dashboard-card">
+<div class="card h-100 bg-dark text-white">
+<div class="card-body text-center">
+<i class="fab fa-github fa-3x mb-3"></i>
+<h5 class="card-title">项目源码</h5>
+<p class="card-text small">前往 GitHub 仓库</p>
+</div>
+</div>
+</a>
+</div>
+</div>
+</div>
+
+<hr class="featurette-divider">
+
+<div class="row mt-4">
+<div class="col-md-6">
+<h5><i class="fas fa-fish me-2"></i>熱門魚類（近7日）</h5>
+<div id="topFishContainer">
+<p class="text-muted">加載中...</p>
+</div>
+</div>
+<div class="col-md-6">
+<h5><i class="fas fa-crown me-2"></i>富豪榜</h5>
+<div id="topPlayersContainer">
+<p class="text-muted">加載中...</p>
+</div>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+fetch('/admin/dashboard/stats')
+.then(r => r.json())
+.then(data => {
+    if (data.success) {
+        document.getElementById('statTotalCoins').textContent = data.total_coins?.toLocaleString() || '0';
+        
+        const topFishContainer = document.getElementById('topFishContainer');
+        if (data.top_fish && data.top_fish.length > 0) {
+            topFishContainer.innerHTML = '<ol>' + data.top_fish.slice(0, 5).map(f => '<li>' + f.name + ' (' + f.catch_count + '次)</li>').join('') + '</ol>';
+        }
+        
+        const topPlayersContainer = document.getElementById('topPlayersContainer');
+        if (data.top_players && data.top_players.length > 0) {
+            topPlayersContainer.innerHTML = '<ol>' + data.top_players.slice(0, 5).map(p => '<li>' + (p.nickname || p.user_id) + ' - ' + p.coins?.toLocaleString() + '金幣</li>').join('') + '</ol>';
+        }
+    }
+});
+</script>
 {% endblock %}

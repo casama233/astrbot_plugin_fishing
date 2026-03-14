@@ -3,6 +3,7 @@ import os
 import traceback
 import json
 import re
+import random
 from typing import Dict, Any
 from datetime import datetime, timedelta
 import csv
@@ -2508,4 +2509,1296 @@ async def create_offer():
         return redirect(url_for("admin_bp.manage_shops"))
 
 
-# 旧的商品管理API路由已移除，功能已集成到商店详情页面
+# --- 教程任務管理 ---
+@admin_bp.route("/tutorial")
+@login_required
+@admin_required
+async def manage_tutorial():
+    tutorial_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        await flash("教程服務未初始化", "danger")
+        return redirect(url_for("admin_bp.index"))
+
+    tasks = tutorial_repo.get_all_active_tasks()
+    return await render_template("tutorial.html", tasks=tasks)
+
+
+@admin_bp.route("/tutorial/add", methods=["POST"])
+@login_required
+@admin_required
+async def add_tutorial_task():
+    tutorial_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        return jsonify({"success": False, "message": "教程服務未初始化"}), 500
+
+    try:
+        form = await request.form
+        task_data = {
+            "sequence": int(form.get("sequence", 0)),
+            "category": form.get("category", "core"),
+            "title": form.get("title", ""),
+            "description": form.get("description", ""),
+            "target_type": form.get("target_type", "command"),
+            "target_value": int(form.get("target_value", 1)),
+            "target_command": form.get("target_command") or None,
+            "reward_coins": int(form.get("reward_coins", 0)),
+            "reward_premium": int(form.get("reward_premium", 0)),
+            "hint": form.get("hint") or None,
+            "is_active": form.get("is_active") == "on",
+        }
+
+        with tutorial_repo._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO tutorial_tasks
+                    (sequence, category, title, description, target_type, target_value,
+                     target_command, reward_coins, reward_premium, hint, is_active)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        task_data["sequence"],
+                        task_data["category"],
+                        task_data["title"],
+                        task_data["description"],
+                        task_data["target_type"],
+                        task_data["target_value"],
+                        task_data["target_command"],
+                        task_data["reward_coins"],
+                        task_data["reward_premium"],
+                        task_data["hint"],
+                        1 if task_data["is_active"] else 0,
+                    ),
+                )
+                conn.commit()
+
+        await flash("教程任務添加成功！", "success")
+        return redirect(url_for("admin_bp.manage_tutorial"))
+
+    except Exception as e:
+        logger.error(f"添加教程任務失敗: {e}")
+        await flash(f"添加失敗: {str(e)}", "danger")
+        return redirect(url_for("admin_bp.manage_tutorial"))
+
+
+@admin_bp.route("/tutorial/edit/<int:task_id>", methods=["POST"])
+@login_required
+@admin_required
+async def edit_tutorial_task(task_id):
+    tutorial_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        return jsonify({"success": False, "message": "教程服務未初始化"}), 500
+
+    try:
+        form = await request.form
+        task_data = {
+            "sequence": int(form.get("sequence", 0)),
+            "category": form.get("category", "core"),
+            "title": form.get("title", ""),
+            "description": form.get("description", ""),
+            "target_type": form.get("target_type", "command"),
+            "target_value": int(form.get("target_value", 1)),
+            "target_command": form.get("target_command") or None,
+            "reward_coins": int(form.get("reward_coins", 0)),
+            "reward_premium": int(form.get("reward_premium", 0)),
+            "hint": form.get("hint") or None,
+            "is_active": form.get("is_active") == "on",
+        }
+
+        with tutorial_repo._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE tutorial_tasks SET
+                    sequence = %s, category = %s, title = %s, description = %s,
+                    target_type = %s, target_value = %s, target_command = %s,
+                    reward_coins = %s, reward_premium = %s, hint = %s, is_active = %s
+                    WHERE task_id = %s
+                    """,
+                    (
+                        task_data["sequence"],
+                        task_data["category"],
+                        task_data["title"],
+                        task_data["description"],
+                        task_data["target_type"],
+                        task_data["target_value"],
+                        task_data["target_command"],
+                        task_data["reward_coins"],
+                        task_data["reward_premium"],
+                        task_data["hint"],
+                        1 if task_data["is_active"] else 0,
+                        task_id,
+                    ),
+                )
+                conn.commit()
+
+        await flash(f"教程任務 ID {task_id} 更新成功！", "success")
+        return redirect(url_for("admin_bp.manage_tutorial"))
+
+    except Exception as e:
+        logger.error(f"更新教程任務失敗: {e}")
+        await flash(f"更新失敗: {str(e)}", "danger")
+        return redirect(url_for("admin_bp.manage_tutorial"))
+
+
+@admin_bp.route("/tutorial/delete/<int:task_id>", methods=["POST"])
+@login_required
+@admin_required
+async def delete_tutorial_task(task_id):
+    tutorial_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        return jsonify({"success": False, "message": "教程服務未初始化"}), 500
+
+    try:
+        with tutorial_repo._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM tutorial_tasks WHERE task_id = %s", (task_id,)
+                )
+                conn.commit()
+
+        await flash(f"教程任務 ID {task_id} 已刪除！", "success")
+        return redirect(url_for("admin_bp.manage_tutorial"))
+
+    except Exception as e:
+        logger.error(f"刪除教程任務失敗: {e}")
+        await flash(f"刪除失敗: {str(e)}", "danger")
+        return redirect(url_for("admin_bp.manage_tutorial"))
+
+
+@admin_bp.route("/tutorial/user/<user_id>")
+@login_required
+@admin_required
+async def get_user_tutorial_progress(user_id):
+    tutorial_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        return jsonify({"success": False, "message": "教程服務未初始化"}), 500
+
+    try:
+        tasks = tutorial_repo.get_all_active_tasks()
+        progress_list = tutorial_repo.get_user_progress(user_id)
+        progress_map = {p.task_id: p for p in progress_list}
+
+        task_status = []
+        for task in tasks:
+            progress = progress_map.get(task.task_id)
+            task_status.append(
+                {
+                    "task_id": task.task_id,
+                    "sequence": task.sequence,
+                    "category": task.category,
+                    "title": task.title,
+                    "target_type": task.target_type,
+                    "target_value": task.target_value,
+                    "current_progress": progress.current_progress if progress else 0,
+                    "is_completed": progress.is_completed if progress else False,
+                    "reward_claimed": progress.reward_claimed if progress else False,
+                }
+            )
+
+        completion = tutorial_repo.get_completion_rate(user_id)
+
+        return jsonify(
+            {
+                "success": True,
+                "tasks": task_status,
+                "completion_rate": completion["rate"],
+                "total_tasks": completion["total"],
+                "completed_tasks": completion["completed"],
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"獲取用戶教程進度失敗: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@admin_bp.route("/tutorial/user/<user_id>/reset", methods=["POST"])
+@login_required
+@admin_required
+async def reset_user_tutorial_progress(user_id):
+    tutorial_repo = current_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        return jsonify({"success": False, "message": "教程服務未初始化"}), 500
+
+    try:
+        with tutorial_repo._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM user_tutorial_progress WHERE user_id = %s", (user_id,)
+                )
+                conn.commit()
+
+        return jsonify({"success": True, "message": f"用戶 {user_id} 的教程進度已重置"})
+
+    except Exception as e:
+        logger.error(f"重置用戶教程進度失敗: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@admin_bp.route("/tutorial/user/<user_id>/complete/<int:task_id>", methods=["POST"])
+@login_required
+@admin_required
+async def admin_complete_tutorial_task(user_id, task_id):
+    tutorial_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        return jsonify({"success": False, "message": "教程服務未初始化"}), 500
+
+    try:
+        tutorial_repo.complete_task(user_id, task_id)
+        return jsonify({"success": True, "message": f"任務 {task_id} 已標記為完成"})
+
+    except Exception as e:
+        logger.error(f"標記任務完成失敗: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@admin_bp.route("/tutorial/stats")
+@login_required
+@admin_required
+async def get_tutorial_stats():
+    tutorial_repo = current_app.config.get("TUTORIAL_REPO")
+    if not tutorial_repo:
+        return jsonify({"success": False, "message": "教程服務未初始化"}), 500
+
+    try:
+        tasks = tutorial_repo.get_all_active_tasks()
+        total_tasks = len(tasks)
+
+        with tutorial_repo._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT task_id, COUNT(*) as completed_count
+                    FROM user_tutorial_progress
+                    WHERE is_completed = 1
+                    GROUP BY task_id
+                    """
+                )
+                completion_stats = {
+                    row["task_id"]: row["completed_count"] for row in cursor.fetchall()
+                }
+
+                cursor.execute(
+                    "SELECT COUNT(DISTINCT user_id) as total_users FROM user_tutorial_progress"
+                )
+                total_users = cursor.fetchone()["total_users"]
+
+        task_stats = []
+        for task in tasks:
+            task_stats.append(
+                {
+                    "task_id": task.task_id,
+                    "sequence": task.sequence,
+                    "title": task.title,
+                    "category": task.category,
+                    "completed_count": completion_stats.get(task.task_id, 0),
+                }
+            )
+
+        return jsonify(
+            {
+                "success": True,
+                "total_tasks": total_tasks,
+                "total_users": total_users,
+                "task_stats": task_stats,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"獲取教程統計失敗: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# 旧の商品管理API路由已移除，功能已集成到商店详情页面
+
+
+# ===== 成就系統管理 =====
+@admin_bp.route("/achievements")
+@login_required
+@admin_required
+async def manage_achievements():
+    achievement_service = current_app.config.get("ACHIEVEMENT_SERVICE")
+    user_service = current_app.config["USER_SERVICE"]
+
+    if not achievement_service:
+        await flash("成就服務未初始化", "danger")
+        return redirect(url_for("admin_bp.index"))
+
+    achievements = achievement_service.achievements
+    achievements_data = []
+    for ach in achievements:
+        achievements_data.append(
+            {
+                "id": ach.id,
+                "name": ach.name,
+                "description": ach.description,
+                "target_type": getattr(ach, "target_type", "custom"),
+                "target_value": getattr(ach, "target_value", 0),
+                "reward": getattr(ach, "reward", None),
+            }
+        )
+
+    with (
+        achievement_service.achievement_repo._connection_manager.get_connection() as conn
+    ):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT a.achievement_id, a.name, 
+                       COUNT(uap.user_id) as completed_count
+                FROM achievements a
+                LEFT JOIN user_achievement_progress uap 
+                    ON a.achievement_id = uap.achievement_id 
+                    AND uap.completed_at IS NOT NULL
+                GROUP BY a.achievement_id, a.name
+                """
+            )
+            completion_stats = {
+                row["achievement_id"]: row["completed_count"]
+                for row in cursor.fetchall()
+            }
+
+    for ach in achievements_data:
+        ach["completed_count"] = completion_stats.get(ach["id"], 0)
+
+    return await render_template("achievements.html", achievements=achievements_data)
+
+
+@admin_bp.route("/achievements/<int:achievement_id>/users")
+@login_required
+@admin_required
+async def get_achievement_users(achievement_id):
+    achievement_service = current_app.config.get("ACHIEVEMENT_SERVICE")
+    if not achievement_service:
+        return jsonify({"success": False, "message": "成就服務未初始化"}), 500
+
+    page = int(request.args.get("page", 1))
+    per_page = 20
+
+    with (
+        achievement_service.achievement_repo._connection_manager.get_connection() as conn
+    ):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT u.user_id, u.nickname, uap.completed_at, uap.current_progress
+                FROM user_achievement_progress uap
+                JOIN users u ON uap.user_id = u.user_id
+                WHERE uap.achievement_id = %s
+                ORDER BY uap.completed_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                (achievement_id, per_page, (page - 1) * per_page),
+            )
+            users = cursor.fetchall()
+
+            cursor.execute(
+                "SELECT COUNT(*) as total FROM user_achievement_progress WHERE achievement_id = %s",
+                (achievement_id,),
+            )
+            total = cursor.fetchone()["total"]
+
+    return jsonify(
+        {
+            "success": True,
+            "users": users,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": (total + per_page - 1) // per_page,
+            },
+        }
+    )
+
+
+@admin_bp.route("/achievements/grant", methods=["POST"])
+@login_required
+@admin_required
+async def grant_achievement_to_user():
+    achievement_service = current_app.config.get("ACHIEVEMENT_SERVICE")
+    if not achievement_service:
+        return jsonify({"success": False, "message": "成就服務未初始化"}), 500
+
+    data = await request.get_json()
+    user_id = data.get("user_id")
+    achievement_id = data.get("achievement_id")
+
+    if not user_id or not achievement_id:
+        return jsonify({"success": False, "message": "缺少參數"}), 400
+
+    user = achievement_service.user_repo.get_by_id(user_id)
+    if not user:
+        return jsonify({"success": False, "message": "用戶不存在"}), 404
+
+    ach = None
+    for a in achievement_service.achievements:
+        if a.id == achievement_id:
+            ach = a
+            break
+
+    if not ach:
+        return jsonify({"success": False, "message": "成就不存在"}), 404
+
+    achievement_service.achievement_repo.update_user_progress(
+        user_id, achievement_id, ach.target_value, datetime.now()
+    )
+
+    if ach.reward:
+        achievement_service._grant_reward(user, ach)
+
+    return jsonify(
+        {"success": True, "message": f"已為用戶 {user_id} 授予成就 {ach.name}"}
+    )
+
+
+@admin_bp.route("/achievements/revoke", methods=["POST"])
+@login_required
+@admin_required
+async def revoke_achievement_from_user():
+    achievement_service = current_app.config.get("ACHIEVEMENT_SERVICE")
+    if not achievement_service:
+        return jsonify({"success": False, "message": "成就服務未初始化"}), 500
+
+    data = await request.get_json()
+    user_id = data.get("user_id")
+    achievement_id = data.get("achievement_id")
+
+    if not user_id or not achievement_id:
+        return jsonify({"success": False, "message": "缺少參數"}), 400
+
+    with (
+        achievement_service.achievement_repo._connection_manager.get_connection() as conn
+    ):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM user_achievement_progress WHERE user_id = %s AND achievement_id = %s",
+                (user_id, achievement_id),
+            )
+            conn.commit()
+
+    return jsonify({"success": True, "message": "已撤銷成就"})
+
+
+@admin_bp.route("/achievements/user/<user_id>")
+@login_required
+@admin_required
+async def get_user_achievements_api(user_id):
+    achievement_service = current_app.config.get("ACHIEVEMENT_SERVICE")
+    if not achievement_service:
+        return jsonify({"success": False, "message": "成就服務未初始化"}), 500
+
+    result = achievement_service.get_user_achievements(user_id)
+    return jsonify(result)
+
+
+# ===== 公會系統管理 =====
+@admin_bp.route("/guilds")
+@login_required
+@admin_required
+async def manage_guilds():
+    guild_service = current_app.config.get("GUILD_SERVICE")
+    if not guild_service:
+        await flash("公會服務未初始化", "danger")
+        return redirect(url_for("admin_bp.index"))
+
+    page = int(request.args.get("page", 1))
+    per_page = 20
+    search = request.args.get("search", "")
+
+    with guild_service.guild_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            if search:
+                cursor.execute(
+                    """
+                    SELECT SQL_CALC_FOUND_ROWS g.*, 
+                           (SELECT COUNT(*) FROM guild_members gm WHERE gm.guild_id = g.guild_id) as member_count
+                    FROM guilds g
+                    WHERE g.name LIKE %s OR g.description LIKE %s
+                    ORDER BY g.level DESC, g.exp DESC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (f"%{search}%", f"%{search}%", per_page, (page - 1) * per_page),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT SQL_CALC_FOUND_ROWS g.*,
+                           (SELECT COUNT(*) FROM guild_members gm WHERE gm.guild_id = g.guild_id) as member_count
+                    FROM guilds g
+                    ORDER BY g.level DESC, g.exp DESC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (per_page, (page - 1) * per_page),
+                )
+            guilds = cursor.fetchall()
+
+            cursor.execute("SELECT FOUND_ROWS() as total")
+            total = cursor.fetchone()["total"]
+
+    return await render_template(
+        "guilds.html",
+        guilds=guilds,
+        pagination={
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": (total + per_page - 1) // per_page,
+        },
+        search=search,
+    )
+
+
+@admin_bp.route("/guilds/<int:guild_id>")
+@login_required
+@admin_required
+async def get_guild_details(guild_id):
+    guild_service = current_app.config.get("GUILD_SERVICE")
+    if not guild_service:
+        return jsonify({"success": False, "message": "公會服務未初始化"}), 500
+
+    with guild_service.guild_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM guilds WHERE guild_id = %s", (guild_id,))
+            guild = cursor.fetchone()
+
+            if not guild:
+                return jsonify({"success": False, "message": "公會不存在"}), 404
+
+            cursor.execute(
+                """
+                SELECT gm.*, u.nickname
+                FROM guild_members gm
+                JOIN users u ON gm.user_id = u.user_id
+                WHERE gm.guild_id = %s
+                ORDER BY gm.is_leader DESC, gm.is_officer DESC, gm.total_contribution DESC
+                """,
+                (guild_id,),
+            )
+            members = cursor.fetchall()
+
+            cursor.execute(
+                "SELECT * FROM guild_buffs WHERE guild_id = %s AND expires_at > NOW()",
+                (guild_id,),
+            )
+            buffs = cursor.fetchall()
+
+    return jsonify(
+        {
+            "success": True,
+            "guild": guild,
+            "members": members,
+            "buffs": buffs,
+        }
+    )
+
+
+@admin_bp.route("/guilds/<int:guild_id>/kick/<user_id>", methods=["POST"])
+@login_required
+@admin_required
+async def admin_kick_guild_member(guild_id, user_id):
+    guild_service = current_app.config.get("GUILD_SERVICE")
+    if not guild_service:
+        return jsonify({"success": False, "message": "公會服務未初始化"}), 500
+
+    with guild_service.guild_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM guild_members WHERE guild_id = %s AND user_id = %s",
+                (guild_id, user_id),
+            )
+            conn.commit()
+
+    return jsonify({"success": True, "message": "已將成員踢出公會"})
+
+
+@admin_bp.route("/guilds/<int:guild_id>/transfer/<new_leader_id>", methods=["POST"])
+@login_required
+@admin_required
+async def admin_transfer_guild_leader(guild_id, new_leader_id):
+    guild_service = current_app.config.get("GUILD_SERVICE")
+    if not guild_service:
+        return jsonify({"success": False, "message": "公會服務未初始化"}), 500
+
+    with guild_service.guild_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE guild_members SET is_leader = 0 WHERE guild_id = %s",
+                (guild_id,),
+            )
+            cursor.execute(
+                "UPDATE guild_members SET is_leader = 1, is_officer = 1 WHERE guild_id = %s AND user_id = %s",
+                (guild_id, new_leader_id),
+            )
+            cursor.execute(
+                "UPDATE guilds SET leader_id = %s WHERE guild_id = %s",
+                (new_leader_id, guild_id),
+            )
+            conn.commit()
+
+    return jsonify({"success": True, "message": "已轉讓會長"})
+
+
+@admin_bp.route("/guilds/<int:guild_id>/disband", methods=["POST"])
+@login_required
+@admin_required
+async def admin_disband_guild(guild_id):
+    guild_service = current_app.config.get("GUILD_SERVICE")
+    if not guild_service:
+        return jsonify({"success": False, "message": "公會服務未初始化"}), 500
+
+    with guild_service.guild_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM guild_members WHERE guild_id = %s", (guild_id,))
+            cursor.execute("DELETE FROM guild_buffs WHERE guild_id = %s", (guild_id,))
+            cursor.execute("DELETE FROM guilds WHERE guild_id = %s", (guild_id,))
+            conn.commit()
+
+    return jsonify({"success": True, "message": "公會已解散"})
+
+
+@admin_bp.route("/guilds/<int:guild_id>/buffs/clear", methods=["POST"])
+@login_required
+@admin_required
+async def admin_clear_guild_buffs(guild_id):
+    guild_service = current_app.config.get("GUILD_SERVICE")
+    if not guild_service:
+        return jsonify({"success": False, "message": "公會服務未初始化"}), 500
+
+    with guild_service.guild_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM guild_buffs WHERE guild_id = %s", (guild_id,))
+            conn.commit()
+
+    return jsonify({"success": True, "message": "已清除公會 Buff"})
+
+
+# ===== 用戶 Buff 管理 =====
+@admin_bp.route("/users/<user_id>/buffs")
+@login_required
+@admin_required
+async def get_user_buffs(user_id):
+    user_service = current_app.config["USER_SERVICE"]
+    buff_repo = current_app.config.get("BUFF_REPO")
+
+    if not buff_repo:
+        return jsonify({"success": False, "message": "Buff 服務未初始化"}), 500
+
+    buffs = buff_repo.get_all_active_by_user(user_id)
+    buffs_data = []
+    for buff in buffs:
+        buffs_data.append(
+            {
+                "id": buff.id,
+                "user_id": buff.user_id,
+                "buff_type": buff.buff_type,
+                "payload": buff.payload,
+                "started_at": buff.started_at.isoformat() if buff.started_at else None,
+                "expires_at": buff.expires_at.isoformat() if buff.expires_at else None,
+            }
+        )
+
+    return jsonify({"success": True, "buffs": buffs_data})
+
+
+@admin_bp.route("/users/<user_id>/buffs/add", methods=["POST"])
+@login_required
+@admin_required
+async def add_user_buff(user_id):
+    buff_repo = current_app.config.get("BUFF_REPO")
+    if not buff_repo:
+        return jsonify({"success": False, "message": "Buff 服務未初始化"}), 500
+
+    data = await request.get_json()
+    buff_type = data.get("buff_type")
+    payload = data.get("payload", "{}")
+    duration_hours = data.get("duration_hours", 24)
+
+    if not buff_type:
+        return jsonify({"success": False, "message": "缺少 buff_type"}), 400
+
+    from ..core.domain.models import UserBuff
+
+    expires_at = datetime.now() + timedelta(hours=duration_hours)
+    buff = UserBuff(
+        id=0,
+        user_id=user_id,
+        buff_type=buff_type,
+        payload=payload if isinstance(payload, str) else json.dumps(payload),
+        started_at=datetime.now(),
+        expires_at=expires_at,
+    )
+
+    buff_repo.add(buff)
+
+    return jsonify({"success": True, "message": f"已添加 Buff: {buff_type}"})
+
+
+@admin_bp.route("/users/<user_id>/buffs/<int:buff_id>/remove", methods=["POST"])
+@login_required
+@admin_required
+async def remove_user_buff(user_id, buff_id):
+    buff_repo = current_app.config.get("BUFF_REPO")
+    if not buff_repo:
+        return jsonify({"success": False, "message": "Buff 服務未初始化"}), 500
+
+    with buff_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM user_buffs WHERE id = %s AND user_id = %s",
+                (buff_id, user_id),
+            )
+            conn.commit()
+
+    return jsonify({"success": True, "message": "已移除 Buff"})
+
+
+# ===== 紅包系統管理 =====
+@admin_bp.route("/redpackets")
+@login_required
+@admin_required
+async def manage_redpackets():
+    red_packet_service = current_app.config.get("RED_PACKET_SERVICE")
+    if not red_packet_service:
+        await flash("紅包服務未初始化", "danger")
+        return redirect(url_for("admin_bp.index"))
+
+    page = int(request.args.get("page", 1))
+    status = request.args.get("status", "active")
+    per_page = 20
+
+    with (
+        red_packet_service.red_packet_repo._connection_manager.get_connection() as conn
+    ):
+        with conn.cursor() as cursor:
+            if status == "active":
+                cursor.execute(
+                    """
+                    SELECT SQL_CALC_FOUND_ROWS rp.*, u.nickname as sender_name,
+                           (SELECT COUNT(*) FROM red_packet_claims rpc WHERE rpc.packet_id = rp.packet_id) as claimed_count
+                    FROM red_packets rp
+                    JOIN users u ON rp.sender_id = u.user_id
+                    WHERE rp.expires_at > NOW() AND rp.remaining_count > 0
+                    ORDER BY rp.created_at DESC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (per_page, (page - 1) * per_page),
+                )
+            elif status == "expired":
+                cursor.execute(
+                    """
+                    SELECT SQL_CALC_FOUND_ROWS rp.*, u.nickname as sender_name,
+                           (SELECT COUNT(*) FROM red_packet_claims rpc WHERE rpc.packet_id = rp.packet_id) as claimed_count
+                    FROM red_packets rp
+                    JOIN users u ON rp.sender_id = u.user_id
+                    WHERE rp.expires_at <= NOW() OR rp.remaining_count <= 0
+                    ORDER BY rp.created_at DESC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (per_page, (page - 1) * per_page),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT SQL_CALC_FOUND_ROWS rp.*, u.nickname as sender_name,
+                           (SELECT COUNT(*) FROM red_packet_claims rpc WHERE rpc.packet_id = rp.packet_id) as claimed_count
+                    FROM red_packets rp
+                    JOIN users u ON rp.sender_id = u.user_id
+                    ORDER BY rp.created_at DESC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (per_page, (page - 1) * per_page),
+                )
+
+            packets = cursor.fetchall()
+            cursor.execute("SELECT FOUND_ROWS() as total")
+            total = cursor.fetchone()["total"]
+
+    return await render_template(
+        "redpackets.html",
+        packets=packets,
+        pagination={
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": (total + per_page - 1) // per_page,
+        },
+        status=status,
+    )
+
+
+@admin_bp.route("/redpackets/<int:packet_id>/claims")
+@login_required
+@admin_required
+async def get_redpacket_claims(packet_id):
+    red_packet_service = current_app.config.get("RED_PACKET_SERVICE")
+    if not red_packet_service:
+        return jsonify({"success": False, "message": "紅包服務未初始化"}), 500
+
+    with (
+        red_packet_service.red_packet_repo._connection_manager.get_connection() as conn
+    ):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT rpc.*, u.nickname
+                FROM red_packet_claims rpc
+                JOIN users u ON rpc.user_id = u.user_id
+                WHERE rpc.packet_id = %s
+                ORDER BY rpc.claimed_at DESC
+                """,
+                (packet_id,),
+            )
+            claims = cursor.fetchall()
+
+    return jsonify({"success": True, "claims": claims})
+
+
+@admin_bp.route("/redpackets/<int:packet_id>/revoke", methods=["POST"])
+@login_required
+@admin_required
+async def admin_revoke_redpacket(packet_id):
+    red_packet_service = current_app.config.get("RED_PACKET_SERVICE")
+    if not red_packet_service:
+        return jsonify({"success": False, "message": "紅包服務未初始化"}), 500
+
+    with (
+        red_packet_service.red_packet_repo._connection_manager.get_connection() as conn
+    ):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM red_packets WHERE packet_id = %s",
+                (packet_id,),
+            )
+            packet = cursor.fetchone()
+
+            if not packet:
+                return jsonify({"success": False, "message": "紅包不存在"}), 404
+
+            remaining_amount = packet["remaining_count"] * packet["amount_per_packet"]
+
+            cursor.execute(
+                "UPDATE users SET coins = coins + %s WHERE user_id = %s",
+                (remaining_amount, packet["sender_id"]),
+            )
+
+            cursor.execute(
+                "UPDATE red_packets SET remaining_count = 0 WHERE packet_id = %s",
+                (packet_id,),
+            )
+            conn.commit()
+
+    return jsonify(
+        {"success": True, "message": f"紅包已撤銷，已返還 {remaining_amount} 金幣"}
+    )
+
+
+@admin_bp.route("/redpackets/cleanup", methods=["POST"])
+@login_required
+@admin_required
+async def admin_cleanup_redpackets():
+    red_packet_service = current_app.config.get("RED_PACKET_SERVICE")
+    if not red_packet_service:
+        return jsonify({"success": False, "message": "紅包服務未初始化"}), 500
+
+    deleted = red_packet_service.cleanup_expired_packets()
+    return jsonify({"success": True, "message": f"已清理 {deleted} 個過期紅包"})
+
+
+# ===== 骰寶賭場管理 =====
+@admin_bp.route("/sicbo")
+@login_required
+@admin_required
+async def manage_sicbo():
+    return await render_template("sicbo.html")
+
+
+@admin_bp.route("/sicbo/stats")
+@login_required
+@admin_required
+async def get_sicbo_stats():
+    sicbo_service = current_app.config.get("SICBO_SERVICE")
+    if not sicbo_service:
+        return jsonify({"success": False, "message": "骰寶服務未初始化"}), 500
+
+    active_games = []
+    for session_id, game in sicbo_service.games.items():
+        active_games.append(
+            {
+                "session_id": session_id,
+                "game_id": game.game_id,
+                "start_time": game.start_time.isoformat() if game.start_time else None,
+                "end_time": game.end_time.isoformat() if game.end_time else None,
+                "total_pot": game.total_pot,
+                "bet_count": len(game.bets),
+                "is_active": game.is_active,
+                "is_settled": game.is_settled,
+            }
+        )
+
+    with sicbo_service.log_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT DATE(created_at) as date,
+                       COUNT(*) as total_games,
+                       SUM(CASE WHEN result > 0 THEN 1 ELSE 0 END) as wins,
+                       SUM(CASE WHEN result < 0 THEN 1 ELSE 0 END) as losses,
+                       SUM(result) as net_result
+                FROM fishing_logs
+                WHERE action = 'sicbo_bet' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY date DESC
+                """
+            )
+            daily_stats = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT COUNT(DISTINCT user_id) as total_players,
+                       SUM(CASE WHEN result > 0 THEN 1 ELSE 0 END) as total_wins,
+                       SUM(CASE WHEN result < 0 THEN 1 ELSE 0 END) as total_losses,
+                       SUM(ABS(result)) as total_volume
+                FROM fishing_logs
+                WHERE action = 'sicbo_bet' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                """
+            )
+            monthly_summary = cursor.fetchone()
+
+    return jsonify(
+        {
+            "success": True,
+            "active_games": active_games,
+            "daily_stats": daily_stats,
+            "monthly_summary": monthly_summary,
+            "config": {
+                "countdown_seconds": sicbo_service.countdown_seconds,
+                "min_bet": sicbo_service.min_bet,
+                "max_bet": sicbo_service.max_bet,
+                "message_mode": sicbo_service.message_mode,
+            },
+        }
+    )
+
+
+@admin_bp.route("/sicbo/config", methods=["POST"])
+@login_required
+@admin_required
+async def update_sicbo_config():
+    sicbo_service = current_app.config.get("SICBO_SERVICE")
+    if not sicbo_service:
+        return jsonify({"success": False, "message": "骰寶服務未初始化"}), 500
+
+    data = await request.get_json()
+
+    if "countdown_seconds" in data:
+        sicbo_service.countdown_seconds = int(data["countdown_seconds"])
+    if "min_bet" in data:
+        sicbo_service.min_bet = int(data["min_bet"])
+    if "max_bet" in data:
+        sicbo_service.max_bet = int(data["max_bet"])
+    if "message_mode" in data:
+        sicbo_service.message_mode = data["message_mode"]
+
+    return jsonify({"success": True, "message": "配置已更新"})
+
+
+@admin_bp.route("/sicbo/force-settle/<session_id>", methods=["POST"])
+@login_required
+@admin_required
+async def admin_force_settle_sicbo(session_id):
+    sicbo_service = current_app.config.get("SICBO_SERVICE")
+    if not sicbo_service:
+        return jsonify({"success": False, "message": "骰寶服務未初始化"}), 500
+
+    if session_id not in sicbo_service.games:
+        return jsonify({"success": False, "message": "遊戲不存在"}), 404
+
+    game = sicbo_service.games[session_id]
+    if game.is_settled:
+        return jsonify({"success": False, "message": "遊戲已結算"}), 400
+
+    dice = [random.randint(1, 6) for _ in range(3)]
+
+    result = sicbo_service._settle_game(session_id, dice)
+
+    return jsonify(
+        {
+            "success": True,
+            "message": "強制結算完成",
+            "dice": dice,
+            "result": result,
+        }
+    )
+
+
+# ===== 通行證管理 =====
+@admin_bp.route("/passes")
+@login_required
+@admin_required
+async def manage_passes():
+    user_service = current_app.config["USER_SERVICE"]
+
+    page = int(request.args.get("page", 1))
+    zone_id = request.args.get("zone_id", "")
+    per_page = 20
+
+    with user_service.user_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            if zone_id:
+                cursor.execute(
+                    """
+                    SELECT SQL_CALC_FOUND_ROWS u.user_id, u.nickname, u.zone_pass_expires_at, 
+                           fz.name as zone_name, fz.id as zone_id
+                    FROM users u
+                    JOIN fishing_zones fz ON u.fishing_zone_id = fz.id
+                    WHERE u.zone_pass_expires_at IS NOT NULL AND u.fishing_zone_id = %s
+                    ORDER BY u.zone_pass_expires_at DESC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (zone_id, per_page, (page - 1) * per_page),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT SQL_CALC_FOUND_ROWS u.user_id, u.nickname, u.zone_pass_expires_at,
+                           fz.name as zone_name, fz.id as zone_id
+                    FROM users u
+                    LEFT JOIN fishing_zones fz ON u.fishing_zone_id = fz.id
+                    WHERE u.zone_pass_expires_at IS NOT NULL
+                    ORDER BY u.zone_pass_expires_at DESC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (per_page, (page - 1) * per_page),
+                )
+            users = cursor.fetchall()
+            cursor.execute("SELECT FOUND_ROWS() as total")
+            total = cursor.fetchone()["total"]
+
+            cursor.execute("SELECT id, name FROM fishing_zones WHERE requires_pass = 1")
+            zones = cursor.fetchall()
+
+    return await render_template(
+        "passes.html",
+        users=users,
+        zones=zones,
+        pagination={
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": (total + per_page - 1) // per_page,
+        },
+        zone_id=zone_id,
+    )
+
+
+@admin_bp.route("/passes/grant", methods=["POST"])
+@login_required
+@admin_required
+async def grant_zone_pass():
+    user_service = current_app.config["USER_SERVICE"]
+
+    data = await request.get_json()
+    user_id = data.get("user_id")
+    duration_hours = data.get("duration_hours", 24)
+
+    if not user_id:
+        return jsonify({"success": False, "message": "缺少 user_id"}), 400
+
+    with user_service.user_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            expires_at = datetime.now() + timedelta(hours=duration_hours)
+            cursor.execute(
+                "UPDATE users SET zone_pass_expires_at = %s WHERE user_id = %s",
+                (expires_at, user_id),
+            )
+            conn.commit()
+
+    return jsonify({"success": True, "message": f"已授予 {duration_hours} 小時通行證"})
+
+
+@admin_bp.route("/passes/revoke", methods=["POST"])
+@login_required
+@admin_required
+async def revoke_zone_pass():
+    user_service = current_app.config["USER_SERVICE"]
+
+    data = await request.get_json()
+    user_id = data.get("user_id")
+
+    if not user_id:
+        return jsonify({"success": False, "message": "缺少 user_id"}), 400
+
+    with user_service.user_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE users SET zone_pass_expires_at = NULL WHERE user_id = %s",
+                (user_id,),
+            )
+            conn.commit()
+
+    return jsonify({"success": True, "message": "已撤銷通行證"})
+
+
+@admin_bp.route("/passes/batch-grant", methods=["POST"])
+@login_required
+@admin_required
+async def batch_grant_zone_pass():
+    user_service = current_app.config["USER_SERVICE"]
+
+    data = await request.get_json()
+    user_ids = data.get("user_ids", [])
+    duration_hours = data.get("duration_hours", 24)
+
+    if not user_ids:
+        return jsonify({"success": False, "message": "缺少 user_ids"}), 400
+
+    expires_at = datetime.now() + timedelta(hours=duration_hours)
+    updated = 0
+
+    with user_service.user_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            for user_id in user_ids:
+                cursor.execute(
+                    "UPDATE users SET zone_pass_expires_at = %s WHERE user_id = %s",
+                    (expires_at, user_id),
+                )
+                updated += 1
+            conn.commit()
+
+    return jsonify({"success": True, "message": f"已為 {updated} 位用戶授予通行證"})
+
+
+# ===== 數據統計儀表板 =====
+@admin_bp.route("/dashboard/stats")
+@login_required
+@admin_required
+async def get_dashboard_stats():
+    user_service = current_app.config["USER_SERVICE"]
+    market_service = current_app.config["MARKET_SERVICE"]
+
+    with user_service.user_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT DATE(created_at) as date, COUNT(*) as new_users
+                FROM users
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY date
+                """
+            )
+            user_growth = cursor.fetchall()
+
+            cursor.execute("SELECT SUM(coins) as total_coins FROM users")
+            total_coins = cursor.fetchone()["total_coins"] or 0
+
+            cursor.execute(
+                """
+                SELECT DATE(created_at) as date, SUM(amount) as total_volume
+                FROM fishing_logs
+                WHERE action IN ('sell_fish', 'buy_item', 'market_buy') 
+                  AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY date
+                """
+            )
+            economy_volume = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT f.name, COUNT(*) as catch_count
+                FROM fishing_records fr
+                JOIN fish f ON fr.fish_id = f.fish_id
+                WHERE fr.caught_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                GROUP BY f.name
+                ORDER BY catch_count DESC
+                LIMIT 10
+                """
+            )
+            top_fish = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT u.nickname, u.coins, u.premium_currency, u.total_fishing_count
+                FROM users u
+                ORDER BY u.coins DESC
+                LIMIT 10
+                """
+            )
+            top_players = cursor.fetchall()
+
+    return jsonify(
+        {
+            "success": True,
+            "user_growth": user_growth,
+            "total_coins": total_coins,
+            "economy_volume": economy_volume,
+            "top_fish": top_fish,
+            "top_players": top_players,
+        }
+    )
+
+
+# ===== 操作日誌 =====
+@admin_bp.route("/logs")
+@login_required
+@admin_required
+async def manage_logs():
+    log_repo = current_app.config.get("LOG_REPO")
+
+    if not log_repo:
+        await flash("日誌服務未初始化", "danger")
+        return redirect(url_for("admin_bp.index"))
+
+    page = int(request.args.get("page", 1))
+    action = request.args.get("action", "")
+    user_id = request.args.get("user_id", "")
+    per_page = 50
+
+    with log_repo._connection_manager.get_connection() as conn:
+        with conn.cursor() as cursor:
+            conditions = ["1=1"]
+            params = []
+
+            if action:
+                conditions.append("action = %s")
+                params.append(action)
+            if user_id:
+                conditions.append("user_id = %s")
+                params.append(user_id)
+
+            where_clause = " AND ".join(conditions)
+
+            cursor.execute(
+                f"""
+                SELECT SQL_CALC_FOUND_ROWS fl.*, u.nickname
+                FROM fishing_logs fl
+                LEFT JOIN users u ON fl.user_id = u.user_id
+                WHERE {where_clause}
+                ORDER BY fl.created_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                params + [per_page, (page - 1) * per_page],
+            )
+            logs = cursor.fetchall()
+            cursor.execute("SELECT FOUND_ROWS() as total")
+            total = cursor.fetchone()["total"]
+
+            cursor.execute("SELECT DISTINCT action FROM fishing_logs ORDER BY action")
+            actions = [row["action"] for row in cursor.fetchall()]
+
+    return await render_template(
+        "logs.html",
+        logs=logs,
+        actions=actions,
+        pagination={
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": (total + per_page - 1) // per_page,
+        },
+        action=action,
+        user_id=user_id,
+    )

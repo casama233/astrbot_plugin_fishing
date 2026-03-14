@@ -409,6 +409,13 @@ async def start_admin(plugin: "FishingPlugin", event: AstrMessageEvent):
             "fishing_zone_service": plugin.fishing_zone_service,
             "shop_service": plugin.shop_service,
             "exchange_service": plugin.exchange_service,
+            "tutorial_repo": plugin.tutorial_repo,
+            "achievement_service": plugin.achievement_service,
+            "guild_service": plugin.guild_service,
+            "buff_repo": plugin.buff_repo,
+            "red_packet_service": plugin.red_packet_service,
+            "sicbo_service": plugin.sicbo_service,
+            "log_repo": plugin.log_repo,
         }
         app = create_app(secret_key=plugin.secret_key, services=services_to_inject)
         config = Config()

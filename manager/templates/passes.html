@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-ticket-alt me-2"></i>通行證管理</h2>
+                <div>
+                    <select id="zoneFilter" class="form-select d-inline-block" style="width: 200px;" onchange="filterByZone()">
+                        <option value="">所有區域</option>
+                        {% for zone in zones %}
+                        <option value="{{ zone.id }}" {% if zone_id == zone.id|string %}selected{% endif %}>{{ zone.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#grantModal"><i class="fas fa-plus me-1"></i>批量授予</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>通行證持有者列表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>用戶 ID</th>
+                                    <th>暱稱</th>
+                                    <th>當前區域</th>
+                                    <th>過期時間</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td><input type="checkbox" class="user-checkbox" value="{{ user.user_id }}"></td>
+                                    <td>{{ user.user_id }}</td>
+                                    <td>{{ user.nickname }}</td>
+                                    <td>{{ user.zone_name or '未知' }}</td>
+                                    <td>{{ user.zone_pass_expires_at }}</td>
+                                    <td>
+                                        {% if user.zone_pass_expires_at %}
+                                        <span class="badge bg-success">有效</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">無</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="grantPass('{{ user.user_id }}')">續期</button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="revokePass('{{ user.user_id }}')">撤銷</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if pagination.total_pages > 1 %}
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ pagination.page - 1 }}&zone_id={{ zone_id }}">上一頁</a>
+                            </li>
+                            {% endif %}
+                            <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.total_pages }}</span></li>
+                            {% if pagination.page < pagination.total_pages %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ pagination.page + 1 }}&zone_id={{ zone_id }}">下一頁</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="grantModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量授予通行證</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">用戶 ID 列表（每行一個）</label>
+                    <textarea class="form-control" id="batchUserIds" rows="5" placeholder="用戶ID1&#10;用戶ID2&#10;..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">有效期（小時）</label>
+                    <input type="number" class="form-control" id="durationHours" value="24">
+                </div>
+                <small class="text-muted">提示：使用下方表格勾選用戶，或手動輸入用戶ID</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="batchGrant()">授予</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterByZone() {
+    const zoneId = document.getElementById('zoneFilter').value;
+    window.location.href = '?zone_id=' + zoneId;
+}
+
+document.getElementById('selectAll')?.addEventListener('change', function() {
+    document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = this.checked);
+});
+
+document.querySelectorAll('.user-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const ids = [];
+        document.querySelectorAll('.user-checkbox:checked').forEach(c => ids.push(c.value));
+        document.getElementById('batchUserIds').value = ids.join('\n');
+    });
+});
+
+function grantPass(userId) {
+    const hours = prompt('請輸入有效期（小時）：', '24');
+    if (!hours) return;
+    fetch('/admin/passes/grant', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: userId, duration_hours: parseInt(hours)})
+    })
+    .then(r => r.json())
+    .then(d => { alert(d.message); if (d.success) location.reload(); });
+}
+
+function revokePass(userId) {
+    if (!confirm('確定要撤銷此用戶的通行證嗎？')) return;
+    fetch('/admin/passes/revoke', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: userId})
+    })
+    .then(r => r.json())
+    .then(d => { alert(d.message); if (d.success) location.reload(); });
+}
+
+function batchGrant() {
+    const ids = document.getElementById('batchUserIds').value.split('\n').map(s => s.trim()).filter(s => s);
+    const hours = parseInt(document.getElementById('durationHours').value);
+    
+    if (ids.length === 0) {
+        alert('請輸入至少一個用戶 ID');
+        return;
+    }
+    
+    fetch('/admin/passes/batch-grant', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_ids: ids, duration_hours: hours})
+    })
+    .then(r => r.json())
+    .then(d => { alert(d.message); if (d.success) location.reload(); });
+}
+</script>
+{% endblock %}

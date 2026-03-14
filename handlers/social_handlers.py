@@ -18,6 +18,8 @@ async def ranking(plugin: "FishingPlugin", event: AstrMessageEvent):
     支持按不同标准排序，例如：/排行榜 数量 或 /排行榜 重量 或 /排行榜 历史
     默认按金币排名。
     """
+    user_id = plugin._get_effective_user_id(event)
+    plugin.tutorial_service.check_command_progress(user_id, "排行榜")
     args = event.message_str.split()
     ranking_type = "coins"
 

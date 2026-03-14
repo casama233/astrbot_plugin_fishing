@@ -20,6 +20,8 @@ async def sell_all(plugin: "FishingPlugin", event: AstrMessageEvent):
     user_id = plugin._get_effective_user_id(event)
     if result := plugin.inventory_service.sell_all_fish(user_id):
         yield event.plain_result(result["message"])
+        if result.get("success"):
+            plugin.tutorial_service.check_command_progress(user_id, "全部賣出")
         tip = build_tip_result(
             event,
             "⌨️ 建議下一步\n```\n/商店\n```\n```\n/市場\n```",
@@ -133,6 +135,7 @@ async def sell_all_accessories(plugin: "FishingPlugin", event: AstrMessageEvent)
 async def shop(plugin: "FishingPlugin", event: AstrMessageEvent):
     """查看商店：/商店 [商店ID]"""
     user_id = plugin._get_effective_user_id(event)
+    plugin.tutorial_service.check_command_progress(user_id, "商店")
     args = event.message_str.split()
     # /商店 → 列表
     if len(args) == 1:
@@ -726,6 +729,7 @@ async def buy_in_shop(plugin: "FishingPlugin", event: AstrMessageEvent):
     )
     if result.get("success"):
         yield event.plain_result(result["message"])
+        plugin.tutorial_service.check_command_progress(user_id, "商店購買")
         tip = build_tip_result(
             event,
             "⌨️ 建議下一步\n```\n/背包\n```\n```\n/使用 D短碼\n```\n```\n/釣魚\n```",

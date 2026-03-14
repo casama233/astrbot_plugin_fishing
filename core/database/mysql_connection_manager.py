@@ -266,6 +266,43 @@ class MysqlConnectionManager:
             logger.error(f"MySQL operation failed: {exc}")
             raise
 
+    @contextmanager
+    def transaction(self):
+        """
+        事務上下文管理器，支持跨多個操作共享同一個連接。
+        正常結束時自動 commit，異常時自動 rollback。
+
+        用法:
+            with connection_manager.transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT ...")
+                cursor.execute("UPDATE ...")
+                # 自動 commit
+        """
+        conn = self._get_connection()
+        try:
+            try:
+                conn.ping(reconnect=True)
+            except Exception:
+                if hasattr(self._local, "connection"):
+                    delattr(self._local, "connection")
+                conn = self._get_connection()
+            yield conn
+            conn.commit()
+        except Exception as exc:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.close()
+            except Exception:
+                pass
+            if hasattr(self._local, "connection"):
+                delattr(self._local, "connection")
+            logger.error(f"Transaction failed: {exc}")
+            raise
+
     def close_connection(self):
         if hasattr(self._local, "connection"):
             try:

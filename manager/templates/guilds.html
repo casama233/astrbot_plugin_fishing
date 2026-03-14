@@ -1,0 +1,196 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-users me-2"></i>公會系統管理</h2>
+                <div>
+                    <input type="text" id="searchInput" class="form-control d-inline-block" style="width: 200px;" placeholder="搜索公會名稱..." value="{{ search }}">
+                    <button class="btn btn-outline-primary ms-2" onclick="searchGuilds()"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>公會列表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>名稱</th>
+                                    <th>會長</th>
+                                    <th>等級</th>
+                                    <th>成員數</th>
+                                    <th>創建時間</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for guild in guilds %}
+                                <tr>
+                                    <td>{{ guild.guild_id }}</td>
+                                    <td><strong>{{ guild.name }}</strong></td>
+                                    <td>{{ guild.leader_id }}</td>
+                                    <td><span class="badge bg-primary">Lv.{{ guild.level }}</span></td>
+                                    <td><span class="badge bg-info">{{ guild.member_count }}</span></td>
+                                    <td>{{ guild.created_at }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="viewGuildDetails({{ guild.guild_id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="disbandGuild({{ guild.guild_id }}, '{{ guild.name }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if pagination.total_pages > 1 %}
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ pagination.page - 1 }}&search={{ search }}">上一頁</a>
+                            </li>
+                            {% endif %}
+                            <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.total_pages }}</span></li>
+                            {% if pagination.page < pagination.total_pages %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ pagination.page + 1 }}&search={{ search }}">下一頁</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="guildDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">公會詳情 - <span id="guildName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#membersTab">成員</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#buffsTab">Buff</button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="membersTab">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>用戶 ID</th>
+                                    <th>暱稱</th>
+                                    <th>職位</th>
+                                    <th>總貢獻</th>
+                                    <th>加入時間</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="membersTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="tab-pane fade" id="buffsTab">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Buff 類型</th>
+                                    <th>數值</th>
+                                    <th>過期時間</th>
+                                </tr>
+                            </thead>
+                            <tbody id="buffsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function searchGuilds() {
+    const search = document.getElementById('searchInput').value;
+    window.location.href = '?search=' + encodeURIComponent(search);
+}
+
+function viewGuildDetails(guildId) {
+    fetch('/admin/guilds/' + guildId)
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('guildName').textContent = data.guild.name;
+            
+            const membersBody = document.getElementById('membersTableBody');
+            membersBody.innerHTML = '';
+            data.members.forEach(m => {
+                let role = '成員';
+                if (m.is_leader) role = '<span class="badge bg-danger">會長</span>';
+                else if (m.is_officer) role = '<span class="badge bg-warning">幹部</span>';
+                
+                membersBody.innerHTML += '<tr><td>' + m.user_id + '</td><td>' + (m.nickname || '未知') + '</td><td>' + role + '</td><td>' + (m.total_contribution || 0) + '</td><td>' + (m.joined_at || '-') + '</td><td><button class="btn btn-sm btn-outline-warning" onclick="transferLeader(' + data.guild.guild_id + ', \'' + m.user_id + '\')" ' + (m.is_leader ? 'disabled' : '') + '>轉讓會長</button> <button class="btn btn-sm btn-outline-danger ms-1" onclick="kickMember(' + data.guild.guild_id + ', \'' + m.user_id + '\')" ' + (m.is_leader ? 'disabled' : '') + '>踢出</button></td></tr>';
+            });
+            
+            const buffsBody = document.getElementById('buffsTableBody');
+            buffsBody.innerHTML = '';
+            if (data.buffs && data.buffs.length > 0) {
+                data.buffs.forEach(b => {
+                    buffsBody.innerHTML += '<tr><td>' + b.buff_type + '</td><td>' + (b.buff_value * 100).toFixed(1) + '%</td><td>' + b.expires_at + '</td></tr>';
+                });
+            } else {
+                buffsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">暫無生效的 Buff</td></tr>';
+            }
+            
+            new bootstrap.Modal(document.getElementById('guildDetailModal')).show();
+        } else {
+            alert('錯誤: ' + data.message);
+        }
+    });
+}
+
+function kickMember(guildId, userId) {
+    if (!confirm('確定要踢出該成員嗎？')) return;
+    fetch('/admin/guilds/' + guildId + '/kick/' + userId, {method: 'POST'})
+    .then(r => r.json())
+    .then(data => { alert(data.message); if (data.success) viewGuildDetails(guildId); });
+}
+
+function transferLeader(guildId, newLeaderId) {
+    if (!confirm('確定要轉讓會長給該成員嗎？')) return;
+    fetch('/admin/guilds/' + guildId + '/transfer/' + newLeaderId, {method: 'POST'})
+    .then(r => r.json())
+    .then(data => { alert(data.message); if (data.success) viewGuildDetails(guildId); });
+}
+
+function disbandGuild(guildId, guildName) {
+    if (!confirm('確定要解散公會「' + guildName + '」嗎？此操作不可恢復！')) return;
+    fetch('/admin/guilds/' + guildId + '/disband', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => { alert(data.message); if (data.success) location.reload(); });
+}
+</script>
+{% endblock %}

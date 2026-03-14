@@ -1,0 +1,476 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-graduation-cap me-2"></i>教程任務管理</h2>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                    <i class="fas fa-plus me-1"></i>新增任務
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="tutorialTable">
+                            <thead>
+                                <tr>
+                                    <th>順序</th>
+                                    <th>分類</th>
+                                    <th>標題</th>
+                                    <th>目標類型</th>
+                                    <th>目標值/指令</th>
+                                    <th>獎勵</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in tasks %}
+                                <tr>
+                                    <td>{{ task.sequence }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if task.category == 'core' %}bg-primary
+                                            {% elif task.category == 'economy' %}bg-success
+                                            {% elif task.category == 'equipment' %}bg-warning
+                                            {% elif task.category == 'social' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ task.category }}
+                                        </span>
+                                    </td>
+                                    <td><strong>{{ task.title }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            {% if task.target_type == 'command' %}指令
+                                            {% elif task.target_type == 'fish_count' %}釣魚次數
+                                            {% elif task.target_type == 'coins' %}金幣數
+                                            {% else %}{{ task.target_type }}{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if task.target_type == 'command' %}
+                                            <code>{{ task.target_command or '-' }}</code>
+                                        {% else %}
+                                            {{ task.target_value }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.reward_coins > 0 %}
+                                            <span class="text-warning"><i class="fas fa-coins"></i> {{ task.reward_coins }}</span>
+                                        {% endif %}
+                                        {% if task.reward_premium > 0 %}
+                                            <span class="text-info ms-1"><i class="fas fa-gem"></i> {{ task.reward_premium }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.is_active %}
+                                            <span class="badge bg-success">啟用</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">停用</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary me-1"
+                                            onclick="openEditModal({{ task.task_id }}, {{ task.sequence }}, '{{ task.category }}', '{{ task.title }}', '{{ task.description }}', '{{ task.target_type }}', {{ task.target_value }}, '{{ task.target_command or '' }}', {{ task.reward_coins }}, {{ task.reward_premium }}, '{{ task.hint or '' }}', {{ 'true' if task.is_active else 'false' }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <form action="{{ url_for('admin_bp.delete_tutorial_task', task_id=task.task_id) }}" method="POST" class="d-inline" onsubmit="return confirm('確定要刪除此任務嗎？');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-2"></i>教程統計
+                </div>
+                <div class="card-body">
+                    <div id="statsContainer">
+                        <p class="text-muted">載入中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user-graduate me-2"></i>用戶進度查詢
+                </div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="userIdInput" placeholder="輸入用戶 ID">
+                        <button class="btn btn-outline-primary" type="button" onclick="getUserProgress()">
+                            <i class="fas fa-search"></i> 查詢
+                        </button>
+                    </div>
+                    <div id="userProgressContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('admin_bp.add_tutorial_task') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus me-2"></i>新增教程任務</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">順序 *</label>
+                            <input type="number" class="form-control" name="sequence" required min="1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">分類 *</label>
+                            <select class="form-select" name="category" required>
+                                <option value="core">核心 (core)</option>
+                                <option value="economy">經濟 (economy)</option>
+                                <option value="equipment">裝備 (equipment)</option>
+                                <option value="social">社交 (social)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">標題 *</label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">目標類型 *</label>
+                            <select class="form-select" name="target_type" required onchange="toggleTargetFields(this.value)">
+                                <option value="command">指令 (command)</option>
+                                <option value="fish_count">釣魚次數 (fish_count)</option>
+                                <option value="coins">金幣數 (coins)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">目標值</label>
+                            <input type="number" class="form-control" name="target_value" value="1" min="1" id="targetValueInput">
+                        </div>
+                    </div>
+                    <div class="mb-3" id="targetCommandDiv">
+                        <label class="form-label">目標指令</label>
+                        <input type="text" class="form-control" name="target_command" placeholder="例如：簽到、全部賣出">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">金幣獎勵</label>
+                            <input type="number" class="form-control" name="reward_coins" value="0" min="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">高級貨幣獎勵</label>
+                            <input type="number" class="form-control" name="reward_premium" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">提示</label>
+                        <input type="text" class="form-control" name="hint" placeholder="給玩家的提示">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActiveCheck" checked>
+                        <label class="form-check-label" for="isActiveCheck">啟用此任務</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="" id="editTaskForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i>編輯教程任務</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="task_id" id="editTaskId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">順序 *</label>
+                            <input type="number" class="form-control" name="sequence" id="editSequence" required min="1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">分類 *</label>
+                            <select class="form-select" name="category" id="editCategory" required>
+                                <option value="core">核心 (core)</option>
+                                <option value="economy">經濟 (economy)</option>
+                                <option value="equipment">裝備 (equipment)</option>
+                                <option value="social">社交 (social)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">標題 *</label>
+                        <input type="text" class="form-control" name="title" id="editTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" id="editDescription" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">目標類型 *</label>
+                            <select class="form-select" name="target_type" id="editTargetType" required onchange="toggleEditTargetFields(this.value)">
+                                <option value="command">指令 (command)</option>
+                                <option value="fish_count">釣魚次數 (fish_count)</option>
+                                <option value="coins">金幣數 (coins)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">目標值</label>
+                            <input type="number" class="form-control" name="target_value" id="editTargetValue" min="1">
+                        </div>
+                    </div>
+                    <div class="mb-3" id="editTargetCommandDiv">
+                        <label class="form-label">目標指令</label>
+                        <input type="text" class="form-control" name="target_command" id="editTargetCommand">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">金幣獎勵</label>
+                            <input type="number" class="form-control" name="reward_coins" id="editRewardCoins" min="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">高級貨幣獎勵</label>
+                            <input type="number" class="form-control" name="reward_premium" id="editRewardPremium" min="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">提示</label>
+                        <input type="text" class="form-control" name="hint" id="editHint">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive">
+                        <label class="form-check-label" for="editIsActive">啟用此任務</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleTargetFields(value) {
+    const targetValueInput = document.getElementById('targetValueInput');
+    const targetCommandDiv = document.getElementById('targetCommandDiv');
+    
+    if (value === 'command') {
+        targetValueInput.value = '1';
+        targetCommandDiv.style.display = 'block';
+    } else {
+        targetCommandDiv.style.display = 'none';
+    }
+}
+
+function toggleEditTargetFields(value) {
+    const targetCommandDiv = document.getElementById('editTargetCommandDiv');
+    
+    if (value === 'command') {
+        targetCommandDiv.style.display = 'block';
+    } else {
+        targetCommandDiv.style.display = 'none';
+    }
+}
+
+function openEditModal(taskId, sequence, category, title, description, targetType, targetValue, targetCommand, rewardCoins, rewardPremium, hint, isActive) {
+    document.getElementById('editTaskId').value = taskId;
+    document.getElementById('editSequence').value = sequence;
+    document.getElementById('editCategory').value = category;
+    document.getElementById('editTitle').value = title;
+    document.getElementById('editDescription').value = description;
+    document.getElementById('editTargetType').value = targetType;
+    document.getElementById('editTargetValue').value = targetValue;
+    document.getElementById('editTargetCommand').value = targetCommand;
+    document.getElementById('editRewardCoins').value = rewardCoins;
+    document.getElementById('editRewardPremium').value = rewardPremium;
+    document.getElementById('editHint').value = hint;
+    document.getElementById('editIsActive').checked = isActive;
+    
+    toggleEditTargetFields(targetType);
+    
+    document.getElementById('editTaskForm').action = `/admin/tutorial/edit/${taskId}`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+    modal.show();
+}
+
+function loadStats() {
+    fetch('/admin/tutorial/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = `
+                    <p><strong>總任務數：</strong>${data.total_tasks}</p>
+                    <p><strong>有用戶進度記錄：</strong>${data.total_users} 人</p>
+                    <hr>
+                    <h6>各任務完成統計：</h6>
+                    <ul class="list-group">
+                `;
+                
+                data.task_stats.forEach(stat => {
+                    html += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            #${stat.sequence} ${stat.title}
+                            <span class="badge bg-primary rounded-pill">${stat.completed_count} 人完成</span>
+                        </li>
+                    `;
+                });
+                
+                html += '</ul>';
+                document.getElementById('statsContainer').innerHTML = html;
+            }
+        });
+}
+
+function getUserProgress() {
+    const userId = document.getElementById('userIdInput').value.trim();
+    if (!userId) {
+        alert('請輸入用戶 ID');
+        return;
+    }
+    
+    fetch(`/admin/tutorial/user/${encodeURIComponent(userId)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = `
+                    <div class="mb-3">
+                        <p><strong>完成度：</strong>${(data.completion_rate * 100).toFixed(0)}%</p>
+                        <p><strong>已完成：</strong>${data.completed_tasks} / ${data.total_tasks}</p>
+                    </div>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>任務</th>
+                                <th>進度</th>
+                                <th>狀態</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.tasks.forEach(task => {
+                    let statusBadge = '';
+                    if (task.reward_claimed) {
+                        statusBadge = '<span class="badge bg-secondary">已領取</span>';
+                    } else if (task.is_completed) {
+                        statusBadge = '<span class="badge bg-success">已完成</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-warning">進行中</span>';
+                    }
+                    
+                    html += `
+                        <tr>
+                            <td>#${task.sequence} ${task.title}</td>
+                            <td>${task.current_progress}/${task.target_value}</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success" onclick="completeTask('${userId}', ${task.task_id})">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                html += `
+                    <button class="btn btn-outline-danger btn-sm mt-2" onclick="resetProgress('${userId}')">
+                        <i class="fas fa-redo me-1"></i>重置進度
+                    </button>
+                `;
+                
+                document.getElementById('userProgressContainer').innerHTML = html;
+            } else {
+                document.getElementById('userProgressContainer').innerHTML = 
+                    `<div class="alert alert-danger">${data.message}</div>`;
+            }
+        });
+}
+
+function completeTask(userId, taskId) {
+    if (!confirm('確定要將此任務標記為完成嗎？')) return;
+    
+    fetch(`/admin/tutorial/user/${encodeURIComponent(userId)}/complete/${taskId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            getUserProgress();
+        } else {
+            alert('操作失敗：' + data.message);
+        }
+    });
+}
+
+function resetProgress(userId) {
+    if (!confirm('確定要重置此用戶的所有教程進度嗎？此操作不可恢復！')) return;
+    
+    fetch(`/admin/tutorial/user/${encodeURIComponent(userId)}/reset`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            getUserProgress();
+        } else {
+            alert('操作失敗：' + data.message);
+        }
+    });
+}
+
+$(document).ready(function() {
+    $('#tutorialTable').DataTable({
+        order: [[0, 'asc']],
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/zh.json'
+        }
+    });
+    
+    loadStats();
+});
+</script>
+{% endblock %}

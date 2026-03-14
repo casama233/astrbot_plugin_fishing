@@ -1149,6 +1149,8 @@ A: 交易一旦完成無法取消，請謹慎操作
         """开通交易所账户"""
         user_id = self._get_effective_user_id(event)
         result = self.exchange_service.open_exchange_account(user_id)
+        if result.get("success"):
+            self.plugin.tutorial_service.check_command_progress(user_id, "交易所 開戶")
         try:
             from ..draw.exchange import draw_exchange_result_image
 

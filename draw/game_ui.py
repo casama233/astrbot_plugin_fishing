@@ -13,6 +13,7 @@ def create_game_gradient(
     top_color: Tuple[int, int, int] = (25, 35, 55),
     bottom_color: Tuple[int, int, int] = (45, 55, 85),
     color_scheme: str = "default",
+    dpi: int = 150,
 ) -> Image.Image:
     """創建遊戲風格深色漸層背景
 

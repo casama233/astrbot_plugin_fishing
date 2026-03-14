@@ -1,12 +1,18 @@
+import math
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Tuple
 
 from PIL import Image, ImageDraw
 
-from .gradient_utils import create_vertical_gradient
+from .game_ui import (
+    GAME_COLORS,
+    create_game_gradient,
+    draw_game_card,
+    draw_game_title_bar,
+    draw_game_divider,
+)
 from .styles import load_font
 
-# Safety margin to prevent content truncation
 SAFETY_MARGIN = 50
 
 
@@ -46,20 +52,39 @@ def _format_expire(expires_at: Any) -> str:
         return ""
     remain = expires_at - datetime.now()
     if remain.total_seconds() <= 0:
-        return "💀已腐敗"
+        return "💀"
     if remain.total_seconds() <= 86400:
         h = int(remain.total_seconds() // 3600)
-        m = int((remain.total_seconds() % 3600) // 60)
-        return f"⚠️{h}小時{m}分"
+        return f"⚠️{h}h"
     d = remain.days
-    h = int(remain.seconds // 3600)
-    return f"⏰{d}天{h}小時"
+    return f"⏰{d}d"
 
 
-def _to_rows(
-    grouped_items: Dict[str, Iterable[Any]],
-) -> List[Tuple[str, str, List[str]]]:
-    sections: List[Tuple[str, str, List[str]]] = []
+def _get_rarity_stars(rarity: int) -> str:
+    r = int(rarity or 1)
+    if r <= 0:
+        return "★"
+    elif r <= 5:
+        return "★" * r
+    else:
+        return "★" * 5 + "+"
+
+
+def draw_market_list_image(grouped_items: Dict[str, Iterable[Any]]) -> Image.Image:
+    width = 880
+    cols = 2
+    card_w = (width - 48) // cols
+    card_h = 75
+    header_h = 80
+    section_gap = 16
+    footer_h = 55
+
+    title_font = load_font(26)
+    section_font = load_font(20)
+    name_font = load_font(17)
+    body_font = load_font(15)
+
+    sections_data = []
     mapping = [
         ("rod", "🎣", "魚竿"),
         ("accessory", "💍", "飾品"),
@@ -69,97 +94,127 @@ def _to_rows(
     ]
 
     for key, emoji, label in mapping:
-        rows: List[str] = []
-        for item in list(grouped_items.get(key, []))[:12]:
-            code = _market_display_code(item)
-            name = str(_get_attr(item, "item_name", "未知商品"))
-            price = int(_get_attr(item, "price", 0) or 0)
-            qty = int(_get_attr(item, "quantity", 1) or 1)
-            refine = int(_get_attr(item, "refine_level", 1) or 1)
-            seller = (
-                "🎭匿名賣家"
-                if _get_attr(item, "is_anonymous", False)
-                else str(_get_attr(item, "seller_nickname", "未知賣家"))
-            )
-            quality = (
-                " ✨高品質"
-                if int(_get_attr(item, "quality_level", 0) or 0) == 1
-                else ""
-            )
-            refine_text = f" 精{refine}" if refine > 1 else ""
-            qty_text = f" x{qty}" if qty > 1 else ""
-            expire_text = ""
-            if key == "commodity":
-                expire_text = _format_expire(_get_attr(item, "expires_at"))
-                if expire_text:
-                    expire_text = f"｜{expire_text}"
-            rows.append(
-                f"{name}{quality}{refine_text}{qty_text}  ID:{code}  {price:,}金幣  {seller}{expire_text}"
-            )
-        if rows:
-            sections.append((emoji, label, rows))
-    return sections
+        items_list = list(grouped_items.get(key, []))[:12]
+        if items_list:
+            processed = []
+            for item in items_list:
+                code = _market_display_code(item)
+                name = str(_get_attr(item, "item_name", "未知商品"))
+                price = int(_get_attr(item, "price", 0) or 0)
+                qty = int(_get_attr(item, "quantity", 1) or 1)
+                refine = int(_get_attr(item, "refine_level", 1) or 1)
+                rarity = int(_get_attr(item, "rarity", 1) or 1)
+                expire_text = ""
+                if key == "commodity":
+                    expire_text = _format_expire(_get_attr(item, "expires_at"))
+                processed.append(
+                    {
+                        "code": code,
+                        "name": name,
+                        "price": price,
+                        "qty": qty,
+                        "refine": refine,
+                        "rarity": rarity,
+                        "expire": expire_text,
+                    }
+                )
+            rows = math.ceil(len(processed) / cols)
+            sections_data.append((emoji, label, processed, rows))
 
-
-def draw_market_list_image(grouped_items: Dict[str, Iterable[Any]]) -> Image.Image:
-    sections = _to_rows(grouped_items)
-    row_h = 28
-    sec_head_h = 32
-    header_h = 80
-    footer_h = 65
-
-    title_font = load_font(26)
-    head_font = load_font(18)
-    body_font = load_font(15)
-    small_font = load_font(13)
-
-    total_rows = sum(len(rows) for _, _, rows in sections)
-    total_sections = len(sections)
+    total_item_rows = sum(rows for _, _, _, rows in sections_data)
+    total_sections = len(sections_data)
     bottom_pad = 16
     calculated_height = (
         header_h
-        + total_rows * row_h
-        + total_sections * sec_head_h
+        + total_sections * 36
+        + total_item_rows * (card_h + 8)
+        + (total_sections - 1) * section_gap
         + footer_h
         + bottom_pad
     )
     height = calculated_height + SAFETY_MARGIN
-    width = 880
 
-    image = create_vertical_gradient(width, height, (239, 248, 255), (255, 255, 255))
+    image = create_game_gradient(width, height)
     draw = ImageDraw.Draw(image)
 
-    draw.text((24, 18), "🛒 市場", font=title_font, fill=(38, 62, 86))
-    draw.line((24, 62, width - 24, 62), fill=(176, 204, 229), width=2)
+    draw_game_title_bar(draw, width, 0, header_h, "市場", title_font, "🛒")
 
-    y = 78
-    for emoji, label, rows in sections:
-        draw.rounded_rectangle(
-            (20, y, width - 20, y + sec_head_h - 4),
-            radius=8,
-            fill=(250, 253, 255),
-            outline=(210, 225, 238),
+    y = header_h + 10
+
+    for emoji, label, items, rows_count in sections_data:
+        draw.text(
+            (24, y + 6),
+            f"{emoji} {label}",
+            font=section_font,
+            fill=GAME_COLORS["accent_gold"],
         )
-        draw.text((28, y + 6), f"{emoji} {label}", font=head_font, fill=(46, 73, 102))
-        y += sec_head_h
+        y += 36
 
-        for line in rows:
-            draw.rounded_rectangle(
-                (24, y, width - 24, y + row_h - 4),
-                radius=6,
-                fill=(255, 255, 255),
-                outline=(224, 234, 243),
+        for idx, item in enumerate(items):
+            col = idx % cols
+            row = idx // cols
+            x = 16 + col * (card_w + 16)
+            card_y = y + row * (card_h + 8)
+
+            draw_game_card(
+                draw,
+                (x, card_y, x + card_w, card_y + card_h - 4),
+                radius=8,
+                fill=GAME_COLORS["bg_card"],
+                border_color=GAME_COLORS["border"],
             )
-            draw.text((36, y + 5), line[:90], font=body_font, fill=(61, 86, 113))
-            y += row_h
+
+            name_display = item["name"][:8]
+            if item["qty"] > 1:
+                name_display += f" x{item['qty']}"
+            draw.text(
+                (x + 10, card_y + 6),
+                name_display,
+                font=name_font,
+                fill=GAME_COLORS["text_primary"],
+            )
+
+            if item["refine"] > 1:
+                draw.text(
+                    (x + card_w - 40, card_y + 6),
+                    f"+{item['refine']}",
+                    font=name_font,
+                    fill=GAME_COLORS["accent_gold"],
+                )
+
+            price_text = f"💰{item['price']:,}"
+            draw.text(
+                (x + 10, card_y + 28),
+                price_text,
+                font=body_font,
+                fill=GAME_COLORS["accent_gold"],
+            )
+
+            code_text = f"ID:{item['code']}"
+            draw.text(
+                (x + 10, card_y + 48),
+                code_text,
+                font=body_font,
+                fill=GAME_COLORS["text_secondary"],
+            )
+
+            if item["expire"]:
+                draw.text(
+                    (x + card_w - 50, card_y + 48),
+                    item["expire"],
+                    font=body_font,
+                    fill=GAME_COLORS["warning"],
+                )
+
+        y += rows_count * (card_h + 8) + section_gap
 
     footer_y = height - footer_h - bottom_pad
-    draw.line((24, footer_y, width - 24, footer_y), fill=(176, 204, 229), width=2)
+    draw_game_divider(draw, 24, width - 24, footer_y + 6)
     draw.text(
-        (24, footer_y + 12),
+        (24, footer_y + 18),
         "💡 掛單5天有效 | 購買：/購買 短碼",
-        font=small_font,
-        fill=(63, 89, 112),
+        font=body_font,
+        fill=GAME_COLORS["text_secondary"],
     )
 
     return image

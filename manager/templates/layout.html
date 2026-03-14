@@ -27,39 +27,54 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarColor01">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin_bp.index') }}"><i class="fas fa-tachometer-alt"></i> 仪表盘</a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="gameDataDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-database"></i> 游戏数据
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="gameDataDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_fish') }}"><i class="fas fa-water me-2"></i>鱼类管理</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_rods') }}"><i class="fas fa-gavel me-2"></i>鱼竿管理</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_baits') }}"><i class="fas fa-bug me-2"></i>鱼饵管理</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_accessories') }}"><i class="fas fa-gem me-2"></i>饰品管理</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_items') }}"><i class="fas fa-box-open me-2"></i>道具管理</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_zones') }}"><i class="fas fa-map me-2"></i>钓鱼区域</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_titles') }}"><i class="fas fa-trophy me-2"></i>称号管理</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="economyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-coins"></i> 经济系统
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="economyDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_shops') }}"><i class="fas fa-shopping-cart me-2"></i>商店管理</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_market') }}"><i class="fas fa-store me-2"></i>市场管理</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_exchange') }}"><i class="fas fa-chart-line me-2"></i>交易所管理</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_gacha') }}"><i class="fas fa-dice me-2"></i>抽卡管理</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_bp.manage_users') }}"><i class="fas fa-users"></i> 用户管理</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_bp.config_help') }}"><i class="fas fa-sliders-h"></i> 配置说明</a></li>
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('admin_bp.index') }}"><i class="fas fa-tachometer-alt"></i> 仪表盘</a>
+        </li>
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="gameDataDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-database"></i> 游戏数据
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="gameDataDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_fish') }}"><i class="fas fa-water me-2"></i>鱼类管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_rods') }}"><i class="fas fa-gavel me-2"></i>鱼竿管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_baits') }}"><i class="fas fa-bug me-2"></i>鱼饵管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_accessories') }}"><i class="fas fa-gem me-2"></i>饰品管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_items') }}"><i class="fas fa-box-open me-2"></i>道具管理</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_zones') }}"><i class="fas fa-map me-2"></i>钓鱼区域</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_titles') }}"><i class="fas fa-trophy me-2"></i>称号管理</a></li>
             </ul>
+        </li>
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="economyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-coins"></i> 经济系统
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="economyDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_shops') }}"><i class="fas fa-shopping-cart me-2"></i>商店管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_market') }}"><i class="fas fa-store me-2"></i>市场管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_exchange') }}"><i class="fas fa-chart-line me-2"></i>交易所管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_gacha') }}"><i class="fas fa-dice me-2"></i>抽卡管理</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_redpackets') }}"><i class="fas fa-envelope-open-dollar me-2"></i>紅包管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_sicbo') }}"><i class="fas fa-dice-three me-2"></i>骰寶管理</a></li>
+            </ul>
+        </li>
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="socialDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-users-cog"></i> 社交系統
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="socialDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_guilds') }}"><i class="fas fa-users me-2"></i>公會管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_achievements') }}"><i class="fas fa-medal me-2"></i>成就管理</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_bp.manage_passes') }}"><i class="fas fa-ticket-alt me-2"></i>通行證管理</a></li>
+            </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_bp.manage_users') }}"><i class="fas fa-user-cog"></i> 用户管理</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_bp.manage_tutorial') }}"><i class="fas fa-graduation-cap"></i> 教程管理</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_bp.manage_logs') }}"><i class="fas fa-scroll"></i> 日誌</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_bp.config_help') }}"><i class="fas fa-sliders-h"></i> 配置说明</a></li>
+        </ul>
             <a href="{{ url_for('admin_bp.logout') }}" class="btn btn-outline-light btn-sm"><i class="fas fa-sign-out-alt"></i> 登出</a>
         </div>
     </div>
@@ -83,36 +98,37 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
-    $(document).ready(function() {
-        $('.table:not(.no-datatable)').DataTable({
-            language: {
-                "sProcessing": "处理中...",
-                "sLengthMenu": "显示 _MENU_ 项结果",
-                "sZeroRecords": "没有匹配结果",
-                "sInfo": "显示第 _START_ 至 _END_ 项结果，共 _TOTAL_ 项",
-                "sInfoEmpty": "显示第 0 至 0 项结果，共 0 项",
-                "sInfoFiltered": "(由 _MAX_ 项结果过滤)",
-                "sInfoPostFix": "",
-                "sSearch": "搜索:",
-                "sUrl": "",
-                "sEmptyTable": "表中数据为空",
-                "sLoadingRecords": "载入中...",
-                "sInfoThousands": ",",
-                "oPaginate": {
-                    "sFirst": "首页",
-                    "sPrevious": "上页",
-                    "sNext": "下页",
-                    "sLast": "末页"
-                },
-                "oAria": {
-                    "sSortAscending": ": 以升序排列此列",
-                    "sSortDescending": ": 以降序排列此列"
-                }
-            }
-        });
-    });
+$(document).ready(function() {
+$('.table:not(.no-datatable)').DataTable({
+language: {
+"sProcessing": "处理中...",
+"sLengthMenu": "显示 _MENU_ 项结果",
+"sZeroRecords": "没有匹配结果",
+"sInfo": "显示第 _START_ 至 _END_ 项结果，共 _TOTAL_ 项",
+"sInfoEmpty": "显示第 0 至 0 项结果，共 0 项",
+"sInfoFiltered": "(由 _MAX_ 项结果过滤)",
+"sInfoPostFix": "",
+"sSearch": "搜索:",
+"sUrl": "",
+"sEmptyTable": "表中数据为空",
+"sLoadingRecords": "载入中...",
+"sInfoThousands": ",",
+"oPaginate": {
+"sFirst": "首页",
+"sPrevious": "上页",
+"sNext": "下页",
+"sLast": "末页"
+},
+"oAria": {
+"sSortAscending": ": 以升序排列此列",
+"sSortDescending": ": 以降序排列此列"
+}
+}
+});
+});
 </script>
 <script src="{{ url_for('admin_bp.static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
 {% block extra_js %}{% endblock %}
 </body>
 </html>

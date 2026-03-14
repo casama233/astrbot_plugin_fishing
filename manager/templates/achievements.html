@@ -1,0 +1,190 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-trophy me-2"></i>成就系統管理</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>成就列表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="achievementsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>名稱</th>
+                                    <th>描述</th>
+                                    <th>目標類型</th>
+                                    <th>目標值</th>
+                                    <th>獎勵</th>
+                                    <th>完成人數</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ach in achievements %}
+                                <tr>
+                                    <td>{{ ach.id }}</td>
+                                    <td><strong>{{ ach.name }}</strong></td>
+                                    <td>{{ ach.description }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ ach.target_type }}</span>
+                                    </td>
+                                    <td>{{ ach.target_value }}</td>
+                                    <td>
+                                        {% if ach.reward %}
+                                            {% if ach.reward[0] == 'coins' %}
+                                                <span class="text-warning"><i class="fas fa-coins"></i> {{ ach.reward[1] }}</span>
+                                            {% elif ach.reward[0] == 'title' %}
+                                                <span class="text-primary"><i class="fas fa-crown"></i> 稱號</span>
+                                            {% elif ach.reward[0] == 'bait' %}
+                                                <span class="text-success"><i class="fas fa-bug"></i> 魚餌</span>
+                                            {% elif ach.reward[0] == 'rod' %}
+                                                <span class="text-info"><i class="fas fa-gavel"></i> 魚竿</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">無</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ ach.completed_count }}</span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="viewAchievementUsers({{ ach.id }}, '{{ ach.name }}')">
+                                            <i class="fas fa-users"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-success me-1" onclick="openGrantModal({{ ach.id }}, '{{ ach.name }}')">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 授予成就模態框 -->
+<div class="modal fade" id="grantModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">授予成就</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="grantAchievementId">
+                <p>將授予成就: <strong id="grantAchievementName"></strong></p>
+                <div class="mb-3">
+                    <label class="form-label">用戶 ID</label>
+                    <input type="text" class="form-control" id="grantUserId" placeholder="輸入用戶 ID">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="grantAchievement()">授予</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 查看完成用戶模態框 -->
+<div class="modal fade" id="usersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">已完成用戶 - <span id="usersAchievementName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-hover" id="achievementUsersTable">
+                    <thead>
+                        <tr>
+                            <th>用戶 ID</th>
+                            <th>暱稱</th>
+                            <th>完成時間</th>
+                            <th>進度</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openGrantModal(achievementId, achievementName) {
+    document.getElementById('grantAchievementId').value = achievementId;
+    document.getElementById('grantAchievementName').textContent = achievementName;
+    new bootstrap.Modal(document.getElementById('grantModal')).show();
+}
+
+function grantAchievement() {
+    const achievementId = document.getElementById('grantAchievementId').value;
+    const userId = document.getElementById('grantUserId').value;
+    
+    if (!userId) {
+        alert('請輸入用戶 ID');
+        return;
+    }
+    
+    fetch('/admin/achievements/grant', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: userId, achievement_id: parseInt(achievementId)})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('錯誤: ' + data.message);
+        }
+    });
+}
+
+function viewAchievementUsers(achievementId, achievementName) {
+    document.getElementById('usersAchievementName').textContent = achievementName;
+    
+    fetch(`/admin/achievements/${achievementId}/users`)
+    .then(r => r.json())
+    .then(data => {
+        const tbody = document.querySelector('#achievementUsersTable tbody');
+        tbody.innerHTML = '';
+        if (data.success && data.users.length > 0) {
+            data.users.forEach(u => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.user_id}</td>
+                        <td>${u.nickname || '未知'}</td>
+                        <td>${u.completed_at || '未完成'}</td>
+                        <td>${u.current_progress || 0}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">暫無完成用戶</td></tr>';
+        }
+        new bootstrap.Modal(document.getElementById('usersModal')).show();
+    });
+}
+</script>
+{% endblock %}

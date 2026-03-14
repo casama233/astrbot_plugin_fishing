@@ -145,14 +145,14 @@ def draw_shop_detail_image(
     width = 880
     cols = 2
     card_w = (width - 48) // cols
-    card_h = 95
+    card_h = 105
     header_h = 80
     footer_h = 50
 
-    title_font = load_font(26)
-    name_font = load_font(18)
-    body_font = load_font(15)
-    sub_font = load_font(13)
+    title_font = load_font(28)
+    name_font = load_font(20)
+    body_font = load_font(17)
+    sub_font = load_font(15)
 
     num_items = max(1, len(items))
     rows = math.ceil(num_items / cols)
@@ -215,8 +215,8 @@ def draw_shop_detail_image(
 
         draw_game_card(
             draw,
-            (x, card_y, x + card_w, card_y + card_h - 6),
-            radius=8,
+            (x, card_y, x + card_w, card_y + card_h - 4),
+            radius=10,
             fill=GAME_COLORS["bg_card"],
             border_color=GAME_COLORS["border"],
         )
@@ -225,23 +225,23 @@ def draw_shop_detail_image(
         item_name = item.get("name", "未知商品")
 
         draw.text(
-            (x + 10, card_y + 6),
-            f"#{item_id} {item_name[:10]}",
+            (x + 10, card_y + 8),
+            f"#{item_id} {item_name[:8]}",
             font=name_font,
             fill=GAME_COLORS["text_primary"],
         )
 
         draw.text(
-            (x + 10, card_y + 30),
+            (x + 10, card_y + 34),
             ctext,
             font=body_font,
             fill=GAME_COLORS["accent_gold"],
         )
 
         draw.text(
-            (x + 10, card_y + 50),
+            (x + 10, card_y + 58),
             f"📦{stock_text}",
-            font=sub_font,
+            font=body_font,
             fill=stock_color,
         )
 
@@ -265,7 +265,7 @@ def draw_shop_detail_image(
                 if len(rewards) > 1:
                     reward_text += f" +{len(rewards) - 1}"
                 draw.text(
-                    (x + card_w - 80, card_y + 50),
+                    (x + 10, card_y + 80),
                     reward_text,
                     font=sub_font,
                     fill=GAME_COLORS["accent_green"],
@@ -278,18 +278,18 @@ def draw_shop_detail_image(
             limit_text = f"日限{item['per_user_daily_limit']}"
         if limit_text:
             draw.text(
-                (x + 70, card_y + 52),
+                (x + card_w - 50, card_y + 58),
                 limit_text,
                 font=sub_font,
                 fill=GAME_COLORS["text_secondary"],
             )
 
     footer_y = height - footer_h - bottom_pad
-    draw_game_divider(draw, 24, width - 24, footer_y + 4)
+    draw_game_divider(draw, 24, width - 24, footer_y + 6)
     draw.text(
-        (24, footer_y + 14),
+        (24, footer_y + 16),
         f"💡 /商店購買 {sid} 商品ID [數量]",
-        font=sub_font,
+        font=body_font,
         fill=GAME_COLORS["text_secondary"],
     )
 

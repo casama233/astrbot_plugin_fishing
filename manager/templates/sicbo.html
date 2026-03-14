@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-dice me-2"></i>骰寶賭場管理</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>遊戲配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">倒計時（秒）</label>
+                        <input type="number" class="form-control" id="countdownSeconds" value="60">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">最小下注</label>
+                        <input type="number" class="form-control" id="minBet" value="100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">最大下注</label>
+                        <input type="number" class="form-control" id="maxBet" value="1000000">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">消息模式</label>
+                        <select class="form-select" id="messageMode">
+                            <option value="image">圖片模式</option>
+                            <option value="text">文本模式</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="updateConfig()"><i class="fas fa-save me-1"></i>保存配置</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>月度統計</h5>
+                </div>
+                <div class="card-body" id="monthlySummary">
+                    <p class="text-muted">加載中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-gamepad me-2"></i>活躍遊戲</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Session ID</th>
+                                    <th>開始時間</th>
+                                    <th>總獎池</th>
+                                    <th>下注數</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activeGamesBody">
+                                <tr><td colspan="6" class="text-center text-muted">加載中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>近 7 日統計</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>日期</th>
+                                    <th>總局數</th>
+                                    <th>玩家勝</th>
+                                    <th>莊家勝</th>
+                                    <th>莊家淨收益</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyStatsBody">
+                                <tr><td colspan="5" class="text-center text-muted">加載中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadStats() {
+    fetch('/admin/sicbo/stats')
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('countdownSeconds').value = data.config.countdown_seconds;
+            document.getElementById('minBet').value = data.config.min_bet;
+            document.getElementById('maxBet').value = data.config.max_bet;
+            document.getElementById('messageMode').value = data.config.message_mode;
+            
+            const summary = document.getElementById('monthlySummary');
+            if (data.monthly_summary) {
+                summary.innerHTML = '<p>總玩家數：<strong>' + (data.monthly_summary.total_players || 0) + '</strong></p>' +
+                    '<p>玩家勝：<span class="text-success">' + (data.monthly_summary.total_wins || 0) + '</span></p>' +
+                    '<p>莊家勝：<span class="text-danger">' + (data.monthly_summary.total_losses || 0) + '</span></p>' +
+                    '<p>總交易額：<span class="text-warning">' + (data.monthly_summary.total_volume || 0).toLocaleString() + '</span></p>';
+            }
+            
+            const gamesBody = document.getElementById('activeGamesBody');
+            if (data.active_games && data.active_games.length > 0) {
+                gamesBody.innerHTML = '';
+                data.active_games.forEach(g => {
+                    gamesBody.innerHTML += '<tr><td>' + g.session_id + '</td><td>' + g.start_time + '</td><td class="text-warning">' + g.total_pot + '</td><td>' + g.bet_count + '</td><td>' + (g.is_active ? '<span class="badge bg-success">進行中</span>' : '<span class="badge bg-secondary">已結算</span>') + '</td><td>' + (g.is_active && !g.is_settled ? '<button class="btn btn-sm btn-outline-danger" onclick="forceSettle(\'' + g.session_id + '\')">強制結算</button>' : '-') + '</td></tr>';
+                });
+            } else {
+                gamesBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">暫無活躍遊戲</td></tr>';
+            }
+            
+            const statsBody = document.getElementById('dailyStatsBody');
+            if (data.daily_stats && data.daily_stats.length > 0) {
+                statsBody.innerHTML = '';
+                data.daily_stats.forEach(s => {
+                    statsBody.innerHTML += '<tr><td>' + s.date + '</td><td>' + s.total_games + '</td><td class="text-success">' + s.wins + '</td><td class="text-danger">' + s.losses + '</td><td>' + (s.net_result > 0 ? '<span class="text-success">+' + s.net_result + '</span>' : '<span class="text-danger">' + s.net_result + '</span>') + '</td></tr>';
+                });
+            } else {
+                statsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暫無統計數據</td></tr>';
+            }
+        }
+    });
+}
+
+function updateConfig() {
+    const data = {
+        countdown_seconds: parseInt(document.getElementById('countdownSeconds').value),
+        min_bet: parseInt(document.getElementById('minBet').value),
+        max_bet: parseInt(document.getElementById('maxBet').value),
+        message_mode: document.getElementById('messageMode').value
+    };
+    fetch('/admin/sicbo/config', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)})
+    .then(r => r.json())
+    .then(d => { alert(d.message); });
+}
+
+function forceSettle(sessionId) {
+    if (!confirm('確定要強制結算此遊戲嗎？')) return;
+    fetch('/admin/sicbo/force-settle/' + sessionId, {method: 'POST'})
+    .then(r => r.json())
+    .then(d => { alert(d.message); if (d.success) loadStats(); });
+}
+
+loadStats();
+</script>
+{% endblock %}

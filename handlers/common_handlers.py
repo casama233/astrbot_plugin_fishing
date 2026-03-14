@@ -75,6 +75,7 @@ async def register_user(self: "FishingPlugin", event: AstrMessageEvent):
     if result := self.user_service.register(user_id, nickname):
         yield event.plain_result(result["message"])
         if result.get("success", False):
+            self.tutorial_service.init_user_tutorial(user_id)
             yield event.plain_result(
                 "🌊 【新手引導：你在海邊醒來】\n\n"
                 "歡迎來到釣魚世界！從這裡開始你的冒險：\n\n"
@@ -100,6 +101,8 @@ async def sign_in(self: "FishingPlugin", event: AstrMessageEvent):
     user_id = self._get_effective_user_id(event)
     result = self.user_service.daily_sign_in(user_id)
     yield event.plain_result(result.get("message", "❌ 签到失败，请稍后重试"))
+    if result.get("success"):
+        self.tutorial_service.check_command_progress(user_id, "簽到")
 
 
 async def state(self: "FishingPlugin", event: AstrMessageEvent):

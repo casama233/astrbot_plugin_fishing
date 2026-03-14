@@ -251,7 +251,39 @@ class MysqlShopRepository(AbstractShopRepository):
                     "UPDATE shop_items SET stock_sold = COALESCE(stock_sold, 0) + %s, updated_at = CURRENT_TIMESTAMP WHERE item_id = %s",
                     (delta, item_id),
                 )
-            conn.commit()
+                conn.commit()
+
+    def increase_item_sold_atomic(self, item_id: int, delta: int) -> bool:
+        """
+        原子操作：增加已售數量，防止超賣。
+        使用 SELECT ... FOR UPDATE 鎖定行，確保並發安全。
+
+        Returns:
+            True: 成功增加
+            False: 庫存不足，未增加
+        """
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT stock_total, stock_sold FROM shop_items WHERE item_id = %s FOR UPDATE",
+                    (item_id,),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    return False
+
+                stock_total = row.get("stock_total")
+                stock_sold = row.get("stock_sold", 0) or 0
+
+                if stock_total is not None and stock_sold + delta > stock_total:
+                    return False
+
+                cursor.execute(
+                    "UPDATE shop_items SET stock_sold = %s, updated_at = CURRENT_TIMESTAMP WHERE item_id = %s",
+                    (stock_sold + delta, item_id),
+                )
+                conn.commit()
+                return True
 
     def get_item_costs(self, item_id: int) -> List[Dict[str, Any]]:
         with self._connection_manager.get_connection() as conn:
@@ -389,6 +421,26 @@ class MysqlShopRepository(AbstractShopRepository):
                     (user_id, item_id, quantity, now),
                 )
                 conn.commit()
+
+    def clean_old_purchase_records(self, days: int = 30) -> int:
+        """
+        清理超過指定天數的購買記錄。
+
+        Args:
+            days: 保留天數，默認 30 天
+
+        Returns:
+            刪除的記錄數量
+        """
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM shop_purchase_records WHERE timestamp < DATE_SUB(NOW(), INTERVAL %s DAY)",
+                    (days,),
+                )
+                deleted = cursor.rowcount
+                conn.commit()
+                return deleted
 
     def get_user_purchased_count(
         self, user_id: str, item_id: int, since: Optional[datetime] = None

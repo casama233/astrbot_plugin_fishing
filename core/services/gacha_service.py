@@ -94,10 +94,17 @@ class GachaService:
                 general_item = self.item_template_repo.get_by_id(item.item_id)
                 item_name = general_item.name if general_item else "未知道具"
                 item_rarity = general_item.rarity if general_item else 1
+            elif item.item_type == "fish":
+                fish = self.item_template_repo.get_fish_by_id(item.item_id)
+                item_name = fish.name if fish else "未知魚類"
+                item_rarity = fish.rarity if fish else 1
             elif item.item_type == "coins":
-                item_name = f"{item.quantity} 金币"
+                item_name = f"{item.quantity} 金幣"
             elif item.item_type == "titles":
-                item_name = self.item_template_repo.get_title_by_id(item.item_id).name
+                title = self.item_template_repo.get_title_by_id(item.item_id)
+                item_name = title.name if title else "未知稱號"
+            else:
+                item_name = f"未知類型({item.item_type})"
 
             probabilities.append(
                 {
@@ -262,13 +269,23 @@ class GachaService:
             elif item.item_type == "coins":
                 granted_rewards.append({"type": "coins", "quantity": item.quantity})
             elif item.item_type == "titles":
+                title = self.item_template_repo.get_title_by_id(item.item_id)
                 granted_rewards.append(
                     {
                         "type": "title",
                         "id": item.item_id,
-                        "name": self.item_template_repo.get_title_by_id(
-                            item.item_id
-                        ).name,
+                        "name": title.name if title else "未知稱號",
+                    }
+                )
+            elif item.item_type == "fish":
+                fish = self.item_template_repo.get_fish_by_id(item.item_id)
+                granted_rewards.append(
+                    {
+                        "type": "fish",
+                        "id": item.item_id,
+                        "name": fish.name if fish else "未知魚類",
+                        "rarity": fish.rarity if fish else 1,
+                        "quantity": item.quantity,
                     }
                 )
 

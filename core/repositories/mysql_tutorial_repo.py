@@ -60,9 +60,9 @@ class MysqlTutorialRepository:
             "title": "商店購物",
             "description": "在商店購買魚餌或其他道具",
             "target_type": "command",
-            "target_command": "商店",
+            "target_command": "商店購買",
             "reward_coins": 150,
-            "hint": "使用 /商店 購買 購買魚餌",
+            "hint": "使用 /商店購買 D1 3 購買魚餌",
         },
         {
             "sequence": 6,

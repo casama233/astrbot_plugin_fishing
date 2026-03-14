@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import List, Optional
+from datetime import datetime, timedelta
+from typing import List, Optional, Dict
 
 from astrbot.api import logger
 
@@ -322,16 +322,199 @@ class MysqlGuildRepository:
                 conn.commit()
                 return True
 
-    def get_top_guilds(self, limit: int = 10) -> List[Guild]:
-        """獲取公會排行榜"""
+    def get_top_guilds(self, limit: int = 10, sort_by: str = "fish") -> List[Guild]:
+        """獲取公會排行榜
+
+        Args:
+            limit: 返回數量
+            sort_by: 排序方式 fish/level/members/coins
+        """
+        order_column = {
+            "fish": "total_fish_caught",
+            "level": "level",
+            "members": "member_count",
+            "coins": "total_coins_earned",
+        }.get(sort_by, "total_fish_caught")
+
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    SELECT * FROM guilds WHERE is_active = 1
+                    ORDER BY {order_column} DESC LIMIT %s
+                    """,
+                    (limit,),
+                )
+                rows = cursor.fetchall()
+                return [self._row_to_guild(row) for row in rows if row]
+
+    def search_guilds(self, keyword: str, limit: int = 10) -> List[Guild]:
+        """搜索公會"""
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT * FROM guilds
+                    WHERE is_active = 1 AND (name LIKE %s OR description LIKE %s)
+                    ORDER BY member_count DESC LIMIT %s
+                    """,
+                    (f"%{keyword}%", f"%{keyword}%", limit),
+                )
+                rows = cursor.fetchall()
+                return [self._row_to_guild(row) for row in rows if row]
+
+    def get_all_guilds(self, limit: int = 20, offset: int = 0) -> List[Guild]:
+        """獲取所有活躍公會列表"""
         with self._connection_manager.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
                     SELECT * FROM guilds WHERE is_active = 1
-                    ORDER BY total_fish_caught DESC LIMIT %s
-                """,
-                    (limit,),
+                    ORDER BY member_count DESC LIMIT %s OFFSET %s
+                    """,
+                    (limit, offset),
                 )
                 rows = cursor.fetchall()
                 return [self._row_to_guild(row) for row in rows if row]
+
+    def update_guild_info(
+        self, guild_id: int, description: str = None, emblem: str = None
+    ) -> bool:
+        """更新公會信息"""
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                updates = []
+                params = []
+                if description is not None:
+                    updates.append("description = %s")
+                    params.append(description)
+                if emblem is not None:
+                    updates.append("emblem = %s")
+                    params.append(emblem)
+                if not updates:
+                    return False
+                params.append(guild_id)
+                cursor.execute(
+                    f"UPDATE guilds SET {', '.join(updates)} WHERE guild_id = %s",
+                    tuple(params),
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+
+    def check_guild_exists(self, guild_id: int) -> bool:
+        """檢查公會是否存在且活躍"""
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM guilds WHERE guild_id = %s AND is_active = 1",
+                    (guild_id,),
+                )
+                return cursor.fetchone() is not None
+
+    def _row_to_buff(self, row) -> Optional[GuildBuff]:
+        if not row:
+            return None
+        return GuildBuff(
+            buff_id=row["buff_id"],
+            guild_id=row["guild_id"],
+            buff_type=row["buff_type"],
+            buff_value=float(row["buff_value"]),
+            expires_at=self._parse_datetime(row.get("expires_at")),
+        )
+
+    def get_guild_buffs(self, guild_id: int) -> List[GuildBuff]:
+        """獲取公會所有生效中的 Buff"""
+        now = get_now()
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT * FROM guild_buffs
+                    WHERE guild_id = %s AND (expires_at IS NULL OR expires_at > %s)
+                    """,
+                    (guild_id, now),
+                )
+                rows = cursor.fetchall()
+                return [self._row_to_buff(row) for row in rows if row]
+
+    def add_guild_buff(
+        self,
+        guild_id: int,
+        buff_type: str,
+        buff_value: float,
+        duration_hours: Optional[int] = None,
+    ) -> bool:
+        """添加公會 Buff"""
+        now = get_now()
+        expires_at = None
+        if duration_hours:
+            from datetime import timedelta
+
+            expires_at = now + timedelta(hours=duration_hours)
+
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO guild_buffs (guild_id, buff_type, buff_value, expires_at, created_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (guild_id, buff_type, buff_value, expires_at, now),
+                )
+                conn.commit()
+                return True
+
+    def remove_expired_buffs(self, guild_id: Optional[int] = None) -> int:
+        """清理過期的 Buff，返回清理數量"""
+        now = get_now()
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                if guild_id:
+                    cursor.execute(
+                        "DELETE FROM guild_buffs WHERE guild_id = %s AND expires_at IS NOT NULL AND expires_at <= %s",
+                        (guild_id, now),
+                    )
+                else:
+                    cursor.execute(
+                        "DELETE FROM guild_buffs WHERE expires_at IS NOT NULL AND expires_at <= %s",
+                        (now,),
+                    )
+                deleted = cursor.rowcount
+                conn.commit()
+                return deleted
+
+    def get_user_guild_buffs(self, user_id: str) -> List[GuildBuff]:
+        """獲取用戶所屬公會的所有生效 Buff"""
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT gb.* FROM guild_buffs gb
+                    JOIN guild_members gm ON gb.guild_id = gm.guild_id
+                    JOIN guilds g ON gb.guild_id = g.guild_id
+                    WHERE gm.user_id = %s AND g.is_active = 1
+                    AND (gb.expires_at IS NULL OR gb.expires_at > %s)
+                    """,
+                    (user_id, get_now()),
+                )
+                rows = cursor.fetchall()
+                return [self._row_to_buff(row) for row in rows if row]
+
+    def get_guild_contribution_ranking(
+        self, guild_id: int, limit: int = 10
+    ) -> List[Dict]:
+        """獲取公會貢獻排行榜"""
+        with self._connection_manager.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT user_id, contribution FROM guild_members
+                    WHERE guild_id = %s ORDER BY contribution DESC LIMIT %s
+                    """,
+                    (guild_id, limit),
+                )
+                rows = cursor.fetchall()
+                return [
+                    {"user_id": r["user_id"], "contribution": r["contribution"]}
+                    for r in rows
+                ]

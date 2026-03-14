@@ -11,6 +11,7 @@ from . import red_packet_handlers
 from . import exchange_handlers
 from . import tutorial_handlers
 from . import unified_handlers
+from . import guild_handlers
 
 __all__ = [
     "admin_handlers",
@@ -26,4 +27,5 @@ __all__ = [
     "exchange_handlers",
     "tutorial_handlers",
     "unified_handlers",
+    "guild_handlers",
 ]

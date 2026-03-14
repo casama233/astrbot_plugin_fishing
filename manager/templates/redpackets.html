@@ -1,0 +1,163 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-envelope-open-dollar me-2"></i>紅包系統管理</h2>
+                <div>
+                    <select id="statusFilter" class="form-select d-inline-block" style="width: 150px;" onchange="filterByStatus()">
+                        <option value="active" {% if status == 'active' %}selected{% endif %}>活躍紅包</option>
+                        <option value="expired" {% if status == 'expired' %}selected{% endif %}>已過期</option>
+                        <option value="all" {% if status == 'all' %}selected{% endif %}>全部</option>
+                    </select>
+                    <button class="btn btn-outline-danger ms-2" onclick="cleanupExpired()"><i class="fas fa-broom me-1"></i>清理過期</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>紅包列表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>發送者</th>
+                                    <th>類型</th>
+                                    <th>單個金額</th>
+                                    <th>剩餘/總數</th>
+                                    <th>群組</th>
+                                    <th>過期時間</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for packet in packets %}
+                                <tr>
+                                    <td>{{ packet.packet_id }}</td>
+                                    <td>{{ packet.sender_name or packet.sender_id }}</td>
+                                    <td>
+                                        {% if packet.packet_type == 'normal' %}
+                                        <span class="badge bg-primary">普通</span>
+                                        {% elif packet.packet_type == 'lucky' %}
+                                        <span class="badge bg-success">拼手氣</span>
+                                        {% elif packet.packet_type == 'password' %}
+                                        <span class="badge bg-warning">口令</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="text-warning"><i class="fas fa-coins"></i> {{ packet.amount_per_packet }}</span></td>
+                                    <td>{{ packet.remaining_count }} / {{ packet.total_count }}</td>
+                                    <td>{{ packet.group_id }}</td>
+                                    <td>{{ packet.expires_at }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-info me-1" onclick="viewClaims({{ packet.packet_id }})">
+                                            <i class="fas fa-users"></i>
+                                        </button>
+                                        {% if packet.remaining_count > 0 %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="revokePacket({{ packet.packet_id }})">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if pagination.total_pages > 1 %}
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ pagination.page - 1 }}&status={{ status }}">上一頁</a>
+                            </li>
+                            {% endif %}
+                            <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.total_pages }}</span></li>
+                            {% if pagination.page < pagination.total_pages %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ pagination.page + 1 }}&status={{ status }}">下一頁</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="claimsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">領取記錄</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>用戶 ID</th>
+                            <th>暱稱</th>
+                            <th>金額</th>
+                            <th>領取時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="claimsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterByStatus() {
+    const status = document.getElementById('statusFilter').value;
+    window.location.href = '?status=' + status;
+}
+
+function viewClaims(packetId) {
+    fetch('/admin/redpackets/' + packetId + '/claims')
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const tbody = document.getElementById('claimsTableBody');
+            tbody.innerHTML = '';
+            if (data.claims.length > 0) {
+                data.claims.forEach(c => {
+                    tbody.innerHTML += '<tr><td>' + c.user_id + '</td><td>' + (c.nickname || '未知') + '</td><td class="text-warning">' + c.amount + '</td><td>' + c.claimed_at + '</td></tr>';
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">暫無領取記錄</td></tr>';
+            }
+            new bootstrap.Modal(document.getElementById('claimsModal')).show();
+        }
+    });
+}
+
+function revokePacket(packetId) {
+    if (!confirm('確定要撤銷此紅包嗎？剩餘金額將返還給發送者。')) return;
+    fetch('/admin/redpackets/' + packetId + '/revoke', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => { alert(data.message); if (data.success) location.reload(); });
+}
+
+function cleanupExpired() {
+    fetch('/admin/redpackets/cleanup', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => { alert(data.message); if (data.success) location.reload(); });
+}
+</script>
+{% endblock %}

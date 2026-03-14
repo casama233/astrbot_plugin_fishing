@@ -23,6 +23,7 @@ from .core.repositories.mysql_achievement_repo import MysqlAchievementRepository
 from .core.repositories.mysql_market_repo import MysqlMarketRepository
 from .core.repositories.mysql_red_packet_repo import MysqlRedPacketRepository
 from .core.repositories.mysql_tutorial_repo import MysqlTutorialRepository
+from .core.repositories.mysql_guild_repo import MysqlGuildRepository
 
 from .core.services.data_setup_service import DataSetupService
 from .core.services.item_template_service import ItemTemplateService
@@ -40,6 +41,7 @@ from .core.services.exchange_service import ExchangeService
 from .core.services.sicbo_service import SicboService
 from .core.services.red_packet_service import RedPacketService
 from .core.services.tutorial_service import TutorialService
+from .core.services.guild_service import GuildService
 
 from .core.database.mysql_connection_manager import MysqlConnectionManager
 
@@ -59,6 +61,7 @@ from .handlers import (
     red_packet_handlers,
     tutorial_handlers,
     unified_handlers,
+    guild_handlers,
 )
 from .handlers.fishing_handlers import FishingHandlers
 from .handlers.exchange_handlers import ExchangeHandlers
@@ -67,13 +70,30 @@ from .handlers.exchange_handlers import ExchangeHandlers
 class FishingPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
+
+        # 調試日誌 - 檢查原始 config
+        logger.info(f"[FishingPlugin] original config type: {type(config)}")
+        logger.info(f"[FishingPlugin] original config value: {config}")
+
         if config is None:
             config = getattr(context, "_config", {}) or {}
+
+        # 如果 config 是 AstrBotConfig 對象，嘗試轉換為 dict
+        if hasattr(config, "__dict__") and not isinstance(config, dict):
+            logger.info(f"[FishingPlugin] config has __dict__: {config.__dict__}")
+            if hasattr(config, "_config"):
+                config = config._config
+            elif hasattr(config, "metadata"):
+                config = config.metadata if isinstance(config.metadata, dict) else {}
+
         if not hasattr(config, "get") or not config.get("external_sql"):
-            config = self._load_config_fallback() or config
+            fallback_config = self._load_config_fallback()
+            if fallback_config:
+                config = fallback_config
+                logger.info(f"[FishingPlugin] Using fallback config")
 
         # 調試日誌
-        logger.info(f"[FishingPlugin] config type: {type(config)}")
+        logger.info(f"[FishingPlugin] final config type: {type(config)}")
         logger.info(
             f"[FishingPlugin] external_sql from config: {config.get('external_sql', 'NOT FOUND')}"
         )
@@ -323,6 +343,11 @@ class FishingPlugin(Star):
         self.tutorial_service = TutorialService(
             self.tutorial_repo, self.user_repo, self.inventory_repo
         )
+        self.fishing_service.set_tutorial_service(self.tutorial_service)
+
+        self.guild_repo = MysqlGuildRepository(config.get("external_sql", {}))
+        self.guild_service = GuildService(self.guild_repo, self.user_repo)
+        self.fishing_service.set_guild_service(self.guild_service)
 
         self.exchange_handlers = ExchangeHandlers(self)
         self.fishing_handlers = FishingHandlers(self)
@@ -358,6 +383,9 @@ class FishingPlugin(Star):
         self.exchange_service.start_daily_price_update_task()
         self._red_packet_cleanup_task = asyncio.create_task(
             self._red_packet_cleanup_scheduler()
+        )
+        self._shop_cleanup_task = asyncio.create_task(
+            self._shop_purchase_cleanup_scheduler()
         )
         if self.external_sql_sync_manager:
             self.external_sql_sync_manager.start_periodic_sync()
@@ -864,39 +892,24 @@ class FishingPlugin(Star):
             except:
                 pass
 
+    async def _shop_purchase_cleanup_scheduler(self):
+        """定時清理商店購買記錄（每日凌晨執行）"""
+        while True:
+            try:
+                await asyncio.sleep(86400)
+                if self.shop_repo:
+                    deleted = self.shop_repo.clean_old_purchase_records(days=30)
+                    if deleted > 0:
+                        logger.info(f"已清理 {deleted} 條過期的商店購買記錄")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning(f"清理商店購買記錄時出錯: {e}")
+
     async def initialize(self):
         logger.info(
-            "\n    _____ _     _     _\n    |  ___(_)___| |__ (_)_ __   __ _\n    | |_  | / __| '_ \\| | '_ \\ / _` |\n    |  _| | \\__ \\ | | | | | | | (_| |\n    |_|   |_|___/_| |_|_|_| |_|\\__, |\n                               |___/\n                               "
+            "\n _____ _ _ _\n | ___(_)___| |__ (_)_ __ __ _\n | |_ | / __| '_ \\| | '_ \\ / _` |\n | _| | \\__ \\ | | | | | | | (_| |\n |_| |_|___/_| |_|_|_| |_|\\__, |\n |___/\n "
         )
-
-    @filter.command_group("fish_admin")
-    @filter.permission_type(PermissionType.ADMIN)
-    def fish_admin_group(self):
-        pass
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @fish_admin_group.command("coins")  # type: ignore[attr-defined]
-    async def fish_admin_coins_subcmd(
-        self,
-        event: AstrMessageEvent,
-        user_id: str = "",
-        amount: str = "",
-    ):
-        """修改用户金币（管理员）"""
-        async for r in self.fish_admin_cmd(event, "coins", user_id, amount):
-            yield r
-
-    @filter.permission_type(PermissionType.ADMIN)
-    @fish_admin_group.command("premium")  # type: ignore[attr-defined]
-    async def fish_admin_premium_subcmd(
-        self,
-        event: AstrMessageEvent,
-        user_id: str = "",
-        amount: str = "",
-    ):
-        """修改用户高级货币（管理员）"""
-        async for r in self.fish_admin_cmd(event, "premium", user_id, amount):
-            yield r
 
     async def fish_cmd(
         self,
@@ -1031,6 +1044,36 @@ class FishingPlugin(Star):
         elif sub == "premium":
             async for r in admin_handlers.modify_premium(self, event):
                 yield r
+
+    @filter.command("fish_admin", alias=["钓鱼管理"])
+    @filter.permission_type(PermissionType.ADMIN)
+    async def fish_admin_group(self, event: AstrMessageEvent):
+        """钓鱼管理命令组"""
+        pass
+
+    @filter.command("coins", parent_command_names=["fish_admin"])
+    @filter.permission_type(PermissionType.ADMIN)
+    async def fish_admin_coins_subcmd(
+        self,
+        event: AstrMessageEvent,
+        user_id: str = "",
+        amount: str = "",
+    ):
+        """修改用户金币（管理员）"""
+        async for r in self.fish_admin_cmd(event, "coins", user_id, amount):
+            yield r
+
+    @filter.command("premium", parent_command_names=["fish_admin"])
+    @filter.permission_type(PermissionType.ADMIN)
+    async def fish_admin_premium_subcmd(
+        self,
+        event: AstrMessageEvent,
+        user_id: str = "",
+        amount: str = "",
+    ):
+        """修改用户高级货币（管理员）"""
+        async for r in self.fish_admin_cmd(event, "premium", user_id, amount):
+            yield r
 
     @filter.command("注册", alias=["註冊"])
     async def cmd_register_cn(self, event: AstrMessageEvent):
@@ -2112,6 +2155,20 @@ class FishingPlugin(Star):
         async for r in tutorial_handlers.tutorial_dispatch(self, event):
             yield r
 
+    @filter.command(
+        "公會",
+        alias=[
+            "公会",
+            "guild",
+            "公會系統",
+            "公会系统",
+        ],
+    )
+    async def cmd_guild_cn(self, event: AstrMessageEvent):
+        """公會系統"""
+        async for r in guild_handlers.guild_dispatch(self, event):
+            yield r
+
     async def terminate(self):
         logger.info("釣魚插件正在終止...")
         self.fishing_service.stop_auto_fishing_task()
@@ -2120,6 +2177,8 @@ class FishingPlugin(Star):
         self.exchange_service.stop_daily_price_update_task()
         if hasattr(self, "_red_packet_cleanup_task"):
             self._red_packet_cleanup_task.cancel()
+        if hasattr(self, "_shop_cleanup_task"):
+            self._shop_cleanup_task.cancel()
         if self.web_admin_task:
             self.web_admin_task.cancel()
         if getattr(self, "external_sql_sync_manager", None):

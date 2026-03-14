@@ -1,11 +1,11 @@
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from astrbot.api import logger
 
 from ..repositories.mysql_guild_repo import MysqlGuildRepository
 from ..repositories.mysql_user_repo import MysqlUserRepository
-from ..domain.models import Guild, GuildMember
+from ..domain.models import Guild, GuildMember, GuildBuff
 from ..utils import get_now
 
 
@@ -13,13 +13,67 @@ class GuildService:
     """公會服務"""
 
     GUILD_CONFIG = {
-        "create_cost": 100000,  # 創建公會費用
-        "max_members_base": 30,  # 基礎最大成員數
-        "max_members_per_level": 5,  # 每級增加的成員上限
-        "contribution_reward_ratio": 0.1,  # 貢獻值轉化為金幣獎勵的比例
-        "exp_per_contribution": 1,  # 每點貢獻增加的公會經驗
-        "level_exp_base": 1000,  # 升級所需經驗基礎值
-        "level_exp_multiplier": 1.5,  # 升級經驗倍率
+        "create_cost": 100000,
+        "max_members_base": 30,
+        "max_members_per_level": 5,
+        "contribution_reward_ratio": 0.1,
+        "exp_per_contribution": 1,
+        "level_exp_base": 1000,
+        "level_exp_multiplier": 1.5,
+    }
+
+    BUFF_CONFIG = {
+        "fishing_speed": {
+            "name": "釣魚速度",
+            "icon": "⚡",
+            "max_value": 0.5,
+            "cost_per_percent": 100,
+        },
+        "rare_chance": {
+            "name": "稀有魚機率",
+            "icon": "🌟",
+            "max_value": 0.3,
+            "cost_per_percent": 200,
+        },
+        "coin_bonus": {
+            "name": "金幣加成",
+            "icon": "💰",
+            "max_value": 0.5,
+            "cost_per_percent": 150,
+        },
+        "exp_bonus": {
+            "name": "經驗加成",
+            "icon": "📈",
+            "max_value": 0.5,
+            "cost_per_percent": 100,
+        },
+    }
+
+    CONTRIBUTION_SHOP = {
+        "buff_24h": {
+            "name": "公會 Buff (24小時)",
+            "cost": 500,
+            "type": "buff_purchase",
+        },
+        "buff_72h": {
+            "name": "公會 Buff (72小時)",
+            "cost": 1200,
+            "type": "buff_purchase",
+        },
+        "title_member": {"name": "公會成員稱號", "cost": 1000, "type": "title"},
+        "title_officer": {"name": "公會幹部稱號", "cost": 5000, "type": "title"},
+        "coins_1000": {
+            "name": "1000 金幣",
+            "cost": 100,
+            "type": "coins",
+            "value": 1000,
+        },
+        "coins_5000": {
+            "name": "5000 金幣",
+            "cost": 450,
+            "type": "coins",
+            "value": 5000,
+        },
     }
 
     def __init__(
@@ -222,9 +276,11 @@ class GuildService:
             "max_members": self._get_max_members(guild.level),
         }
 
-    def get_guild_ranking(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """獲取公會排行榜"""
-        guilds = self.guild_repo.get_top_guilds(limit)
+    def get_guild_ranking(
+        self, limit: int = 10, sort_by: str = "fish"
+    ) -> List[Dict[str, Any]]:
+        """獲取公會排行榜（支持多維度排序）"""
+        guilds = self.guild_repo.get_top_guilds(limit, sort_by)
         return [
             {
                 "rank": idx + 1,
@@ -232,6 +288,7 @@ class GuildService:
                 "level": g.level,
                 "member_count": g.member_count,
                 "total_fish": g.total_fish_caught,
+                "total_coins": g.total_coins_earned,
             }
             for idx, g in enumerate(guilds)
         ]
@@ -271,9 +328,240 @@ class GuildService:
                 m.role, "👤"
             )
             role_name = role_names.get(m.role, "成員")
-            lines.append(f"  {role_icon} {role_name} - 貢獻: {m.contribution}")
+            lines.append(f" {role_icon} {role_name} - 貢獻: {m.contribution}")
 
         if len(members) > 10:
-            lines.append(f"  ... 還有 {len(members) - 10} 名成員")
+            lines.append(f" ... 還有 {len(members) - 10} 名成員")
+
+        return "\n".join(lines)
+
+    def set_officer(
+        self, leader_id: str, target_id: str, is_officer: bool = True
+    ) -> Dict[str, Any]:
+        """設置/取消幹部"""
+        guild = self.guild_repo.get_guild_by_leader(leader_id)
+        if not guild:
+            return {"success": False, "message": "你不是公會會長"}
+
+        member = self.guild_repo.get_member(target_id)
+        if not member or member.guild_id != guild.guild_id:
+            return {"success": False, "message": "該用戶不是公會成員"}
+
+        if member.role == "leader":
+            return {"success": False, "message": "無法修改會長的角色"}
+
+        new_role = "officer" if is_officer else "member"
+        self.guild_repo.update_member_role(guild.guild_id, target_id, new_role)
+
+        action = "設為幹部" if is_officer else "取消幹部"
+        return {"success": True, "message": f"已將成員 {action}"}
+
+    def update_guild_info(
+        self, leader_id: str, description: str = None, emblem: str = None
+    ) -> Dict[str, Any]:
+        """更新公會公告/描述"""
+        guild = self.guild_repo.get_guild_by_leader(leader_id)
+        if not guild:
+            return {"success": False, "message": "你不是公會會長"}
+
+        if not self.guild_repo.update_guild_info(guild.guild_id, description, emblem):
+            return {"success": False, "message": "更新失敗"}
+
+        return {"success": True, "message": "公會信息已更新"}
+
+    def search_guilds(self, keyword: str, limit: int = 10) -> Dict[str, Any]:
+        """搜索公會"""
+        guilds = self.guild_repo.search_guilds(keyword, limit)
+        if not guilds:
+            return {"success": False, "message": "沒有找到匹配的公會"}
+
+        result = []
+        for g in guilds:
+            result.append(
+                {
+                    "id": g.guild_id,
+                    "name": g.name,
+                    "level": g.level,
+                    "members": g.member_count,
+                    "description": g.description or "無描述",
+                }
+            )
+
+        return {"success": True, "guilds": result}
+
+    def get_all_guilds(self, limit: int = 20, offset: int = 0) -> Dict[str, Any]:
+        """獲取公會列表"""
+        guilds = self.guild_repo.get_all_guilds(limit, offset)
+        if not guilds:
+            return {"success": False, "message": "目前沒有任何公會"}
+
+        result = []
+        for g in guilds:
+            result.append(
+                {
+                    "id": g.guild_id,
+                    "name": g.name,
+                    "level": g.level,
+                    "members": g.member_count,
+                    "description": g.description or "無描述",
+                }
+            )
+
+        return {"success": True, "guilds": result}
+
+    def get_user_buffs(self, user_id: str) -> Dict[str, float]:
+        """獲取用戶的公會 Buff 加成"""
+        buffs = self.guild_repo.get_user_guild_buffs(user_id)
+        result = {}
+        for buff in buffs:
+            if buff.buff_type not in result:
+                result[buff.buff_type] = 0
+            result[buff.buff_type] += buff.buff_value
+        return result
+
+    def purchase_guild_buff(
+        self, user_id: str, buff_type: str, value: float, duration_hours: int
+    ) -> Dict[str, Any]:
+        """購買公會 Buff（使用貢獻值）"""
+        if buff_type not in self.BUFF_CONFIG:
+            return {"success": False, "message": "無效的 Buff 類型"}
+
+        member = self.guild_repo.get_member(user_id)
+        if not member:
+            return {"success": False, "message": "你沒有加入任何公會"}
+
+        config = self.BUFF_CONFIG[buff_type]
+        cost = int(config["cost_per_percent"] * value * 100)
+
+        if member.contribution < cost:
+            return {"success": False, "message": f"貢獻值不足！需要 {cost} 貢獻值"}
+
+        if value > config["max_value"]:
+            return {
+                "success": False,
+                "message": f"Buff 值超出上限（最大 {config['max_value'] * 100}%）",
+            }
+
+        self.guild_repo.add_contribution(user_id, -cost)
+        self.guild_repo.add_guild_buff(
+            member.guild_id, buff_type, value, duration_hours
+        )
+
+        return {
+            "success": True,
+            "message": f"✅ 已為公會購買 {config['name']} +{value * 100:.0f}%（{duration_hours}小時）\n花費 {cost} 貢獻值",
+        }
+
+    def get_contribution_shop(self) -> Dict[str, Any]:
+        """獲取貢獻值商店"""
+        items = []
+        for item_id, item in self.CONTRIBUTION_SHOP.items():
+            items.append(
+                {
+                    "id": item_id,
+                    "name": item["name"],
+                    "cost": item["cost"],
+                    "type": item["type"],
+                }
+            )
+        return {"success": True, "items": items}
+
+    def purchase_from_shop(self, user_id: str, item_id: str) -> Dict[str, Any]:
+        """從貢獻值商店購買物品"""
+        if item_id not in self.CONTRIBUTION_SHOP:
+            return {"success": False, "message": "無效的物品 ID"}
+
+        item = self.CONTRIBUTION_SHOP[item_id]
+        member = self.guild_repo.get_member(user_id)
+
+        if not member:
+            return {"success": False, "message": "你沒有加入任何公會"}
+
+        if member.contribution < item["cost"]:
+            return {
+                "success": False,
+                "message": f"貢獻值不足！需要 {item['cost']} 貢獻值",
+            }
+
+        self.guild_repo.add_contribution(user_id, -item["cost"])
+
+        if item["type"] == "coins":
+            user = self.user_repo.get_by_id(user_id)
+            if user:
+                user.coins += item["value"]
+                self.user_repo.update(user)
+            return {
+                "success": True,
+                "message": f"✅ 成功兌換 {item['name']}\n花費 {item['cost']} 貢獻值",
+            }
+        elif item["type"] == "buff_purchase":
+            return self._handle_buff_purchase(user_id, item_id)
+
+        return {"success": True, "message": f"✅ 成功購買 {item['name']}"}
+
+    def _handle_buff_purchase(self, user_id: str, item_id: str) -> Dict[str, Any]:
+        """處理 Buff 購買"""
+        member = self.guild_repo.get_member(user_id)
+        if not member:
+            return {"success": False, "message": "獲取成員信息失敗"}
+
+        if item_id == "buff_24h":
+            duration = 24
+        elif item_id == "buff_72h":
+            duration = 72
+        else:
+            return {"success": False, "message": "無效的 Buff 包"}
+
+        random_buff_type = "rare_chance"
+        self.guild_repo.add_guild_buff(
+            member.guild_id, random_buff_type, 0.05, duration
+        )
+
+        return {
+            "success": True,
+            "message": f"✅ 成功為公會購買隨機 Buff！\n獲得：稀有魚機率 +5%（{duration}小時）",
+        }
+
+    def get_guild_contribution_ranking(self, user_id: str) -> Dict[str, Any]:
+        """獲取公會內貢獻排行"""
+        member = self.guild_repo.get_member(user_id)
+        if not member:
+            return {"success": False, "message": "你沒有加入任何公會"}
+
+        ranking = self.guild_repo.get_guild_contribution_ranking(member.guild_id, 10)
+
+        return {
+            "success": True,
+            "ranking": ranking,
+            "my_contribution": member.contribution,
+        }
+
+    def disband_guild_with_confirm(
+        self, leader_id: str, confirm: bool = False
+    ) -> Dict[str, Any]:
+        """解散公會（需要確認）"""
+        if not confirm:
+            guild = self.guild_repo.get_guild_by_leader(leader_id)
+            if not guild:
+                return {"success": False, "message": "你不是公會會長"}
+            return {
+                "success": False,
+                "need_confirm": True,
+                "message": f"⚠️ 確定要解散公會「{guild.name}」嗎？\n解散後公會數據將無法恢復！\n請再次輸入 /公會 解散 確認 來確認解散",
+            }
+
+        return self.disband_guild(leader_id)
+
+    def get_guild_buffs_display(self, user_id: str) -> str:
+        """獲取公會 Buff 顯示"""
+        buffs = self.get_user_buffs(user_id)
+        if not buffs:
+            return "無公會 Buff 生效中"
+
+        lines = ["【公會 Buff】"]
+        for buff_type, value in buffs.items():
+            if buff_type in self.BUFF_CONFIG:
+                config = self.BUFF_CONFIG[buff_type]
+                lines.append(f"{config['icon']} {config['name']}: +{value * 100:.1f}%")
 
         return "\n".join(lines)

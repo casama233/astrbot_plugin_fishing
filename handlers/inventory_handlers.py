@@ -157,7 +157,7 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
 
     try:
         # 导入绘制函数
-        from ..draw.backpack import draw_backpack_image, get_user_backpack_data
+        from ..draw.backpack import draw_backpack_pages, get_user_backpack_data
 
         # 获取用户背包数据
         backpack_data = get_user_backpack_data(
@@ -192,18 +192,21 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         if total_items > 200:
             yield event.plain_result(
-                f"⚠️ 检测到您的背包有 {total_items} 个物品！\\n"
-                "💡 物品过多可能导致图片生成较慢或失败，建议先清理背包。\\n"
-                "📝 您也可以使用「鱼竿」「饰品」「鱼饵」「道具」命令分类查看。\\n"
-                "⏳ 正在生成背包图片，请稍候..."
+                f"⚠️ 检测到您的背包有 {total_items} 个物品！\n"
+                "💡 物品过多可能导致图片生成较慢，正在分页生成...\n"
+                "⏳ 请稍候..."
             )
 
-        # 生成背包图像
-        image = draw_backpack_image(backpack_data, plugin.data_dir)
-        # 保存图像到临时文件
-        image_path = os.path.join(plugin.tmp_dir, f"user_backpack_{user_id}.png")
-        image.save(image_path)
-        yield event.image_result(image_path)
+        # 生成背包图�片页面
+        pages = draw_backpack_pages(backpack_data, plugin.data_dir)
+
+        # 发送所有页面
+        for i, image in enumerate(pages):
+            image_path = os.path.join(
+                plugin.tmp_dir, f"user_backpack_{user_id}_p{i + 1}.png"
+            )
+            image.save(image_path, dpi=(150, 150))
+            yield event.image_result(image_path)
 
         shortcuts = _build_dynamic_shortcuts(plugin, user_id, "backpack")
         if shortcuts:
@@ -231,7 +234,7 @@ async def user_backpack(plugin: "FishingPlugin", event: AstrMessageEvent):
 
         logger.error(f"生成背包图片失败: {e}", exc_info=True)
         yield event.plain_result(
-            "❌ 生成背包图片失败。\\n"
+            "❌ 生成背包图片失败。\n"
             "💡 可能的原因是物品过多，请尝试使用 `/鱼竿` `/饰品` 等命令分类查看。"
         )
 
@@ -400,6 +403,7 @@ async def upgrade_pond(plugin: "FishingPlugin", event: AstrMessageEvent):
 async def rod(plugin: "FishingPlugin", event: AstrMessageEvent):
     """查看用户鱼竿信息"""
     user_id = plugin._get_effective_user_id(event)
+    plugin.tutorial_service.check_command_progress(user_id, "魚竿")
     rod_info = plugin.inventory_service.get_user_rod_inventory(user_id)
     if rod_info and rod_info["rods"]:
         all_rods = rod_info["rods"]
@@ -935,6 +939,7 @@ async def use_equipment(
         ):
             if result["success"]:
                 yield event.plain_result(result["message"])
+                plugin.tutorial_service.check_command_progress(user_id, "使用")
             else:
                 yield event.plain_result(f"❌ 使用{type_name}失败：{result['message']}")
         else:
